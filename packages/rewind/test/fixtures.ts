@@ -4,12 +4,16 @@ import type { FrozenSnapshot } from '../src/recorder/recorder.js';
 
 export const T0 = Date.UTC(2026, 9, 27, 12, 0, 0);
 
+// Sahte sırlar parçalardan birleştirilir; kaynakta tam biçimli sır olmadığı için
+// GitHub secret scanning bu test verisini gerçek sır sanmaz.
+const fake = (...parts: string[]): string => parts.join('');
+
 export const SECRETS = {
   password: 'Hunter2-Sup3rS3cret!',
   email: 'ayse.yilmaz@example.com',
-  token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+  token: fake('eyJhbGciOiJIUzI1NiJ9', '.', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', '.', 'dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U'),
   card: '4111 1111 1111 1111',
-  apiKey: 'sk-proj-abcdefghijklmnopqrstuvwx',
+  apiKey: fake('sk-', 'proj-', 'abcdefghijklmnopqrstuvwx'),
 };
 
 /** Rewind arayüz kökünün sahte rrweb kimliği. */
