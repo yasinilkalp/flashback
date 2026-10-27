@@ -108,7 +108,7 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
     // Demo'nun geçici kopyası (düzeltmeler buraya uygulanır). node_modules demo'nunkine bağlanır.
     work = mkdtempSync(join(repo, 'examples', 'e2e-tmp-'));
     cpSync(demoSrc, work, { recursive: true, filter: (p) => !p.includes('node_modules') && !p.includes('.rewind') });
-    if (existsSync(join(demoSrc, 'node_modules'))) symlinkSync(join(demoSrc, 'node_modules'), join(work, 'node_modules'), 'dir');
+    if (existsSync(join(demoSrc, 'node_modules'))) symlinkSync(join(demoSrc, 'node_modules'), join(work, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
 
     receiverPort = await freePort();
     await startMcp();

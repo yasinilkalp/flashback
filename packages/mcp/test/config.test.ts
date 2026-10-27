@@ -63,7 +63,7 @@ describe('loadConfig (§9.4, FR-CFG-05)', () => {
     const opts = { cwd: path.join(root, 'src', 'deep'), homedir: '/nonexistent-home' };
     expect(loadConfig({}, opts).dir).toBe(path.join(root, '.rewind'));
     expect(loadConfig({ REWIND_PROJECT_ROOT: other }, opts).dir).toBe(path.join(other, '.rewind'));
-    expect(loadConfig({ REWIND_PROJECT_ROOT: other, REWIND_DIR: '/tmp/x-rewind' }, opts).dir).toBe('/tmp/x-rewind');
+    expect(loadConfig({ REWIND_PROJECT_ROOT: other, REWIND_DIR: '/tmp/x-rewind' }, opts).dir).toBe(path.resolve('/tmp/x-rewind'));
   });
 
   it('ev dizini ve kök dizin reddedilir', () => {

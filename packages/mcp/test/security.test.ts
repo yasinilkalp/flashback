@@ -117,6 +117,10 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
 
   it('id=../../x 400 alır ve diskte dosya oluşmaz', async () => {
     const before = fs.readdirSync(dir).sort();
+    // macOS'ta dosya sistemi büyük/küçük harfe duyarsız: `../../x`, tmpdir'in üstündeki `X` klasörüyle eşleşir.
+    // Bu yüzden varlık denetimi yerine üst klasörün içeriğini önce/sonra karşılaştır.
+    const grand = path.join(dir, '..', '..');
+    const grandBefore = fs.readdirSync(grand).sort();
     for (const p of ['/incidents/..%2F..%2Fx', '/incidents/..%2F..%2Fx/messages', '/incidents/rw-20261027-000000-ab%2F..']) {
       const get = await raw(port, { path: p, headers: { 'x-rewind-client': 't' } });
       expect(get.status, p).toBe(400);
@@ -124,7 +128,7 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     const post = await raw(port, { method: 'POST', path: '/incidents/..%2F..%2Fx/messages', headers: BROWSER, body: JSON.stringify({ text: 'hi' }) });
     expect(post.status).toBe(400);
     expect(fs.readdirSync(dir).sort()).toEqual(before);
-    expect(fs.existsSync(path.join(dir, '..', '..', 'x'))).toBe(false);
+    expect(fs.readdirSync(grand).sort()).toEqual(grandBefore);
   });
 
   it('geçerli tarayıcı POST 201 alır; şemaya uymayan 400 alır', async () => {
