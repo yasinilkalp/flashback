@@ -7,7 +7,7 @@
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "flashback-devtools": "file:../../.packs/flashback-devtools-0.1.0.tgz"
+    "flashback-devtools": "file:../../.packs/flashback-devtools-0.1.0-beta.0.tgz"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -7,7 +7,7 @@
  * Önkoşul: depo kökünde `npm run build` (flashback-devtools dist'i). Etiketleme: `fixture.mjs`.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { APPS, writeFixture } from './fixture.mjs';
@@ -15,6 +15,7 @@ import { APPS, writeFixture } from './fixture.mjs';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const repo = join(here, '../..');
 const packs = join(here, '.packs');
+const version = JSON.parse(readFileSync(join(repo, 'packages/flashback/package.json'), 'utf8')).version;
 const forceInstall = process.argv.includes('--install');
 const isWin = process.platform === 'win32';
 
@@ -40,7 +41,7 @@ for (const app of Object.keys(APPS)) {
     npm(['install', '--no-audit', '--no-fund', '--no-package-lock'], appDir);
   } else {
     // tgz içeriği her paketlemede değişir; kurulu kopyayı tazele.
-    npm(['install', '--no-audit', '--no-fund', '--no-package-lock', '--no-save', join(packs, 'flashback-devtools-0.1.0.tgz')], appDir);
+    npm(['install', '--no-audit', '--no-fund', '--no-package-lock', '--no-save', join(packs, `flashback-devtools-${version}.tgz`)], appDir);
   }
 }
 console.log('EK-B3 hazır.');
