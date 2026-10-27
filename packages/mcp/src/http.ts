@@ -110,13 +110,17 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
   function readBody(req: http.IncomingMessage, res: http.ServerResponse): Promise<string> {
     const limit = config.maxBodyBytes;
     const declared = Number(req.headers['content-length']);
-    // Gövde sınırı aşılırsa hemen 413 döner, gövde artık saklanmaz (FR-RCV-SEC-05). Kalan veri kısa süre okunup
-    // atılır, sonra bağlantı kapatılır: okunmamış veriyle kapatmak TCP RST'ye yol açar ve istemci 413'ü göremeyebilir.
+    // Gövde sınırı aşılırsa hemen 413 döner, gövde artık saklanmaz (FR-RCV-SEC-05). Kalan veri okunup atılır:
+    // okunmamış veri varken soketi kapatmak TCP RST'ye yol açar; macOS ve Windows RST'yi okunmamış 413 yanıtından
+    // önce işler ve istemci 413 yerine ECONNRESET görür. Bu yüzden `connection: close` gönderilmez (Node o durumda
+    // yanıt biter bitmez soketi kapatır). Gövde 2 sn içinde bitmezse (yavaş/sonsuz akış) bağlantı kesilir.
     const tooLarge = () => {
-      res.setHeader('connection', 'close');
       send(res, 413, { error: `Gövde ${Math.round(limit / 1048576)} MB sınırını aşıyor (REWIND_MAX_BODY_MB).` });
       req.resume();
-      res.on('finish', () => setTimeout(() => req.destroy(), 2000).unref());
+      const timer = setTimeout(() => {
+        if (!req.complete) req.destroy();
+      }, 2000).unref();
+      req.once('end', () => clearTimeout(timer));
       return new HttpError(413, 'too large');
     };
     if (Number.isFinite(declared) && declared > limit) return Promise.reject(tooLarge());

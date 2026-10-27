@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as http from 'node:http';
+import * as net from 'node:net';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createReceiver, IncidentStore, isAllowedOrigin, type Receiver } from '../src/index.js';
@@ -113,6 +114,28 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
       pump();
     });
     expect(r).toBe(413);
+  });
+
+  it('413 sonrası kalan gövde okunur, soket sıfırlanmaz (macOS/Windows ECONNRESET)', async () => {
+    // Sunucu 413'ü yazıp soketi hemen kapatırsa istemcinin yazmaya devam ettiği veri RST üretir. Linux'ta istemci
+    // çoğu zaman 413'ü yine okur, macOS/Windows'ta okuyamaz. Bu test RST'yi her platformda doğrudan yakalar.
+    const size = 6 * 1024 * 1024;
+    const result = await new Promise<{ head: string; error: string | null }>((resolve) => {
+      const sock = net.connect(port, '127.0.0.1');
+      let head = '';
+      let error: string | null = null;
+      sock.on('data', (c) => (head += c.toString('latin1')));
+      sock.on('error', (e: NodeJS.ErrnoException) => (error = e.code ?? e.message));
+      sock.on('connect', () => {
+        sock.write(
+          `POST /incidents HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nOrigin: http://localhost:5173\r\n` +
+            `Content-Type: application/json\r\nContent-Length: ${size}\r\n\r\n`,
+        );
+        sock.end(Buffer.alloc(size, 'a'), () => setTimeout(() => (sock.destroy(), resolve({ head, error })), 300));
+      });
+    });
+    expect(result.head.startsWith('HTTP/1.1 413')).toBe(true);
+    expect(result.error).toBeNull();
   });
 
   it('id=../../x 400 alır ve diskte dosya oluşmaz', async () => {
