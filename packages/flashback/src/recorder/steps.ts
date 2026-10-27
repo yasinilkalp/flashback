@@ -27,6 +27,18 @@ function isValueField(el: Element): el is HTMLInputElement | HTMLTextAreaElement
   return tag === 'input' && !TEXT_INPUT_EXCLUDED.has((el as HTMLInputElement).type);
 }
 
+/**
+ * Kapsayıcı tıklamasının öğe kutusundaki göreli konumu. Klavyeyle tetiklenen tıklamalarda (`detail === 0`)
+ * ya da kutusu olmayan öğede `null`.
+ */
+function clickOffset(el: Element, e: MouseEvent): { x: number; y: number } | null {
+  if (e.detail === 0) return null;
+  const r = el.getBoundingClientRect();
+  if (!(r.width > 0 && r.height > 0)) return null;
+  const ratio = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 1000) / 1000;
+  return { x: ratio((e.clientX - r.left) / r.width), y: ratio((e.clientY - r.top) / r.height) };
+}
+
 export class StepCapture {
   private entries: StepRecord[] = [];
   private pending = new Map<Element, { value: string; time: number }>();
@@ -116,7 +128,8 @@ export class StepCapture {
       if (labelClick && labelClick.control === el && now - labelClick.time < 100) return;
       const control = el.tagName === 'LABEL' ? (el as HTMLLabelElement).control : null;
       labelClick = control ? { control, time: now } : null;
-      this.push({ time: now, type: 'click', ...this.selectorsFor(el) });
+      const at = raw.closest(ACTIONABLE) ? null : clickOffset(el, e);
+      this.push({ time: now, type: 'click', ...this.selectorsFor(el), ...(at ? { at } : {}) });
     });
 
     const navigate = () => this.push({ time: Date.now(), type: 'navigate', url: win.location.href });

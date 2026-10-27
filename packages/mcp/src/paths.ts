@@ -19,12 +19,57 @@ export function toProjectRelative(file: string, roots: readonly string[]): strin
     }
   }
   p = p.replace(/^\/([A-Za-z]:[\\/])/, '$1'); // /C:/x → C:/x
-  if (!path.isAbsolute(p)) return file;
+  if (!path.isAbsolute(p)) return roots.length ? inWorkspacePackage(p, roots[0]) : file;
   for (const root of roots) {
     const rel = path.relative(root, p);
     if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) return rel.split(path.sep).join('/');
   }
   return file;
+}
+
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage']);
+
+/** Kökün altında (en çok iki düzey) `package.json` taşıyan klasörler; monorepo paketleri. */
+function packageDirs(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string, depth: number) => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (!e.isDirectory() || e.name.startsWith('.') || SKIP_DIRS.has(e.name)) continue;
+      const sub = path.join(dir, e.name);
+      if (fs.existsSync(path.join(sub, 'package.json'))) out.push(sub);
+      if (depth < 2) walk(sub, depth + 1);
+    }
+  };
+  walk(root, 1);
+  return out;
+}
+
+const isFile = (p: string) => {
+  try {
+    return fs.statSync(p).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Göreli yol (Vite gibi bundler'lar kaynağı kendi köküne göre verir, ör. `src/Cart.tsx`) proje kökünde yoksa
+ * monorepo paketlerinde aranır; yalnızca tek bir pakette varsa yol o pakete göre tamamlanır
+ * (`examples/demo/src/Cart.tsx`). Bulunamazsa ya da birden çok aday varsa olduğu gibi kalır.
+ */
+function inWorkspacePackage(rel: string, root: string): string {
+  const clean = rel.replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!clean || clean.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(clean)) return rel;
+  if (isFile(path.join(root, clean))) return clean;
+  const hits = packageDirs(root).filter((d) => isFile(path.join(d, clean)));
+  if (hits.length !== 1) return rel;
+  return path.relative(root, path.join(hits[0], clean)).split(path.sep).join('/');
 }
 
 /** Proje kökü ve (sembolik bağlantıysa) gerçek yolu. */

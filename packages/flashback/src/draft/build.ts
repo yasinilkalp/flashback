@@ -310,6 +310,7 @@ export function buildDraft(input: DraftInput): IncidentDraftInput {
       ...(s.valueRedactedAs ? { valueRedactedAs: s.valueRedactedAs } : {}),
       ...(s.key ? { key: s.key } : {}),
       ...(s.url ? { url: r.url(s.url) } : {}),
+      ...(s.at ? { at: s.at } : {}),
     })),
     network: network.map((n) => ({
       t: rel(n.time),

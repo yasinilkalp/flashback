@@ -26,6 +26,14 @@ const CART_HTML = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><t
 <script src="/app.js"></script>
 </body></html>`;
 
+/** Ortasında düğme olan kapsayıcı: kapsayıcının boş köşesine tıklama düğmeye denk gelmemeli. */
+const CONTAINER_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Kapsayıcı</title></head><body>
+<div id="box" style="width:300px;height:200px;display:flex;align-items:center;justify-content:center;border:1px solid #999">
+<button id="add" onclick="document.getElementById('count').textContent = String(Number(document.getElementById('count').textContent) + 1)">Ekle</button>
+</div>
+<p>Adet: <span id="count">0</span></p>
+</body></html>`;
+
 const appJs = (fixed: boolean) => `
 document.getElementById('apply').addEventListener('click', async () => {
   const email = document.getElementById('email').value;
@@ -119,6 +127,8 @@ export async function startFixtureApp(opts: { foreign?: string } = {}): Promise<
         return html(`<!doctype html><title>Go</title><a id="bounce" href="/bounce">bounce</a> <a id="ext" href="${foreign}/sso-login">ext</a>`);
       case '/trap':
         return html(TRAP_HTML);
+      case '/container':
+        return html(CONTAINER_HTML);
       default:
         return html('yok', 404);
     }

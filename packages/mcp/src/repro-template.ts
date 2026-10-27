@@ -89,6 +89,14 @@ test('flashback repro', async ({ browser }) => {
       }
       return step.value ?? '';
     };
+    // Kapsayıcı tıklaması kayıttaki göreli noktaya yapılır; ortası içindeki bir düğmeye denk gelebilir.
+    const clickStep = async (loc, step) => {
+      const at = step.at;
+      const box = at ? await loc.boundingBox() : null;
+      if (!box) return loc.click();
+      const r = (v) => Math.min(1, Math.max(0, Number(v) || 0));
+      return loc.click({ position: { x: r(at.x) * box.width, y: r(at.y) * box.height } });
+    };
     const settle = () => page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
     // Her etkileşimden ve beklenti denetiminden önce sayfa izinli kökende olmalı (yabancı sayfaya değer yazılmaz).
     const ensureOrigin = (what) => {
@@ -132,7 +140,7 @@ test('flashback repro', async ({ browser }) => {
           }
         }
         ensureOrigin('adım ' + s.n);
-        if (s.type === 'click') await loc.click();
+        if (s.type === 'click') await clickStep(loc, s);
         else if (s.type === 'input') await loc.fill(valueOf(s));
         else if (s.type === 'key') {
           if (loc) await loc.press(s.key);
@@ -327,6 +335,14 @@ test('flashback repro ' + DATA.incidentId, async ({ page, context, baseURL }) =>
     }
     return step.value ?? '';
   };
+  // Kapsayıcı tıklaması kayıttaki göreli noktaya yapılır; ortası içindeki bir düğmeye denk gelebilir.
+  const clickStep = async (loc, step) => {
+    const at = step.at;
+    const box = at ? await loc.boundingBox() : null;
+    if (!box) return loc.click();
+    const r = (v) => Math.min(1, Math.max(0, Number(v) || 0));
+    return loc.click({ position: { x: r(at.x) * box.width, y: r(at.y) * box.height } });
+  };
   const settle = () => page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
   const ensureOrigin = (what) => {
     if (!isAllowed(page.url())) throw new Error('Flashback ön koşul: sayfa izinli olmayan bir kökene geçti; ' + what + ' yapılmadı.');
@@ -359,7 +375,7 @@ test('flashback repro ' + DATA.incidentId, async ({ page, context, baseURL }) =>
       }
     }
     ensureOrigin('adım ' + s.n);
-    if (s.type === 'click') await loc.click();
+    if (s.type === 'click') await clickStep(loc, s);
     else if (s.type === 'input') await loc.fill(valueOf(s));
     else if (s.type === 'key') {
       if (loc) await loc.press(s.key);

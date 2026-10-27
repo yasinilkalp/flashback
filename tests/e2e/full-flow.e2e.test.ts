@@ -217,6 +217,9 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback uçtan uca: panel → MCP �
     const page = await openApp();
     await fillCart(page, 'YAZ10');
     await expect.poll(() => page.getByTestId('total').textContent()).toBe('135030 ₺');
+    // Boş alana tıklama (KK-5 Codex smoke bulgusu): repro bunu kapsayıcının ortasına değil, aynı noktaya tıklamalı;
+    // aksi hâlde ortadaki "Sepete ekle" düğmesine denk gelip sepeti değiştirebilir.
+    await page.locator('main').click({ position: { x: 4, y: 4 } });
     await page.waitForTimeout(1200);
     await openPanel(page);
     await page.locator('[data-fb="back"]').click();

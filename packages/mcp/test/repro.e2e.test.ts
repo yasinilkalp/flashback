@@ -70,6 +70,25 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
     await client.close();
   });
 
+  it('kapsayıcı tıklaması kayıttaki noktaya yapılır; ortadaki düğmeye tıklanmaz (KK-5 Codex smoke bulgusu)', async () => {
+    const base = draft(app.origin);
+    const inc = store.create(
+      {
+        ...base,
+        context: { ...base.context, url: `${app.origin}/container`, startUrl: `${app.origin}/container` },
+        target: { ...base.target!, selector: '#count', fallbackSelectors: [], text: '0', html: '<span id="count">0</span>' },
+        steps: [
+          { t: 1000, type: 'click', selector: '#add', fallbackSelectors: [] },
+          { t: 2000, type: 'click', selector: '#box', fallbackSelectors: [], at: { x: 0.05, y: 0.1 } },
+        ],
+        network: [],
+      },
+      config.projectId,
+    );
+    const r = await runRepro({ config, store }, { id: inc.id, assertions: "await expect(target).toHaveText('1')" });
+    expect(r.run.status, r.run.error).toBe('passed');
+  });
+
   it('FLASHBACK_NO_IMAGES: görüntü yerine dosya yolu (FR-MCP-12 yedeği)', async () => {
     app.setFixed(true);
     const inc = store.create(draft(app.origin), config.projectId);

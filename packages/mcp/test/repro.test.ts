@@ -56,6 +56,17 @@ describe('adım verisi ve sentetik değerler (FR-REPRO-13/14/15, EK-B1)', () => 
     expect(data.steps.find((s) => s.selectors.includes('#after'))).toBeUndefined(); // markedAtMs sonrası oynatılmaz
   });
 
+  it('kapsayıcı tıklamasının göreli noktası adım verisine geçer', () => {
+    const d = draft();
+    d.steps = [
+      { t: 10, type: 'click', selector: '#box', fallbackSelectors: [], at: { x: 0.05, y: 0.9 } },
+      { t: 20, type: 'click', selector: '#apply', fallbackSelectors: [] },
+    ];
+    const { data } = buildStepsData(incident(d), stepsOpts);
+    expect(data.steps[0].at).toEqual({ x: 0.05, y: 0.9 });
+    expect(data.steps[1]).not.toHaveProperty('at');
+  });
+
   it('alan adı ortam değişkeni', () => {
     expect(fieldEnvName(['input[name="e-mail"]'])).toBe('FLASHBACK_INPUT_E_MAIL');
     expect(fieldEnvName(['div > #userEmail'])).toBe('FLASHBACK_INPUT_USEREMAIL');

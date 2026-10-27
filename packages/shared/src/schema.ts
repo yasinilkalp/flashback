@@ -21,6 +21,13 @@ export const StepSchema = z.object({
     .optional(),
   key: z.string().optional(),
   url: z.string().optional(),
+  /**
+   * Eylem öğesi olmayan bir kapsayıcıya yapılan fare tıklamasında, tıklamanın öğe kutusu içindeki göreli
+   * konumu (0–1). Repro aynı noktaya tıklar; öğenin ortasına tıklamak içindeki bir düğmeye denk gelebilir.
+   */
+  at: z
+    .object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
+    .optional(),
 });
 
 export const NetworkEntrySchema = z.object({

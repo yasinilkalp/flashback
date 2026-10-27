@@ -94,7 +94,7 @@ export interface StepsData {
   timezone: string;
   storageState: string | null;
   strict: boolean;
-  steps: Array<{ n: number; type: Step['type']; selectors: string[]; value?: string; env?: string[]; key?: string; url?: string }>;
+  steps: Array<{ n: number; type: Step['type']; selectors: string[]; value?: string; env?: string[]; key?: string; url?: string; at?: { x: number; y: number } }>;
   firstActionIndex: number;
   target: { selectors: string[] } | null;
   /** Taban kökene ek olarak gezinmeye izin verilen kökenler (FLASHBACK_ALLOW_ORIGINS). */
@@ -194,6 +194,7 @@ export function buildStepsData(inc: Incident, opts: BuildStepsOptions): { data: 
     }
     const out: StepsData['steps'][number] = { n, type: s.type, selectors };
     if (s.type === 'key') out.key = s.key ?? 'Enter';
+    if (s.type === 'click' && s.at) out.at = { x: s.at.x, y: s.at.y };
     if (s.type === 'input') {
       let value = s.value ?? '';
       const fieldEnv = fieldEnvName(selectors);
@@ -574,7 +575,7 @@ export interface PortableData {
   locale: string;
   timezone: string;
   strict: boolean;
-  steps: Array<{ n: number; type: Step['type']; selectors: string[]; value?: string; env?: string[]; key?: string; path?: string }>;
+  steps: Array<{ n: number; type: Step['type']; selectors: string[]; value?: string; env?: string[]; key?: string; path?: string; at?: { x: number; y: number } }>;
   firstActionIndex: number;
   target: { selectors: string[] } | null;
 }

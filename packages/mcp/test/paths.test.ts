@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { IncidentDraftSchema } from '@flashback/shared';
@@ -36,5 +37,29 @@ describe('kaynak yollarını proje köküne göre kısaltma (EK-B3)', () => {
     expect(out.target?.file).toBe('src/Cart.tsx');
     expect(out.console.map((c) => c.source)).toEqual(['src/Cart.tsx:3:4', undefined]);
     expect(relativizeDraft({ ...base, target: null }, roots).target).toBeNull();
+  });
+
+  it('bundler köküne göre göreli yol, monorepoda tek eşleşen pakete göre tamamlanır (KK-5 Codex smoke bulgusu)', () => {
+    const mono = tmpDir('flashback-mono-');
+    const put = (rel: string) => {
+      fs.mkdirSync(path.dirname(path.join(mono, rel)), { recursive: true });
+      fs.writeFileSync(path.join(mono, rel), '');
+    };
+    put('package.json');
+    put('examples/demo/package.json');
+    put('examples/demo/src/Cart.tsx');
+    put('examples/demo/src/App.tsx');
+    put('examples/other/package.json');
+    put('examples/other/src/App.tsx');
+    put('examples/demo/node_modules/x/package.json');
+    put('examples/demo/node_modules/x/src/Only.tsx');
+    put('src/Root.tsx');
+    const r = projectRoots(mono);
+    expect(toProjectRelative('src/Cart.tsx', r)).toBe('examples/demo/src/Cart.tsx');
+    expect(toProjectRelative('./src/Cart.tsx', r)).toBe('examples/demo/src/Cart.tsx');
+    expect(toProjectRelative('src/App.tsx', r)).toBe('src/App.tsx'); // iki aday: değişmez
+    expect(toProjectRelative('src/Root.tsx', r)).toBe('src/Root.tsx'); // kökte var
+    expect(toProjectRelative('src/Only.tsx', r)).toBe('src/Only.tsx'); // node_modules taranmaz
+    expect(toProjectRelative('src/Yok.tsx', r)).toBe('src/Yok.tsx');
   });
 });

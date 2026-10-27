@@ -58,6 +58,20 @@ describe('StepCapture (FR-REC-07)', () => {
     expect(steps[2].url).toMatch(/\/account$/);
   });
 
+  it('records the relative point of a container click, but not of an actionable element click', () => {
+    const box = document.createElement('div');
+    box.id = 'box';
+    document.body.appendChild(box);
+    box.getBoundingClientRect = () => ({ left: 100, top: 50, width: 200, height: 100, right: 300, bottom: 150, x: 100, y: 50, toJSON: () => ({}) }) as DOMRect;
+    box.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 110, clientY: 140, detail: 1 }));
+    box.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 110, clientY: 140, detail: 0 })); // klavye
+    document.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5, detail: 1 }));
+    const clicks = capture.snapshot().filter((s) => s.type === 'click');
+    expect(clicks[0]).toMatchObject({ selector: '#box', at: { x: 0.05, y: 0.9 } });
+    expect(clicks[1].at).toBeUndefined();
+    expect(clicks[2].at).toBeUndefined();
+  });
+
   it('does not double-record the click a <label> forwards to its control', () => {
     document.querySelector('label')!.click();
     const clicks = capture.snapshot().filter((s) => s.type === 'click');
