@@ -59,6 +59,14 @@ jobs:
       - name: Paket içeriği
         run: npm pack --dry-run -w flashback-devtools -w flashback-mcp
 
+      - name: npm kimliği
+        # Belirteç geçersizse burada açık bir hatayla durur; yetki (yazma, tüm paketler, 2FA atlama) npm'de ayarlanır.
+        run: |
+          user=$(npm whoami)
+          echo "npm kullanıcısı: $user"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Yayınla
         if: github.event_name == 'push' || inputs.dry_run == false
         run: npm publish -w flashback-devtools -w flashback-mcp --provenance --access public --tag ${{ steps.version.outputs.tag }}
