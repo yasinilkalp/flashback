@@ -1,0 +1,7 @@
+node_modules
+dist
+.rewind
+*.log
+test-results
+playwright-report
+examples/e2e-tmp-*

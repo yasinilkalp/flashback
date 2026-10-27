@@ -1,0 +1,30 @@
+{
+  "name": "rewind-monorepo",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": [
+    "packages/shared",
+    "packages/rewind",
+    "packages/mcp",
+    "examples/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w demo",
+    "build": "npm run build -w @rewind/shared && npm run build -w rewind-devtools && npm run build -w rewind-mcp",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mcp": "node packages/mcp/dist/cli.js",
+    "setup:browsers": "playwright install chromium",
+    "release:check": "npm run build && npm pack --dry-run -w rewind-devtools -w rewind-mcp",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "tsup": "^8.3.5",
+    "vitest": "^3.2.7"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,66 @@
+{
+  "name": "rewind-mcp",
+  "version": "0.1.0",
+  "description": "Rewind MCP sunucusu: tarayıcıdan gelen hata olaylarını AI kodlama ajanına iletir ve düzeltmeyi kırmızı→yeşil Playwright testiyle doğrular.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "rewind-mcp": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "^4.1.0"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.45.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@rewind/shared": "0.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yasinilkalp/rewind.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/yasinilkalp/rewind#readme",
+  "bugs": {
+    "url": "https://github.com/yasinilkalp/rewind/issues"
+  },
+  "keywords": [
+    "mcp",
+    "ai",
+    "debugging",
+    "playwright",
+    "rrweb",
+    "react",
+    "devtools"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

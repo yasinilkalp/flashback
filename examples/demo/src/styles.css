@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f6f6f8; color: #13151b; }
+.app header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #13151b; color: #fff; }
+.app header h1 { font-size: 18px; margin: 0; }
+.app nav { display: flex; gap: 16px; }
+.app nav a { color: #fff; }
+main { padding: 24px; max-width: 960px; margin: 0 auto; }
+.shop { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+section { background: #fff; border-radius: 8px; padding: 16px; }
+.products ul { list-style: none; padding: 0; margin: 0; }
+.products li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+.cart dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+.cart dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.cart [data-testid='total'] { font-weight: 700; }
+form { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.login { max-width: 320px; }
+button { padding: 6px 12px; cursor: pointer; }
+[role='alert'] { color: #b42318; }
