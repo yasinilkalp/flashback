@@ -5,6 +5,7 @@ import type { ControllerState, FlashbackController } from '../controller.js';
 import { strings, type Strings } from './i18n.js';
 import { IncidentsTab } from './Incidents.js';
 import { TimelineTab } from './Timeline.js';
+import { Logo } from './Logo.js';
 
 export function Shell({ controller }: { controller: FlashbackController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
@@ -95,7 +96,10 @@ function Panel({ controller, state, t }: { controller: FlashbackController; stat
       }}
     >
       <div className="fb-header">
-        <span className="fb-title">{t.panelTitle}</span>
+        <span className="fb-title">
+          <Logo className="fb-logo" />
+          {t.panelTitle}
+        </span>
         <div role="tablist" aria-label={t.panelTitle} className="fb-row">
           {(['timeline', 'incidents'] as const).map((id) => (
             <button
