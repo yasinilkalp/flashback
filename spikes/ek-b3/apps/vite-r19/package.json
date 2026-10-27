@@ -1,0 +1,19 @@
+{
+  "name": "ekb3-vite-r19",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite" },
+  "dependencies": {
+    "ekb3-lib": "file:../../.packs/ekb3-lib-1.0.0.tgz",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "rewind-devtools": "file:../../.packs/rewind-devtools-0.1.0.tgz"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "typescript": "5.9.3",
+    "vite": "8.3.5"
+  }
+}

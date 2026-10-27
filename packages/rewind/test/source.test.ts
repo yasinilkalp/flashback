@@ -1,7 +1,7 @@
 import { SourceMapGenerator } from 'source-map-js';
 import { describe, expect, it } from 'vitest';
-import { isLocalSource, SourceResolver, toProjectPath } from '../src/source/sourcemap.js';
-import { firstUserFrame, parseStack } from '../src/source/stack.js';
+import { isLocalSource, SourceResolver, toProjectPath, type ResolverOptions } from '../src/source/sourcemap.js';
+import { firstUserFrame, isDependencyPath, parseStack, serverComponentFile, userFrames } from '../src/source/stack.js';
 
 const REACT19_STACK = `Error: react-stack-top-frame
     at exports.jsxDEV (http://localhost:5173/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=3b0df4d9:197:25)
@@ -21,6 +21,38 @@ describe('stack parsing', () => {
     expect(firstUserFrame('Error\n    at http://localhost:5173/src/a.ts:1:2')).toMatchObject({ url: 'http://localhost:5173/src/a.ts', line: 1, column: 2 });
     expect(firstUserFrame(undefined)).toBeNull();
   });
+
+  // EK-B3: Next.js webpack (eval-source-map) çerçeveleri parantezli URL taşır.
+  const NEXT_WEBPACK_STACK = `Error: react-stack-top-frame
+    at exports.jsxDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react/cjs/react-jsx-dev-runtime.development.js:333:29)
+    at ClientRoot (webpack-internal:///(app-pages-browser)/./src/fixture/ClientRoot.tsx:31:87)
+    at Object.react_stack_bottom_frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:28588:20)`;
+
+  // EK-B3: Turbopack bağımlılık chunk'ları ve RSC'nin sahte sunucu çerçeveleri.
+  const NEXT_TURBOPACK_RSC_STACK = `Error: react-stack-top-frame
+    at fakeJSXCallSite (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-67asdr9._.js:2093:21)
+    at ServerPart (about://React/Server/C:%5Capp%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C%5Broot-of-the-server%5D__0t._.js?5:88:263)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-67asdr9._.js:2859:93)`;
+
+  it('parses parenthesised webpack-internal URLs and skips Next/Turbopack internals', () => {
+    expect(userFrames(NEXT_WEBPACK_STACK)).toEqual([
+      { fn: 'ClientRoot', url: 'webpack-internal:///(app-pages-browser)/./src/fixture/ClientRoot.tsx', line: 31, column: 87 },
+    ]);
+    expect(userFrames(NEXT_TURBOPACK_RSC_STACK)).toMatchObject([{ fn: 'ServerPart', line: 88, column: 263 }]);
+    const jsx = 'Error\n    at exports.jsx (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcmz--cdp._.js:966:33)\n    at LibBox (http://localhost:3000/_next/static/chunks/_12ie3ib4yzj7d._.js:13:190)';
+    expect(userFrames(jsx)).toMatchObject([{ fn: 'LibBox' }]);
+    expect(userFrames('ClientRoot@webpack-internal:///(app-pages-browser)/./src/a.tsx:31:87')).toMatchObject([{ url: 'webpack-internal:///(app-pages-browser)/./src/a.tsx', line: 31 }]);
+  });
+
+  it('decodes RSC server frames and recognises dependency paths', () => {
+    expect(serverComponentFile('about://React/Server/C:%5Capp%5Cchunk.js?5')).toBe('C:\\app\\chunk.js');
+    expect(serverComponentFile('rsc://React/Server/webpack-internal:///(rsc)/./src/a.tsx?12')).toBe('webpack-internal:///(rsc)/./src/a.tsx');
+    expect(serverComponentFile('http://localhost:3000/a.js')).toBeNull();
+    expect(isDependencyPath('node_modules/lib/index.js')).toBe(true);
+    expect(isDependencyPath('C:\\app\\node_modules\\lib\\index.js')).toBe(true);
+    expect(isDependencyPath('/app/node_modules/next/dist/x.js')).toBe(true);
+    expect(isDependencyPath('src/node_modules_list.tsx')).toBe(false);
+  });
 });
 
 describe('toProjectPath', () => {
@@ -33,6 +65,8 @@ describe('toProjectPath', () => {
     ['webpack://my-app/./src/components/Cart.tsx', 'src/components/Cart.tsx'],
     ['webpack-internal:///(app-pages-browser)/./src/app/page.tsx', 'src/app/page.tsx'],
     ['file:///home/u/app/src/page.tsx', '/home/u/app/src/page.tsx'],
+    ['file:///C:/Users/u/app/src/page.tsx', 'C:/Users/u/app/src/page.tsx'],
+    ['turbopack:///[project]/src/app/page.tsx', 'src/app/page.tsx'],
   ])('%s → %s', (source, expected) => expect(toProjectPath(source, script)).toBe(expected));
 
   it('keeps /@fs/ files as absolute paths', () => {
@@ -48,7 +82,7 @@ function fixtureMap(withContent: boolean) {
   return gen.toString();
 }
 
-function resolverFor(files: Record<string, string>, pageOrigin = 'http://localhost:5173') {
+function resolverFor(files: Record<string, string>, pageOrigin = 'http://localhost:5173', opts?: ResolverOptions) {
   const fetched: string[] = [];
   const resolver = new SourceResolver(
     async (url) => {
@@ -56,8 +90,22 @@ function resolverFor(files: Record<string, string>, pageOrigin = 'http://localho
       return files[url] ?? null;
     },
     (url) => isLocalSource(url, pageOrigin),
+    opts,
   );
   return { resolver, fetched };
+}
+
+/** Derlenmiş satır 3, sütun 4 → `source` içinde `line`. */
+function mapTo(source: string, line: number) {
+  const gen = new SourceMapGenerator({ file: 'x.js' });
+  gen.addMapping({ generated: { line: 3, column: 4 }, original: { line, column: 4 }, source });
+  return gen.toString();
+}
+
+/** webpack eval-source-map chunk'ındaki bir modül (chunk metninde satır sonu `\n` kaçışlıdır). */
+function evalModule(moduleUrl: string, map: string) {
+  const b64 = Buffer.from(map).toString('base64');
+  return `eval(__webpack_require__.ts("a\\nb\\n    jsxDEV()\\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${b64}\\n//# sourceURL=${moduleUrl}\\n"));\n`;
 }
 
 describe('SourceResolver (FR-MARK-04/11/12)', () => {
@@ -90,6 +138,54 @@ describe('SourceResolver (FR-MARK-04/11/12)', () => {
     expect(await r2.resolve({ ...frame, line: 1, column: 1 })).toMatchObject({ resolved: false, line: 1, reason: 'source map bu konumu eşlemiyor' });
     const r3 = resolverFor({}).resolver;
     expect((await r3.resolve(frame)).resolved).toBe(false);
+  });
+});
+
+describe('SourceResolver: Next.js and webpack special cases (EK-B3)', () => {
+  const origin = 'http://localhost:3000';
+  const moduleUrl = 'webpack-internal:///(app-pages-browser)/./src/Cart.tsx';
+  const frame = { url: moduleUrl, line: 3, column: 5 };
+
+  it('finds a webpack eval module map in the newest loaded chunk (HMR update wins)', async () => {
+    const base = `${origin}/_next/static/chunks/app/page.js`;
+    const hot = `${origin}/_next/static/webpack/app/page.abc.hot-update.js`;
+    const { resolver } = resolverFor(
+      {
+        [base]: evalModule('webpack-internal:///(app-pages-browser)/./node_modules/lib/x.js', mapTo('webpack://_N_E/./node_modules/lib/x.js', 1)) + evalModule(moduleUrl, mapTo('webpack://_N_E/./src/Cart.tsx?a1', 10)),
+        [hot]: evalModule(moduleUrl, mapTo('webpack://_N_E/./src/Cart.tsx?b2', 13)),
+      },
+      origin,
+      { listScripts: () => [hot, base] },
+    );
+    expect(await resolver.resolve(frame)).toMatchObject({ file: 'src/Cart.tsx', line: 13, resolved: true });
+    const older = resolverFor({ [base]: evalModule(moduleUrl, mapTo('webpack://_N_E/./src/Cart.tsx', 10)) }, origin, { listScripts: () => [base] }).resolver;
+    expect(await older.resolve(frame)).toMatchObject({ line: 10, resolved: true });
+  });
+
+  it('never fetches the webpack-internal URL itself; unknown module → resolved:false', async () => {
+    const thirdParty = 'https://cdn.example/x.js';
+    const { resolver, fetched } = resolverFor({}, origin, { listScripts: () => [thirdParty, `${origin}/a.js`] });
+    expect(await resolver.resolve(frame)).toMatchObject({ resolved: false, file: moduleUrl, reason: 'webpack modülü yüklü betiklerde bulunamadı' });
+    expect(fetched).toEqual([`${origin}/a.js`]);
+  });
+
+  it('resolves RSC frames through the framework source map endpoint, unless the RSC payload was refetched', async () => {
+    const rsc = { url: 'about://React/Server/webpack-internal:///(rsc)/./src/server/A.tsx?3', line: 3, column: 5 };
+    const endpoint = (file: string) => `${origin}/__nextjs_source-map?filename=${encodeURIComponent(file)}`;
+    const files = { [endpoint('webpack-internal:///(rsc)/./src/server/A.tsx')]: mapTo('file:///home/u/app/src/server/A.tsx', 10) };
+    const ok = resolverFor(files, origin, { serverSourceMapUrl: endpoint });
+    expect(await ok.resolver.resolve(rsc)).toMatchObject({ file: '/home/u/app/src/server/A.tsx', line: 10, resolved: true });
+    const refetched = resolverFor(files, origin, { serverSourceMapUrl: endpoint, serverRefetched: () => true });
+    expect(await refetched.resolver.resolve(rsc)).toMatchObject({ resolved: false, file: 'webpack-internal:///(rsc)/./src/server/A.tsx', line: 3 });
+    expect(refetched.fetched).toEqual([]);
+    expect(await resolverFor(files, origin).resolver.resolve(rsc)).toMatchObject({ resolved: false, reason: 'sunucu bileşeni (RSC): source map konumu bilinmiyor' });
+  });
+
+  it('does not map Turbopack HMR modules (`chunk.js?id=`) against the whole chunk', async () => {
+    const url = `${origin}/_next/static/chunks/_12ie._.js?id=%255Bproject%255D/src/a.tsx+%255Bapp-client%255D+(ecmascript)`;
+    const { resolver, fetched } = resolverFor({}, origin);
+    expect(await resolver.resolve({ url, line: 68, column: 218 })).toMatchObject({ resolved: false, line: 68 });
+    expect(fetched).toEqual([]);
   });
 });
 

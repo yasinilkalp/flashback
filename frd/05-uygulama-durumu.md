@@ -4,7 +4,7 @@
 |---|---|
 | Tarih | 27.10.2026 |
 | Kod tabanı | Sıfırdan kuruldu. GitHub deposu boştu ve yerel klasörde yalnızca README ile yapılandırma dosyaları vardı. Bu nedenle FRD'deki "Durum" sütunu (README'ye göre "Mevcut") artık geçerli değil. Bu belge onun yerini alır; AS-9 kapandı. |
-| Doğrulama | 389 birim testi, 19 uçtan uca test (gerçek Chromium) yeşil. Tip denetimi temiz. `npm run release:check` geçiyor. |
+| Doğrulama | 408 birim testi, 19 uçtan uca test (gerçek Chromium) yeşil. Tip denetimi temiz. `npm run release:check` geçiyor. CI üç işletim sisteminde yeşil. EK-B3 ölçümü: 4 kurulum × 2 tarayıcı, sessizce yanlış satır 0 (`spikes/ek-b3/results/summary.md`). |
 | Bağımsız güvenlik incelemesi | 9 bulgu çıktı: 3 High, 3 Medium, 3 Low. Bulguların 8'i exploit ile doğrulandı, 1'i kısmen doğrulandı. **Dokuzu da düzeltildi** ve her biri için regresyon testi eklendi (§4). |
 
 ## 1. Sürüm kabul kriterleri
@@ -14,11 +14,11 @@
 | KK-1 | ✅ | `tests/e2e/full-flow.e2e.test.ts` YAZ10 ve KIS20 senaryolarında şu akışı otomatik olarak tamamlar: panel → `rewind-mcp` (gerçek stdio + HTTP) → kırmızı → kaynak düzeltilir → yeşil ×2 → `fixed`. |
 | KK-2 | ✅ | Aynı dosyadaki ACCOUNT senaryosu: `storageState` yokken sonuç `precondition` olur ve kırmızı sayılmaz. `storageState` verilince kırmızı → yeşil ×2 → `fixed`. |
 | KK-3 | ✅ | FR-LIFE-04'teki dört senaryo `packages/mcp/test/lifecycle.test.ts` dosyasında test ediliyor. Tam akış e2e testinde de çalışıyor. |
-| KK-4 | ◐ | Güvenlik paketi (`security.test.ts`, `security.e2e.test.ts`) Linux'ta yeşil. Windows ve macOS'ta CI ile doğrulanacak (`.github/workflows/ci.yml` hazır). |
+| KK-4 | ✅ | Güvenlik paketi (`security.test.ts`, `security.e2e.test.ts`) ve tüm uçtan uca testler GitHub Actions'ta Ubuntu, Windows ve macOS'ta yeşil (ör. 27.10.2026 tarihli 40506650677 numaralı koşu). |
 | KK-5 | ○ | Cursor ve Codex ile elle yapılacak smoke testi henüz yapılmadı. |
 | KK-6 | ✅ | Gizleme fixture seti (171 test) geçiyor. Bilinen sır biçimlerinde duyarlılık %100. Korunan 91 değerde yanlış pozitif 0. |
 | KK-7 | ◐ | NFR-SIZE-01, NFR-TOK-01, NFR-REPRO-01 ve NFR-PRIV-01 testli. NFR-PERF-01, NFR-LAT-01 ve NFR-MEM-01 için sürüm öncesi ölçüm yapılmadı. |
-| KK-8 | ○ | EK-B3 spike'ı yapılmadı. Doğrulanan tek kurulum React 19.3.1 + Vite 8.3.5 + Chromium. Next.js ve React 18 doğrulanmadı. |
+| KK-8 | ✅ | EK-B3 yapıldı (`spikes/ek-b3/`): Vite + React 18.3 ve 19, Next.js 16 App Router + Turbopack ve webpack; Chromium ve Firefox. İlk yüklemede %100 doğru, sessizce yanlış satır 0. Sonuçlar FRD §3.3, R1 ve yeni R12'ye (FRD v1.0.1) ve README'ye işlendi. |
 | KK-9 | ◐ | M ve M🔒 gereksinimlerin büyük çoğunluğunun testi var. Test kimliği eşlemesi tablo olarak çıkarılmadı. |
 | KK-10 | ◐ | `release:check` geçiyor. CI'dan provenance ile yayın akışı ve npm adlarının rezervasyonu henüz yapılmadı (R8). |
 | KK-11 | ○ | Mini benchmark yapılmadı. "%60" iddiası README'den çıkarıldı. |
@@ -29,7 +29,7 @@
 |---|---|---|
 | REC | 01–08, 10, 11, 14; S: 09, 12, 13 | 15 (YH) |
 | UI | 01, 02, 04, 06, 07, 08, 10, 11, 12, 15, 16; S: 05, 09, 14, 17, 18 | 03 (kısayol çakışma testi), 13 kısmi (ARIA var; axe denetimi ve focus trap yok), 10'daki "yanlış proje" göstergesi yalnızca şema sürümüne bakıyor, 19 (YH) |
-| MARK | 01–05, 07, 08, 10, 11, 12; S: 09 | 06 (Vue smoke testi yok), 13 (YH) |
+| MARK | 01–05, 07, 08, 10, 11, 12; S: 09. 04 EK-B3 ile doğrulandı; 05'teki eski fiber kopyası hatası düzeltildi (§3, D-11) | 06 (Vue smoke testi yok), 13 (YH) |
 | PKG | 01–08, SEC-01–03 | SEC-04 (YH) |
 | RED | 01–15 | Telefon numarası varsayılan olarak kapalı (AS-4) |
 | RCV | 01–05, 07–11, SEC-01–06, SEC-08 | 06 (köken uyuşmazlığı uyarısı), SEC-07 (YH) |
@@ -53,6 +53,10 @@
 | D-8 | Ortam değişkeniyle doldurulan alanlar | Ajan, `REWIND_PASSWORD` gibi ortam değişkeninden doldurulan bir alanın değerini `toHaveValue` ile okuyamaz. Okumaya çalışırsa `assertion_rejected` döner. Belirsiz semantik konumlayıcılarla yazılan değer okumaları da reddedilir. | FR-REPRO-SEC-01'e eklenmeli (parola sızıntısı önlemi). |
 | D-9 | Repro köken kilidi | Her adımdan ve assertion'dan önce köken denetleniyor. İzin verilmeyen kökenlere giden üst düzey gezinmeler iptal ediliyor. | FR-REPRO-SEC-03'e eklenmeli. |
 | D-10 | `REWIND_PROJECT_ROOT` varsayılanı | `cwd`'den yukarı doğru bulunan ilk `package.json` klasörü. Boşsa `cwd`. | §9.4 güncellenmeli. |
+| D-11 | Güncel fiber (FR-MARK-03/04/05) | DOM düğümündeki fiber, öğe oluşturulduğundaki kopyadır ve çift tampon yüzünden eski olabilir. Bu kopya eski props/state ve eski konum taşır. Artık React'in `findCurrentFiberUsingSlowPath` algoritmasıyla güncel kopya okunuyor. Atalar da güncel kopyadan yürünüyor. EK-B3'te bulundu. | FR-MARK-05'e eklenmeli ("canlı" iddiasının koşulu). |
+| D-12 | HMR'de bayat konum (FR-MARK-11) | React 19'da Fast Refresh ile değişen bileşenin eski öğeleri ve RSC yükü yenilendikten sonraki sunucu öğeleri `resolved:false` döner. Turbopack HMR modülleri (`chunk.js?id=`) ve React 18'de çelişen fiber kopyaları da öyle. Dosya adı verilir, kod parçası verilmez. Gerekçe panelde ve raporda görünür. | FR-MARK-11'in "çözülemiyorsa" koşuluna "HMR yüzünden doğrulanamıyorsa" eklenmeli (R12). |
+| D-13 | Kaynak yolu (FR-PKG-02) | Alıcı, `target.file` ve konsol kaynaklarındaki mutlak yolları proje köküne göre kısaltır. React 18 `_debugSource`, Turbopack ve webpack haritaları mutlak yol verir; kısaltma kullanıcı adının pakete girmesini de önler. | §9.3'e eklenmeli. |
+| D-14 | Tarayıcının yeni istekleri (NFR-PRIV-01) | webpack `eval` modüllerinin haritası için sayfanın yüklediği chunk'lar, RSC için Next.js'in `/__nextjs_source-map` ucu getirilir. İkisi de sayfanın kendi kökeninde; NFR-PRIV-01 korunuyor. | Bilgi; FRD değişikliği gerekmez. |
 
 ## 4. Güvenlik incelemesi bulguları
 
@@ -70,8 +74,8 @@
 
 ## 5. Sıradaki işler (öneri sırası)
 
-1. **EK-B3 spike'ı** (3 gün): Next.js App Router (Turbopack ve webpack) ve React 18 ile kaynak çözümleme. Sonuç destek matrisine işlenecek.
-2. **CI'ı GitHub'da çalıştırmak:** Windows ve macOS'ta güvenlik paketi ve e2e testleri (KK-4).
+1. **`data-rewind-source` (v1.1, R12):** Derleme anında JSX'e kaynak konumu ekleyen Vite/Babel/SWC eklentisi. React 19'da HMR sonrası `resolved:false` kalan konumları kalıcı olarak çözer. EK-B3 bu işi "yedek plan"dan öncelikli işe taşıdı.
+2. **EK-B3 ölçümünü CI'a almak:** `spikes/ek-b3` haftalık ya da sürüm öncesi bir işte çalışsın; Next.js/React sürüm yükseltmelerinde regresyonu yakalasın. Firefox kayıt e2e'si de eklensin (Firefox → "Doğrulandı").
 3. **Cursor ve Codex smoke testi** (KK-5) ve kırmızı takım koşusu (FR-MCP-SEC-02).
 4. **Mini benchmark** (KK-11): 8–10 hata, Rewind ile ve Rewind olmadan.
 5. **NFR ölçümleri:** INP, bellek, gecikme.

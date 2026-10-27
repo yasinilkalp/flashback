@@ -3,10 +3,17 @@
  *
  * Betik URL'si getirilir, son `//# sourceMappingURL=` yorumu bulunur (satır içi `data:` ya da URL), tüketici
  * önbelleğe alınır. Çözülemeyen her durumda derlenmiş konum `resolved:false` ile döner — tahmin YAPILMAZ.
+ *
+ * Özel durumlar (EK-B3):
+ * - webpack `eval-source-map` (Next.js webpack, webpack-dev-server): çerçeve URL'si `webpack-internal:///…` olur ve
+ *   getirilemez. Modülün satır içi haritası, sayfanın yüklediği chunk'larda `//# sourceURL=` işaretiyle bulunur
+ *   (en yeni chunk önce; HMR güncellemesi eski kopyanın önüne geçer).
+ * - React Server Components: çerçeve `about://React/Server/<dosya>` olur. Harita yalnızca çerçeve bir uç
+ *   sağlıyorsa (`serverSourceMapUrl`, ör. Next.js dev sunucusu) getirilir; yoksa `resolved:false`.
  */
 import { SourceMapConsumer, type RawSourceMap } from 'source-map-js';
 import { hashContent } from '../hash.js';
-import type { StackFrame } from './stack.js';
+import { serverComponentFile, type StackFrame } from './stack.js';
 
 export interface Snippet {
   startLine: number;
@@ -53,6 +60,16 @@ function decodeDataUrl(url: string): string | null {
   return new TextDecoder().decode(bytes);
 }
 
+/** webpack eval modülü: `//# sourceMappingURL=data:…\n//# sourceURL=<modül>` (chunk metninde satır sonu `\n` kaçışlı). */
+const EVAL_MODULE_RE = /\/\/# sourceMappingURL=(data:[^\s"'\\]+)\\n\/\/# sourceURL=([^\s"'\\]+)/g;
+
+/** Chunk'taki kullanıcı modüllerinin satır içi haritaları (bağımlılıklar atlanır; onların çerçeveleri zaten iç sayılır). */
+function indexEvalModules(code: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of code.matchAll(EVAL_MODULE_RE)) if (!m[2].includes('node_modules')) out.set(m[2], m[1]);
+  return out;
+}
+
 /**
  * Kaynak yolunu projeye göreli yapar: köken, Vite `/@fs/`, webpack/Next önekleri atılır.
  * `base`: göreli kaynakların çözüldüğü URL (map URL'si); `scriptUrl`: derlenmiş modülün URL'si.
@@ -60,7 +77,10 @@ function decodeDataUrl(url: string): string | null {
 export function toProjectPath(source: string, base: string, scriptUrl = base): string {
   const webpack = /^webpack(?:-internal)?:\/\/\/?(?:\([^)]*\)\/|[^/]*\/)?(?:\.\/)?(.*)$/.exec(source);
   if (webpack) return webpack[1].replace(/\?.*$/, '');
-  if (source.startsWith('file://')) return decodeURIComponent(source.slice('file://'.length));
+  const turbopack = /^turbopack:\/\/\/\[project\]\/(.*)$/.exec(source);
+  if (turbopack) return turbopack[1];
+  // file:///C:/x → C:/x (Windows), file:///home/x → /home/x. Mutlak yolu sunucu proje köküne göre kısaltır.
+  if (source.startsWith('file://')) return decodeURIComponent(source.slice('file://'.length)).replace(/^\/([a-z]:\/)/i, '$1');
   const scriptPath = safeUrl(scriptUrl)?.pathname ?? '';
   let path: string;
   if (/^[a-z][a-z0-9+.-]*:/i.test(source)) {
@@ -101,23 +121,95 @@ export function isLocalSource(url: string, pageOrigin: string): boolean {
 
 const NOT_LOCAL = 'yerel olmayan kaynak çözülmez (NFR-PRIV-01)';
 
+/**
+ * Turbopack, HMR ile gelen modülü `<chunk>.js?id=<modül>` adıyla değerlendirir. Kod yalnızca tarayıcıda; aynı URL'den
+ * dönen dosya bütün chunk'tır ve konumla eşleşmez.
+ */
+const TURBOPACK_HMR_RE = /\/_next\/static\/chunks\/[^?#]+\.js\?id=/;
+const TURBOPACK_HMR = 'Turbopack HMR modülü: kodu yalnızca tarayıcıda, source map getirilemez';
+
+export interface ResolverOptions {
+  /** Sayfanın yüklediği betikler, en yeniden eskiye (webpack eval modüllerini bulmak için). */
+  listScripts?: () => string[];
+  /** RSC: sunucudaki derlenmiş dosyanın source map URL'si; çerçeve sağlamıyorsa null. */
+  serverSourceMapUrl?: (file: string) => string | null;
+  /**
+   * RSC yükü sayfa yüklendikten sonra yenilendi mi? React, yeniden kullanılan fiber'da öğenin mount anındaki
+   * sunucu konumunu tutar; HMR'den sonra bu konum güncel haritayla eşlenirse yanlış satır çıkar.
+   */
+  serverRefetched?: () => boolean;
+}
+
 export class SourceResolver {
   /** Önbellek: tüketici ya da çözülememe nedeni. */
   private readonly maps = new Map<string, Promise<MapEntry | string>>();
+  /** Chunk URL'si → içindeki webpack eval modüllerinin haritaları. Chunk URL'leri değişmez (HMR yeni URL ile gelir). */
+  private readonly chunks = new Map<string, Promise<Map<string, string> | null>>();
 
   constructor(
     private readonly fetchText: FetchText,
     /** Bu URL getirilebilir mi? (yerel köken / loopback) */
     private readonly isAllowed: (url: string) => boolean,
+    private readonly opts: ResolverOptions = {},
   ) {}
 
-  private load(scriptUrl: string): Promise<MapEntry | string> {
-    let p = this.maps.get(scriptUrl);
+  private cached(key: string, load: () => Promise<MapEntry | string>): Promise<MapEntry | string> {
+    let p = this.maps.get(key);
     if (!p) {
-      p = this.loadUncached(scriptUrl).catch(() => 'source map okunamadı');
-      this.maps.set(scriptUrl, p);
+      p = load().catch(() => 'source map okunamadı');
+      this.maps.set(key, p);
     }
     return p;
+  }
+
+  private load(scriptUrl: string): Promise<MapEntry | string> {
+    return this.cached(scriptUrl, () => this.loadUncached(scriptUrl));
+  }
+
+  private evalModules(script: string): Promise<Map<string, string> | null> {
+    let p = this.chunks.get(script);
+    if (!p) {
+      p = this.fetchText(script)
+        .then((code) => (code === null ? null : indexEvalModules(code)))
+        .catch(() => null);
+      this.chunks.set(script, p);
+    }
+    return p;
+  }
+
+  /** webpack eval modülü: en yeni chunk'tan başlayarak modülün satır içi haritasını arar. */
+  private async loadEvalModule(moduleUrl: string): Promise<MapEntry | string> {
+    for (const script of this.opts.listScripts?.() ?? []) {
+      if (!this.isAllowed(script)) continue;
+      const ref = (await this.evalModules(script))?.get(moduleUrl);
+      if (!ref) continue;
+      return this.cached(`${script}#${moduleUrl}`, async () => {
+        const raw = decodeDataUrl(ref);
+        if (!raw) return 'source map bulunamadı';
+        return { consumer: new SourceMapConsumer(JSON.parse(raw) as RawSourceMap), mapUrl: moduleUrl };
+      });
+    }
+    return 'webpack modülü yüklü betiklerde bulunamadı';
+  }
+
+  /**
+   * RSC haritası her seferinde getirilir: webpack'te sunucu modülünün adı düzenlemeden sonra da aynı kalır,
+   * önbellek eski satırı verirdi.
+   */
+  private async loadServer(file: string): Promise<MapEntry | string> {
+    const mapUrl = this.opts.serverSourceMapUrl?.(file);
+    if (!mapUrl) return 'sunucu bileşeni (RSC): source map konumu bilinmiyor';
+    if (this.opts.serverRefetched?.()) {
+      return 'sunucu bileşeni (RSC): sunucu yükü sayfa yüklendikten sonra yenilendi (HMR ya da gezinme); satır doğrulanamaz, doğru satır için sayfayı yenileyip tekrarlayın';
+    }
+    if (!this.isAllowed(mapUrl)) return NOT_LOCAL;
+    try {
+      const raw = await this.fetchText(mapUrl);
+      if (!raw) return 'sunucu bileşeni (RSC): source map bulunamadı';
+      return { consumer: new SourceMapConsumer(JSON.parse(raw) as RawSourceMap), mapUrl };
+    } catch {
+      return 'sunucu bileşeni (RSC): source map okunamadı';
+    }
   }
 
   private async loadUncached(scriptUrl: string): Promise<MapEntry | string> {
@@ -140,8 +232,16 @@ export class SourceResolver {
   }
 
   async resolve(frame: StackFrame): Promise<ResolvedLocation> {
-    const compiled: ResolvedLocation = { file: frame.url, line: frame.line, column: frame.column, resolved: false };
-    const entry = await this.load(frame.url);
+    const server = serverComponentFile(frame.url);
+    const compiled: ResolvedLocation = { file: server ?? frame.url, line: frame.line, column: frame.column, resolved: false };
+    const entry =
+      server !== null
+        ? await this.loadServer(server)
+        : frame.url.startsWith('webpack-internal:')
+          ? await this.loadEvalModule(frame.url)
+          : TURBOPACK_HMR_RE.test(frame.url)
+            ? TURBOPACK_HMR
+            : await this.load(frame.url);
     if (typeof entry === 'string') return { ...compiled, reason: entry };
     const pos = entry.consumer.originalPositionFor({ line: frame.line, column: Math.max(0, frame.column - 1) });
     if (!pos.source || pos.line == null) return { ...compiled, reason: 'source map bu konumu eşlemiyor' };

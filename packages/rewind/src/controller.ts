@@ -9,6 +9,7 @@ import { collectEnv, getTabId, resolveConsoleSources } from './draft/collect.js'
 import { prepareSubmission, type Submission } from './draft/report.js';
 import { network } from './recorder/early.js';
 import { Recorder, type FrozenSnapshot } from './recorder/recorder.js';
+import { pageResolverOptions } from './source/environment.js';
 import { isLocalSource, SourceResolver } from './source/sourcemap.js';
 import { deliverFallback, PendingQueue, ReceiverClient, type ReceiverStatus } from './transport.js';
 
@@ -87,6 +88,7 @@ export class RewindController {
         return res.ok ? res.text() : null;
       },
       (url) => isLocalSource(url, location.origin),
+      pageResolverOptions(),
     );
     this.state = { open: false, receiver: 'disconnected', bufferMs: 0, memoryWarning: false, incidents: null, unread: 0, queued: this.queue.size, queueDelivered: 0 };
   }

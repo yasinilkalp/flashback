@@ -5,3 +5,10 @@ dist
 test-results
 playwright-report
 examples/e2e-tmp-*
+spikes/ek-b3/.packs
+spikes/ek-b3/.logs
+spikes/ek-b3/apps/*/src/fixture
+spikes/ek-b3/apps/next16/src/server
+spikes/ek-b3/apps/*/.next
+spikes/ek-b3/apps/*/next-env.d.ts
+spikes/ek-b3/apps/next16/AGENTS.md

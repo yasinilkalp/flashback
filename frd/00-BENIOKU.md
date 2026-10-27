@@ -14,6 +14,6 @@ Onay için okunması gereken belge: **`04-FRD-v1.0.md`**. Belge §17'deki kontro
 ## Onaydan önce bilinmesi gerekenler
 
 - **"Durum" sütunu README'ye dayanıyor.** Yerel depoda `packages/` ve `examples/` klasörleri yok. Hangi gereksinimin mevcut olduğu kodla karşılaştırılarak doğrulanmalı (AS-9).
-- **Next.js desteği henüz kanıtlanmadı.** "Doğrulandı" sayılması, geliştirmeden önce yapılacak 3 günlük kaynak çözümleme spike'ının (EK-B3, §3.5) sonucuna bağlı.
+- **Next.js desteği EK-B3 spike'ında doğrulandı (27.10.2026).** Next.js App Router'da (Turbopack ve webpack) istemci bileşenleri ilk yüklemede %100 doğru çözüldü; sunucu bileşenleri (RSC) "en iyi çaba" düzeyinde. Spike, React 19'da HMR'den sonra satırın bayatlayabildiğini de gösterdi; bu R12 olarak kayda geçti (`spikes/ek-b3/README.md`).
 - **"%60 daha az bağlam" iddiası tek bir demo hatasına dayanıyor (n=1).** Halka açık iddialarda kullanılmadan önce mini benchmark ile doğrulanmalı (KK-11).
 - **Efor rakamları tahmin.** Ajanların ortak tahminleridir, ölçüm değildir.

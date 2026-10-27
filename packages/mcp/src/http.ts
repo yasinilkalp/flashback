@@ -14,11 +14,13 @@ import {
 import type { RewindConfig } from './config.js';
 import { RewindError } from './errors.js';
 import { applyReopen, toSummary } from './lifecycle.js';
+import { projectRoots, relativizeDraft } from './paths.js';
 import { QuotaError, type IncidentStore } from './store.js';
 import { VERSION } from './version.js';
 
 export interface ReceiverOptions {
-  config: Pick<RewindConfig, 'port' | 'host' | 'allowOrigins' | 'maxBodyBytes' | 'projectId' | 'projectName' | 'rateLimitPerMin'>;
+  config: Pick<RewindConfig, 'port' | 'host' | 'allowOrigins' | 'maxBodyBytes' | 'projectId' | 'projectName' | 'rateLimitPerMin'> &
+    Partial<Pick<RewindConfig, 'projectRoot'>>;
   store: IncidentStore;
   log?: (msg: string) => void;
   now?: () => Date;
@@ -97,6 +99,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
   const log = opts.log ?? ((m: string) => process.stderr.write(`[rewind-mcp] ${m}\n`));
   const now = opts.now ?? (() => new Date());
   let boundPort = config.port;
+  const roots = config.projectRoot ? projectRoots(config.projectRoot) : [];
   const extraHost = config.host === '127.0.0.1' || config.host === 'localhost' || config.host === '::1' ? undefined : config.host;
   const recent: number[] = [];
 
@@ -183,7 +186,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
         const parsed = IncidentDraftSchema.safeParse(body);
         if (!parsed.success) throw new HttpError(400, `Olay şemaya uymuyor:\n${z.prettifyError(parsed.error)}`);
         try {
-          const inc = store.create(clampDraft(parsed.data), config.projectId);
+          const inc = store.create(relativizeDraft(clampDraft(parsed.data), roots), config.projectId);
           log(`Yeni olay: ${inc.id}`);
           return send(res, 201, { id: inc.id });
         } catch (e) {

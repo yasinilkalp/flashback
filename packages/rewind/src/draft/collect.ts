@@ -3,10 +3,11 @@
  * (FR-MARK-03/05), kaynak konumu (FR-MARK-04/11/12) ve başlangıç bağlamı (FR-PKG-07).
  */
 import { record } from 'rrweb';
-import { componentStack, getFiber, nearestComponent, propsAndState, sourceHint } from '../dom/fiber.js';
+import { componentStack, getFiber, nearestComponent, propsAndState } from '../dom/fiber.js';
 import { buildSelectors } from '../dom/selector.js';
 import type { ConsoleRecord } from '../recorder/console.js';
-import type { ResolvedLocation, SourceResolver } from '../source/sourcemap.js';
+import { locateSource } from '../source/locate.js';
+import type { SourceResolver } from '../source/sourcemap.js';
 import { parseStack } from '../source/stack.js';
 import type { DraftEnv, TargetCapture } from './build.js';
 
@@ -62,13 +63,6 @@ function computedStyle(el: Element): Record<string, string> | undefined {
   return out;
 }
 
-async function locate(fiberNode: Element, resolver: SourceResolver): Promise<ResolvedLocation | undefined> {
-  const hint = sourceHint(getFiber(fiberNode));
-  if (!hint) return undefined;
-  if (hint.kind === 'debugSource') return { file: hint.file, line: hint.line, column: hint.column ?? 1, resolved: true };
-  return resolver.resolve(hint.frame);
-}
-
 export async function captureTarget(replayNode: Element, replayMirror: ReplayMirror, resolver: SourceResolver): Promise<TargetCapture> {
   const live = liveNodeFor(replayNode, replayMirror);
   let fiberNode: Element | null = live;
@@ -89,7 +83,7 @@ export async function captureTarget(replayNode: Element, replayMirror: ReplayMir
     ...selectors,
     resolution,
     ...(resolutionReason ? { resolutionReason } : {}),
-    location: fiberNode ? await locate(fiberNode, resolver) : undefined,
+    location: fiberNode ? await locateSource(fiberNode, resolver) : undefined,
     componentStack: componentStack(fiber),
     props,
     state,
