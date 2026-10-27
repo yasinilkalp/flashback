@@ -21,7 +21,7 @@
 | KK-7 | ✅ | NFR-SIZE-01, NFR-TOK-01, NFR-REPRO-01 ve NFR-PRIV-01 testli. NFR-PERF-01, NFR-LAT-01 ve NFR-MEM-01 iki tur ölçüldü ([`07-nfr-olcumleri.md`](07-nfr-olcumleri.md) §0). MEM ve LAT geçti. PERF bağlayıcı profilde (1x) yalnızca 5.000 düğümdeki INP maddesinde kaldı (+32 ms, hedef ≤ 20 ms). Bu sonuç sürüm notuna yazılacak. |
 | KK-8 | ✅ | EK-B3 yapıldı (`spikes/ek-b3/`): Vite + React 18.3 ve 19, Next.js 16 App Router + Turbopack ve webpack; Chromium ve Firefox. İlk yüklemede %100 doğru, sessizce yanlış satır 0. Sonuçlar FRD §3.3, R1 ve R13'e işlendi. `examples/next-app`, `examples/react18` ve `examples/vue` uçtan uca testleri regresyon olarak koşar; Vue smoke testi geçti. |
 | KK-9 | ◐ | M ve M🔒 gereksinimlerin büyük çoğunluğunun testi var. Test kimliği eşlemesi tablo olarak çıkarılmadı. |
-| KK-10 | ◐ | `release:check` geçiyor. CI'dan provenance ile yayın akışı ve npm adlarının rezervasyonu henüz yapılmadı (R8). |
+| KK-10 | ◐ | `release:check` geçiyor. CI'dan provenance ile yayın akışı hazır (`release.yml`, etiketle tetiklenir). İlk sürüm `0.1.0-beta.0`; `NPM_TOKEN` sırrı eklenip etiket push edilince yayınlanacak (R8). |
 | KK-11 | ○ | Mini benchmark yapılmadı. "%60" iddiası README'den çıkarıldı. |
 
 ## 2. Alanlara göre durum

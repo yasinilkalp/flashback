@@ -82,3 +82,12 @@ describe('shortcut (FR-UI-02)', () => {
     expect(isEditableTarget(null)).toBe(false);
   });
 });
+
+describe('sürüm', () => {
+  it('FLASHBACK_VERSION paketin sürümüyle aynı (yayın iş akışı paket sürümünü etiketle karşılaştırır)', async () => {
+    const { FLASHBACK_VERSION } = await import('../src/config.js');
+    const fs = await import('node:fs');
+    const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
+    expect(FLASHBACK_VERSION).toBe(pkg.version);
+  });
+});

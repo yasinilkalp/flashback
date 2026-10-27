@@ -1,7 +1,7 @@
 import { DEFAULT_ENDPOINT, type RedactOptions } from '@flashback/shared';
 import type { FlashbackLocale, FlashbackPosition, FlashbackProps } from './types.js';
 
-export const FLASHBACK_VERSION = '0.1.0';
+export const FLASHBACK_VERSION = '0.1.0-beta.0';
 
 /**
  * Gönderilen olayın şema sürümü. `@flashback/shared` içindeki `SCHEMA_VERSION` ile aynıdır (birim testi denetler);

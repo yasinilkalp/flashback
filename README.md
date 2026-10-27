@@ -218,7 +218,18 @@ docs/             → Paketler arası uygulama sözleşmesi
 npm run release:check   # derler ve paketlere girecek dosyaları listeler (yayımlamaz)
 ```
 
-FRD §11.3 gereği paketler yalnızca CI'dan, npm provenance ile ve 2FA açık bir hesapla yayımlanmalıdır.
+FRD §11.3 gereği paketler yalnızca CI'dan, npm provenance ile ve 2FA açık bir hesapla yayımlanır. Akış: `.github/workflows/release.yml`.
+
+1. npm belirteci depo sırrı olarak eklenir: **Settings → Secrets and variables → Actions → New repository secret**, adı `NPM_TOKEN`.
+2. İki paketin sürümü aynı olmalı (`packages/flashback/package.json`, `packages/mcp/package.json`; `FLASHBACK_VERSION` da aynı, test denetler).
+3. Sürüm etiketi push edilir. İş akışı derler, test eder, etiketi sürümle karşılaştırır ve yayımlar:
+
+```bash
+git tag v0.1.0-beta.0
+git push origin v0.1.0-beta.0
+```
+
+Ön sürümler (`-beta.N`) npm'de `beta` etiketiyle, diğerleri `latest` ile çıkar. Önce denemek için **Actions → Release → Run workflow** (varsayılan: `--dry-run`).
 
 ## Lisans
 

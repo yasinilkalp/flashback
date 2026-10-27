@@ -1,0 +1,72 @@
+name: Release
+
+# Sürüm etiketi (ör. v0.1.0-beta.0) push edilince iki paketi derler, test eder ve npm'e
+# provenance imzasıyla yayınlar (KK-10, FRD §11.3). Token: depo sırrı NPM_TOKEN.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Yalnızca dene (npm publish --dry-run)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write # npm provenance için GitHub OIDC kimliği
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Sürümleri denetle
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          devtools=$(node -p "require('./packages/flashback/package.json').version")
+          mcp=$(node -p "require('./packages/mcp/package.json').version")
+          if [ "$devtools" != "$mcp" ]; then
+            echo "::error::Paket sürümleri farklı: flashback-devtools $devtools, flashback-mcp $mcp"; exit 1
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$devtools" ]; then
+            echo "::error::Etiket ${GITHUB_REF_NAME}, paket sürümü v$devtools ile uyuşmuyor"; exit 1
+          fi
+          # Ön sürümler (0.1.0-beta.0) 'beta' etiketiyle, diğerleri 'latest' ile yayınlanır.
+          if [[ "$devtools" == *-* ]]; then tag=beta; else tag=latest; fi
+          echo "version=$devtools" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Sürüm $devtools, npm etiketi $tag"
+
+      - name: Paket içeriği
+        run: npm pack --dry-run -w flashback-devtools -w flashback-mcp
+
+      - name: Yayınla
+        if: github.event_name == 'push' || inputs.dry_run == false
+        run: npm publish -w flashback-devtools -w flashback-mcp --provenance --access public --tag ${{ steps.version.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Yayınla (deneme)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: npm publish -w flashback-devtools -w flashback-mcp --dry-run --access public --tag ${{ steps.version.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
