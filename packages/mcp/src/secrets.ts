@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
-import type { AssertionIR } from '@rewind/shared';
+import type { AssertionIR } from '@flashback/shared';
 import { AssertionParseError } from './assertion-parser.js';
 
 /**
- * Repro koşusunda kullanılan gerçek gizli değerler: `REWIND_PASSWORD`, `REWIND_INPUT_*` ve storageState
+ * Repro koşusunda kullanılan gerçek gizli değerler: `FLASHBACK_PASSWORD`, `FLASHBACK_INPUT_*` ve storageState
  * dosyasındaki çerez/localStorage değerleri. Bunlar hiçbir koşu kaydına, MCP yanıtına ya da kalıcı
  * Playwright çıktısına yazılmaz (FR-RED-15, FR-REPRO-10).
  */
@@ -12,7 +12,7 @@ export interface Secret {
   type: 'password' | 'input' | 'session';
 }
 
-export const SECRET_ENV = /^REWIND_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;
+export const SECRET_ENV = /^FLASHBACK_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;
 /** Çok kısa değerler sıradan metinle çakışır; gizleme anlamsızlaşır. */
 const MIN_SECRET_LENGTH = 4;
 
@@ -24,7 +24,7 @@ export interface SecretSource {
 /** Ortam değişkeni koşuda gerçekten bir değer sağlıyor mu? */
 export function envProvides(name: string, src: SecretSource, env: NodeJS.ProcessEnv = process.env): boolean {
   if (!SECRET_ENV.test(name)) return false;
-  if (name === 'REWIND_PASSWORD') return !!(src.password || env.REWIND_PASSWORD);
+  if (name === 'FLASHBACK_PASSWORD') return !!(src.password || env.FLASHBACK_PASSWORD);
   return !!env[name];
 }
 
@@ -35,7 +35,7 @@ export function collectSecrets(src: SecretSource, env: NodeJS.ProcessEnv = proce
   };
   add(src.password, 'password');
   for (const [k, v] of Object.entries(env)) {
-    if (k === 'REWIND_PASSWORD') add(v, 'password');
+    if (k === 'FLASHBACK_PASSWORD') add(v, 'password');
     else if (SECRET_ENV.test(k)) add(v, 'input');
   }
   if (src.storageState) {
@@ -92,7 +92,7 @@ export function checkSecretValueAssertions(ir: AssertionIR, secretSelectors: str
     else risky = true;
     if (risky) {
       throw new AssertionParseError(
-        `${i + 1}. beklenti (${a.matcher}): bu olayda değeri ortam değişkeninden (REWIND_PASSWORD / REWIND_INPUT_*) doldurulan alanlar var; ` +
+        `${i + 1}. beklenti (${a.matcher}): bu olayda değeri ortam değişkeninden (FLASHBACK_PASSWORD / FLASHBACK_INPUT_*) doldurulan alanlar var; ` +
           'bu alanların değeri assertion ile okunamaz, çünkü başarısız beklenti gerçek değeri hata metnine yazar. ' +
           'Değer denetimini yalnızca bu alanlar dışındaki bir page.locator(...) seçicisiyle yap ya da sonucu sayfadaki görünür metinle doğrula.',
       );

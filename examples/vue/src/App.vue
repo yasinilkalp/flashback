@@ -11,7 +11,7 @@ const total = computed(() => items.value.reduce((s, i) => s + i.price, 0));
 
 <template>
   <main>
-    <h1 data-testid="title">Rewind Vue</h1>
+    <h1 data-testid="title">Flashback Vue</h1>
     <ul>
       <li v-for="p in products" :key="p.id">
         {{ p.name }} — {{ p.price }} ₺

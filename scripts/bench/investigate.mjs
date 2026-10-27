@@ -5,11 +5,11 @@
  *
  *   node scripts/bench/investigate.mjs ablate [--page=demo] [--throttle=4] [--runs=4] [--pace=700] [--interactions=50]
  *        [--variants=off,on,rrweb,on-noanim]
- *     Etkileşim gecikmesi: kayıt kapalı · tam Rewind · yalnızca rrweb (Rewind'in seçenekleriyle) ·
- *     Rewind + başlatıcıdaki sonsuz "kayıt" animasyonu kapatılmış (shadow root'a stil eklenir).
+ *     Etkileşim gecikmesi: kayıt kapalı · tam Flashback · yalnızca rrweb (Flashback'in seçenekleriyle) ·
+ *     Flashback + başlatıcıdaki sonsuz "kayıt" animasyonu kapatılmış (shadow root'a stil eklenir).
  *
  *   node scripts/bench/investigate.mjs replay [--throttle=4] [--fill=55]
- *     5.000 öğeli listede ~25 sn'lik dilimi rrweb Replayer ile sona sarma süresi: useVirtualDom true (Rewind'in
+ *     5.000 öğeli listede ~25 sn'lik dilimi rrweb Replayer ile sona sarma süresi: useVirtualDom true (Flashback'in
  *     kullandığı rrweb varsayılanı) ve false. Panel açılışının (Timeline.tsx) baskın maliyeti budur.
  */
 import { launch, newPage, waitReady } from './lib/browser.mjs';
@@ -21,8 +21,8 @@ const PREPARE = {
   'on-noanim': (page) =>
     page.evaluate(() => {
       const st = document.createElement('style');
-      st.textContent = '.rw-dot.rw-rec { animation: none !important; }';
-      document.querySelector('rewind-devtools').shadowRoot.appendChild(st);
+      st.textContent = '.fb-dot.fb-rec { animation: none !important; }';
+      document.querySelector('flashback-devtools').shadowRoot.appendChild(st);
     }),
 };
 const modeOf = (v) => (v.startsWith('on') ? 'on' : v);

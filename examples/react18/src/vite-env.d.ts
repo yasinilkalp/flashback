@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_REWIND_ENDPOINT?: string;
+  readonly VITE_FLASHBACK_ENDPOINT?: string;
 }

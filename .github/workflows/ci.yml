@@ -38,10 +38,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm install react@canary react-dom@canary -w demo -w rewind-devtools
+      - run: npm install react@canary react-dom@canary -w demo -w flashback-devtools
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npx vitest run --config vitest.e2e.config.ts packages/rewind
+      - run: npx vitest run --config vitest.e2e.config.ts packages/flashback
 
   firefox-source:
     # EK-B3: Firefox yığın biçimi (fn@url:satır:sütun) ile JSX kaynak çözümleme ölçümü. Firefox "En iyi çaba"
@@ -58,4 +58,4 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium firefox
-      - run: npx vitest run --config vitest.e2e.config.ts packages/rewind/test/source-demo.e2e.test.ts
+      - run: npx vitest run --config vitest.e2e.config.ts packages/flashback/test/source-demo.e2e.test.ts

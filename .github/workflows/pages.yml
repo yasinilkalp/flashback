@@ -1,6 +1,6 @@
 name: Pages
 
-# site/ klasörünü GitHub Pages'te yayınlar: https://yasinilkalp.github.io/rewind/
+# site/ klasörünü GitHub Pages'te yayınlar: https://yasinilkalp.github.io/flashback/
 on:
   push:
     branches: [main]

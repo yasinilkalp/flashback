@@ -7,9 +7,9 @@ import {
   type AssertionIR,
   type AssertionMatcher,
   type AssertionSubject,
-} from '@rewind/shared';
+} from '@flashback/shared';
 import { z } from 'zod';
-import { RewindError } from './errors.js';
+import { FlashbackError } from './errors.js';
 
 /**
  * FR-REPRO-SEC-01: ajanın Playwright biçimindeki beklentisini dar bir dilbilgisiyle IR'ye ayrıştırır.
@@ -34,7 +34,7 @@ interface Token {
   col: number;
 }
 
-export class AssertionParseError extends RewindError {
+export class AssertionParseError extends FlashbackError {
   constructor(message: string) {
     super('assertion_rejected', message);
   }

@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { IncidentDraft } from '@rewind/shared';
+import type { IncidentDraft } from '@flashback/shared';
 
 /** Kök içindeki mutlak yolu göreli (`/` ayraçlı) yapar; göreli, kök dışı ya da tanınmayan yollar olduğu gibi kalır. */
 export function toProjectRelative(file: string, roots: readonly string[]): string {

@@ -21,7 +21,7 @@
  *    "Kayıttan kaynaklanan" = (a) kayıt açıkken etkileşim dışında (boşta) görülen checkout dışı long task'lar
  *    + (b) etkileşim sırası bazında: kayıt açık koşuların çoğunluğunda long task olup kapalı koşuların
  *    çoğunluğunda olmayan etkileşimler.
- *  - Checkout: kayıt açık koşuların sonunda `record.takeFullSnapshot(true)` (Rewind'in canlı kaydı; emit → halka
+ *  - Checkout: kayıt açık koşuların sonunda `record.takeFullSnapshot(true)` (Flashback'in canlı kaydı; emit → halka
  *    tampon → boyut tahmini dahil) 3 kez zamanlanır. Liste sayfasında ayrıca maliyet dökümü (inceleme adımı).
  */
 import { collect, launch, newPage, nextFrames, pageNow, waitReady } from './lib/browser.mjs';
@@ -179,10 +179,10 @@ export async function oneRun(browser, { pageName, mode, throttle, url, interacti
 
 /**
  * İnceleme: checkout maliyetinin dökümü (liste sayfası). Aynı belge üzerinde, ayrı bir Mirror ile:
- *  A) rrweb-snapshot `snapshot()` — Rewind'in seçenekleriyle (blockSelector, maskTextSelector, tüm giriş türleri maskeli)
+ *  A) rrweb-snapshot `snapshot()` — Flashback'in seçenekleriyle (blockSelector, maskTextSelector, tüm giriş türleri maskeli)
  *  B) aynı, seçiciler olmadan (rrweb varsayılanı)
- *  C) A'nın sonucunun JSON.stringify'ı (Rewind `estimateEventBytes` her olayda bunu yapar)
- *  D) canlı `record.takeFullSnapshot(true)` (rrweb + Rewind emit/halka tampon)
+ *  C) A'nın sonucunun JSON.stringify'ı (Flashback `estimateEventBytes` her olayda bunu yapar)
+ *  D) canlı `record.takeFullSnapshot(true)` (rrweb + Flashback emit/halka tampon)
  */
 async function checkoutBreakdown(browser, { url, throttle, rounds = 5 }) {
   const { context, page } = await newPage(browser, { throttle });
@@ -201,12 +201,12 @@ async function checkoutBreakdown(browser, { url, throttle, rounds = 5 }) {
         return [performance.now() - t0, v];
       };
       const med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
-      const res = { rewindOptions: [], noSelectors: [], stringify: [], live: [] };
+      const res = { flashbackOptions: [], noSelectors: [], stringify: [], live: [] };
       for (let i = -1; i < n; i++) {
         if (i === 0) for (const k of Object.keys(res)) res[k] = [];
         await pause();
-        const [a, tree] = time(() => lib.snapshot(document, { mirror: lib.createMirror(), blockSelector: '[data-rewind-block], [data-rewind-ui]', maskTextSelector: '[data-rewind-mask]', maskAllInputs: ALL, maskInputFn: (t) => t }));
-        res.rewindOptions.push(a);
+        const [a, tree] = time(() => lib.snapshot(document, { mirror: lib.createMirror(), blockSelector: '[data-flashback-block], [data-flashback-ui]', maskTextSelector: '[data-flashback-mask]', maskAllInputs: ALL, maskInputFn: (t) => t }));
+        res.flashbackOptions.push(a);
         await pause();
         res.noSelectors.push(time(() => lib.snapshot(document, { mirror: lib.createMirror() }))[0]);
         await pause();
@@ -226,7 +226,7 @@ export async function runPerf(opts = parseArgs()) {
   const interactions = Number(opts.raw.interactions ?? (opts.quick ? 20 : 50));
   const runs = opts.quick ? Math.min(opts.runs, 2) : opts.runs;
   const pace = Number(opts.raw.pace ?? 700);
-  // `--modes=on,off,rrweb`: rrweb = ayrıştırma kipi (yalnızca rrweb, Rewind eklentileri yok; lib/shim-rrweb.js).
+  // `--modes=on,off,rrweb`: rrweb = ayrıştırma kipi (yalnızca rrweb, Flashback eklentileri yok; lib/shim-rrweb.js).
   const modes = String(opts.raw.modes ?? 'on,off').split(',');
   const rx = await startReceiver();
   const { browser, version } = await launch();

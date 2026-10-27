@@ -3,14 +3,14 @@
  *
  * JSX derleyicisi gerektirmesin diye düz JS + React.createElement ile yazıldı. Sorgu parametreleri:
  *   ?n=5000        liste öğesi sayısı (varsayılan 5000)
- *   ?endpoint=...  rewind-mcp alıcısının adresi
+ *   ?endpoint=...  flashback-mcp alıcısının adresi
  *   ?ticker=ms     her `ms` milisaniyede 50 satırı günceller (bellek stres senaryosu); 0 = kapalı
  *
- * `rewind-devtools` kayıt KAPALI koşuda bench Vite eklentisi tarafından `dist/noop.js`'e yönlendirilir.
+ * `flashback-devtools` kayıt KAPALI koşuda bench Vite eklentisi tarafından `dist/noop.js`'e yönlendirilir.
  */
 import { createElement as h, memo, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Rewind } from 'rewind-devtools';
+import { Flashback } from 'flashback-devtools';
 
 const params = new URLSearchParams(location.search);
 const N = Number(params.get('n') ?? 5000);
@@ -113,4 +113,4 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render([h(App, { key: 'app' }), h(Rewind, { key: 'rewind', endpoint })]);
+createRoot(document.getElementById('root')).render([h(App, { key: 'app' }), h(Flashback, { key: 'flashback', endpoint })]);

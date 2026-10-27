@@ -1,6 +1,6 @@
 node_modules
 dist
-.rewind
+.flashback
 *.log
 test-results
 playwright-report

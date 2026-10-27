@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const SCHEMA_VERSION = 1 as const;
 
 /** FR-RCV-SEC-04 / §9.1: olay kimliği biçimi (UTC). */
-export const INCIDENT_ID_RE = /^rw-\d{8}-\d{6}-[a-z0-9]{4}$/;
+export const INCIDENT_ID_RE = /^fb-\d{8}-\d{6}-[a-z0-9]{4}$/;
 
 const jsonValue: z.ZodType<unknown> = z.unknown();
 
@@ -173,7 +173,7 @@ export const IncidentDraftSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
   source: z.object({
     origin: z.string(),
-    rewindVersion: z.string(),
+    flashbackVersion: z.string(),
     framework: z.string().default('react'),
     userAgent: z.string(),
     tabId: z.string(),

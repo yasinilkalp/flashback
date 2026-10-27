@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * İnceleme yardımcısı: CDP örnekleyici profil ile kayıt AÇIK sayfada zamanın nereye gittiği (modül ve fonksiyon bazında
- * öz süre). NFR hedefi kaçırıldığında nedeni `packages/rewind` kaynağına bağlamak için kullanılır.
+ * öz süre). NFR hedefi kaçırıldığında nedeni `packages/flashback` kaynağına bağlamak için kullanılır.
  *
  *   node scripts/bench/profile.mjs [--page=demo|list] [--throttle=4] [--scenario=interactions|panel|save] [--fill=40]
  *
@@ -18,7 +18,7 @@ function moduleOf(url) {
   if (!url) return '(yerel)';
   if (/rrweb-snapshot/.test(url)) return 'rrweb-snapshot';
   if (/deps\/rrweb/.test(url)) return 'rrweb';
-  if (/packages\/rewind\/dist/.test(url)) return 'rewind-devtools';
+  if (/packages\/flashback\/dist/.test(url)) return 'flashback-devtools';
   if (/react-dom|scheduler/.test(url)) return 'react-dom';
   if (/deps\/react/.test(url)) return 'react';
   if (/source-map-js/.test(url)) return 'source-map-js';
@@ -75,21 +75,21 @@ export async function runProfile(o) {
       if (o.scenario === 'panel') {
         await cdp.send('Profiler.start');
         await page.keyboard.press('Alt+Shift+KeyR');
-        await page.locator('[data-rw="panel"] .rw-replay iframe').waitFor();
+        await page.locator('[data-fb="panel"] .fb-replay iframe').waitFor();
       } else {
         for (let k = 0; k < 2; k++) {
           await page.keyboard.press('Alt+Shift+KeyR');
-          await page.locator('[data-rw="page-level"]').click();
-          await page.locator('[data-rw="expected"]').fill('bench');
+          await page.locator('[data-fb="page-level"]').click();
+          await page.locator('[data-fb="expected"]').fill('bench');
           if (k === 1) await cdp.send('Profiler.start');
-          await page.locator('[data-rw="save"]').click();
-          const preview = page.locator('[data-rw="preview-view"]');
-          const idEl = page.locator('[data-rw="incident-id"]');
+          await page.locator('[data-fb="save"]').click();
+          const preview = page.locator('[data-fb="preview-view"]');
+          const idEl = page.locator('[data-fb="incident-id"]');
           await Promise.race([preview.waitFor({ timeout: 60_000 }), idEl.waitFor({ timeout: 60_000 })]);
-          if (await preview.isVisible()) await page.locator('[data-rw="send"]').click();
+          if (await preview.isVisible()) await page.locator('[data-fb="send"]').click();
           await idEl.waitFor({ timeout: 60_000 });
           if (k === 0) {
-            await page.locator('[data-rw="close"]').click();
+            await page.locator('[data-fb="close"]').click();
             await drive(5000);
           }
         }

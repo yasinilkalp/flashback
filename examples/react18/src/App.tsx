@@ -28,7 +28,7 @@ export function App() {
     });
   return (
     <>
-      <h1 data-testid="title">Rewind React 18</h1>
+      <h1 data-testid="title">Flashback React 18</h1>
       <div className="shop" data-testid="shop">
         <ProductList products={PRODUCTS} onAdd={add} />
         <Cart items={items} />

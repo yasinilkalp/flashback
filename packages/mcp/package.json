@@ -1,11 +1,11 @@
 {
-  "name": "rewind-mcp",
+  "name": "flashback-mcp",
   "version": "0.1.0",
-  "description": "Rewind MCP sunucusu: tarayıcıdan gelen hata olaylarını AI kodlama ajanına iletir ve düzeltmeyi kırmızı→yeşil Playwright testiyle doğrular.",
+  "description": "Flashback MCP sunucusu: tarayıcıdan gelen hata olaylarını AI kodlama ajanına iletir ve düzeltmeyi kırmızı→yeşil Playwright testiyle doğrular.",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "rewind-mcp": "./dist/cli.js"
+    "flashback-mcp": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -39,16 +39,16 @@
     }
   },
   "devDependencies": {
-    "@rewind/shared": "0.1.0"
+    "@flashback/shared": "0.1.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yasinilkalp/rewind.git",
+    "url": "git+https://github.com/yasinilkalp/flashback.git",
     "directory": "packages/mcp"
   },
-  "homepage": "https://github.com/yasinilkalp/rewind#readme",
+  "homepage": "https://github.com/yasinilkalp/flashback#readme",
   "bugs": {
-    "url": "https://github.com/yasinilkalp/rewind/issues"
+    "url": "https://github.com/yasinilkalp/flashback/issues"
   },
   "keywords": [
     "mcp",

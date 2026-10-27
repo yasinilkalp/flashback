@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     include: ['packages/*/test/**/*.e2e.test.ts', 'tests/e2e/**/*.e2e.test.ts'],
     environment: 'node',
-    env: { REWIND_E2E: '1' },
+    env: { FLASHBACK_E2E: '1' },
     testTimeout: 180_000,
     hookTimeout: 120_000,
     fileParallelism: false,

@@ -49,7 +49,7 @@ Chromium düz metin ve dizi gövdeyi sayfa iş parçacığında kopyalıyor. Bu 
 
 **Kalanlar (yalnızca 5.000 düğüm)**
 
-- **INP +32 ms (1x).** Etkileşimlerin p75 gecikmesi değişmiyor (0 ms). INP'yi belirleyen etkileşim, uygulamanın binlerce `hidden` özniteliğini değiştiren filtre işlemi. Bu etkileşimin ek maliyeti rrweb'in mutasyon gözlemcisinden geliyor (öznitelik başına kayıt). Rewind tarafında olası azaltma: rrweb'in `blockSelector` seçeneğini bir prop olarak açıp büyük listeleri kayıttan çıkarmak. Bu kanıt kaybı demek. Bu yüzden yapılmadı, v1.1 sonrasına aday. Öneri: sürüm notunda "çok büyük DOM'larda toplu öznitelik değişiklikleri INP'ye ~30 ms ekleyebilir" uyarısı.
+- **INP +32 ms (1x).** Etkileşimlerin p75 gecikmesi değişmiyor (0 ms). INP'yi belirleyen etkileşim, uygulamanın binlerce `hidden` özniteliğini değiştiren filtre işlemi. Bu etkileşimin ek maliyeti rrweb'in mutasyon gözlemcisinden geliyor (öznitelik başına kayıt). Flashback tarafında olası azaltma: rrweb'in `blockSelector` seçeneğini bir prop olarak açıp büyük listeleri kayıttan çıkarmak. Bu kanıt kaybı demek. Bu yüzden yapılmadı, v1.1 sonrasına aday. Öneri: sürüm notunda "çok büyük DOM'larda toplu öznitelik değişiklikleri INP'ye ~30 ms ekleyebilir" uyarısı.
 - **4x maddeleri** (checkout 232 ms, 7 long task, INP +120 ms) FRD v1.1'e göre bilgi amaçlıdır. rrweb'in tam görüntü serileştirmesi 4x'te tek başına ~200 ms sürüyor.
 
 Ham sonuçlar: `scripts/bench/results/perf-latest.json` ve `lat-latest.json` (5.000 düğüm ve demo koşularının birleşimi). İlk turun ham dosyaları yerelde kaldı. `node scripts/bench/report.mjs` bu tabloyu yeniden üretir.
@@ -64,7 +64,7 @@ Ham sonuçlar: `scripts/bench/results/perf-latest.json` ve `lat-latest.json` (5.
 | NFR-PERF-01 | INP p75 artışı ≤ 20 ms (5.000 düğüm) | +24 ms (256→280) / +184 ms (1296→1480) | ❌ / ❌ | INP'yi uygulamanın kendi filtre etkileşimi (binlerce `hidden` değişimi) belirliyor. Checkout'lu etkileşimler hariç tutulunca 4x'te artış +112 ms. |
 | NFR-PERF-01 | Checkout dışında kayıttan kaynaklanan > 50 ms long task yok (demo) | 0 / 2 | ✅ / ❌ | 4x: boştayken 1 adet (54 ms) ve 1 sayfa geçişi etkileşimi. |
 | NFR-PERF-01 | Checkout dışında kayıttan kaynaklanan > 50 ms long task yok (5.000 düğüm) | 0 / 7 | ✅ / ❌ | 4x: 7 satır seçme etkileşimi kapalıyken < 50 ms, açıkken > 50 ms. Koşu başına long task medyanı 47'ye karşı 37. |
-| NFR-PERF-01 | 5.000 düğümde tam anlık görüntü ≤ 100 ms | medyan 62 ms (p95 71) / medyan 268 ms (p95 342) | ✅ / ❌ | Sürenin ~%75'i rrweb'in serileştirmesi. Rewind'in boyut tahmini (`JSON.stringify`) ~%15 ekliyor (§4.3). |
+| NFR-PERF-01 | 5.000 düğümde tam anlık görüntü ≤ 100 ms | medyan 62 ms (p95 71) / medyan 268 ms (p95 342) | ✅ / ❌ | Sürenin ~%75'i rrweb'in serileştirmesi. Flashback'in boyut tahmini (`JSON.stringify`) ~%15 ekliyor (§4.3). |
 | NFR-MEM-01 | Tampon ≤ 50 MB ve sınırlı (180 sn, varsayılan ayarlar) | demo 4,9 MB · liste 15,8 MB · stres 22,5 MB (en çok, açık − kapalı) | ✅ | 90. saniyeden sonra büyüme yok (+0,1 / +0,2 / −1,2 MB). Bellek uyarısı tetiklenmedi. |
 | NFR-LAT-01 | Panel ≤ 500 ms'de açılır (demo, dolu tampon) | medyan 24 / p95 61 ms · medyan 146 / p95 266 ms | ✅ / ✅ | |
 | NFR-LAT-01 | Panel ≤ 500 ms'de açılır (5.000 düğüm, dolu tampon) | medyan 256 / p95 293 ms · medyan 938 / p95 1.171 ms | ✅ / ❌ | Panel, tekrar oynatma kurulana kadar ekrana gelmiyor. Bu kurulumun büyük kısmı rrweb'in sanal DOM'u (§4.4). |
@@ -78,12 +78,12 @@ Ham sonuçlar: `scripts/bench/results/perf-latest.json` ve `lat-latest.json` (5.
 - **AS-2 (tampon belleği):** 3 dilimli tampon varsayılan ayarlarda en kötü stres senaryosunda bile 50 MB'ın çok altında kaldı (toplam ek yük ≤ 22,5 MB). Ürün metni **"son 60 saniye" olarak kalabilir**. "30–60 sn" düzeltmesine gerek yok.
 - **NFR-PERF-01, INP:** Kaçırılan hedefin büyük kısmı ucuz bir arayüz düzeltmesiyle kapanıyor: başlatıcıdaki sonsuz animasyon (§4.1). Bu düzeltme demo'da 1x'te artışın tamamını, 4x'te ~%60'ını geri alıyor.
 - **5.000 düğüm, 4x hedefleri** (checkout ≤ 100 ms, panel ≤ 500 ms, kaydet ≤ 2 sn): §4.3–4.5'teki değişiklikler yapılmadan karşılanmıyor.
-  - Checkout: rrweb'in tam görüntüsü 4x'te tek başına ~200 ms sürdüğü için yalnızca Rewind tarafındaki iyileştirmeyle 100 ms'ye inmiyor.
+  - Checkout: rrweb'in tam görüntüsü 4x'te tek başına ~200 ms sürdüğü için yalnızca Flashback tarafındaki iyileştirmeyle 100 ms'ye inmiyor.
   - Öneri: NFR-PERF-01'deki 100 ms eşiğinin **1x referans profiline** bağlı olduğu FRD'ye yazılsın, 4x için ayrı bir bilgi değeri verilsin. Ayrıca checkout etkileşimlerin dışına taşınsın (§4.3).
 
 ## 2. Yöntem (özet)
 
-Tüm ölçümler headless Chromium 153'te ve React 19 geliştirme kipinde yapıldı. Rewind yalnızca geliştirme ortamında çalıştığı için gerçek kullanım koşulu budur. Kayıt kapalıyken `rewind-devtools`, `dist/noop.js`'e yönlendirilir; bu, üretimdeki durumun aynısıdır, yani kaydedici hiç yüklenmez. Alıcı olarak gerçek `rewind-mcp` (`packages/mcp/dist/cli.js`, stdio + HTTP) kullanıldı. Kayıt açıkken panel alıcıyı 3 sn'de bir yokladı.
+Tüm ölçümler headless Chromium 153'te ve React 19 geliştirme kipinde yapıldı. Flashback yalnızca geliştirme ortamında çalıştığı için gerçek kullanım koşulu budur. Kayıt kapalıyken `flashback-devtools`, `dist/noop.js`'e yönlendirilir; bu, üretimdeki durumun aynısıdır, yani kaydedici hiç yüklenmez. Alıcı olarak gerçek `flashback-mcp` (`packages/mcp/dist/cli.js`, stdio + HTTP) kullanıldı. Kayıt açıkken panel alıcıyı 3 sn'de bir yokladı.
 
 - **NFR-PERF-01**
   - Her sayfa × kısma için kayıt açık ve kapalı **5'er koşu**, sıra her koşuda değişti. Her koşuda 50 belirlenimci etkileşim 700 ms tempoda yapıldı (koşu ≈ 35 sn).
@@ -91,12 +91,12 @@ Tüm ölçümler headless Chromium 153'te ve React 19 geliştirme kipinde yapıl
   - Etkileşim gecikmesi Event Timing'den alındı (`interactionId`, 16 ms eşiği). INP, web-vitals tanımıyla hesaplandı (her 50 etkileşimde en kötü 1 tanesi atlanır). **INP p75** = 5 koşunun INP değerlerinin 75. yüzdeliği.
   - Long task'lar checkout yoklayıcısıyla ayrıldı: `record.mirror.getMeta(document)` nesne kimliği 50 ms'de bir kontrol edildi.
   - "Kayıttan kaynaklanan" iki grupta sayıldı: (a) kayıt açıkken etkileşim dışında görülen long task'lar; (b) etkileşim sırası bazında, açık koşuların çoğunluğunda olup kapalıların çoğunluğunda olmayanlar.
-  - Checkout süresi, canlı kayıtta `record.takeFullSnapshot(true)` ile koşu başına 3 kez ölçüldü (toplam 15 örnek). Bu süreye Rewind'in emit → halka tampon → boyut tahmini yolu dahildir.
+  - Checkout süresi, canlı kayıtta `record.takeFullSnapshot(true)` ile koşu başına 3 kez ölçüldü (toplam 15 örnek). Bu süreye Flashback'in emit → halka tampon → boyut tahmini yolu dahildir.
 - **NFR-MEM-01**
   - Varsayılan ayarlarla **gerçek 180 sn** ölçüldü (zaman sıkıştırma yok).
   - Kayıt açık ve kapalı oturumlar aynı anda, ayrı Chromium süreçlerinde, ~700 ms tempoda sürekli etkileşimle çalıştı.
   - 10 sn'de bir iki kez `HeapProfiler.collectGarbage` → `Runtime.getHeapUsage` alındı.
-  - Fark (açık − kapalı), Rewind'in **toplam** JS heap ek yüküdür: rrweb kodu, mirror, tampon, ağ/konsol/adım kayıtları ve panel kökü. Tampon bu farkın içinde olduğundan fark tampon için bir üst sınırdır.
+  - Fark (açık − kapalı), Flashback'in **toplam** JS heap ek yüküdür: rrweb kodu, mirror, tampon, ağ/konsol/adım kayıtları ve panel kökü. Tampon bu farkın içinde olduğundan fark tampon için bir üst sınırdır.
   - Senaryolar: demo, 5.000 düğüm ve stres (5.000 düğüm + 100 ms'de bir 50 satır güncellemesi ≈ 500 metin mutasyonu/sn + etkileşim).
 - **NFR-LAT-01**
   - Tampon önce 65 sn etkileşimle dolduruldu. Ardından 8 döngü yapıldı: 5 sn etkileşim → `Alt+Shift+R` → sayfa düzeyi olay → beklenen davranış → Kaydet → onay → kapat.
@@ -110,7 +110,7 @@ Tüm ölçümler headless Chromium 153'te ve React 19 geliştirme kipinde yapıl
 
 - CPU: Intel Xeon @ 2,10 GHz × 2 (sanal makine), 7,8 GB RAM, Linux 6.18 (x64)
 - Node v22.23.4, Chromium 153.0.8010.12 (headless), Playwright 1.63.0, rrweb 2.2.0
-- rewind-devtools 0.1.0, git `05218f8` + çalışma ağacı
+- flashback-devtools 0.1.0, git `05218f8` + çalışma ağacı
 
 ## 3. Ayrıntılı sonuçlar
 
@@ -160,14 +160,14 @@ Maliyet dökümü (5.000 düğüm, 7 örnek medyanı, `perf.mjs` inceleme adım�
 
 | Parça | 1x | 4x |
 |---|---|---|
-| rrweb-snapshot `snapshot()`, Rewind seçenekleriyle | 42,7 ms | 204,6 ms |
+| rrweb-snapshot `snapshot()`, Flashback seçenekleriyle | 42,7 ms | 204,6 ms |
 | aynısı, seçicisiz (`blockSelector`/`maskTextSelector` yok) | 37,7 ms | 197,8 ms |
-| tam görüntünün `JSON.stringify`'ı (Rewind `estimateEventBytes`) | 10,5 ms | 43,4 ms |
+| tam görüntünün `JSON.stringify`'ı (Flashback `estimateEventBytes`) | 10,5 ms | 43,4 ms |
 | canlı checkout (hepsi + emit + mutasyon arabelleği) | 67,9 ms | 282,7 ms |
 
 Bu tabloya göre:
 
-- Rewind'in seçicileri küçük bir maliyet ekliyor (%3–13).
+- Flashback'in seçicileri küçük bir maliyet ekliyor (%3–13).
 - Boyut tahmini toplamın ~%15'i.
 - Geri kalan maliyet rrweb serileştirmesi.
 
@@ -216,21 +216,21 @@ Satır numaraları ölçüm günündeki çalışma ağacına göredir.
 
 ### 4.1 Başlatıcıdaki sonsuz "kayıt" animasyonu → INP artışının ana nedeni
 
-`packages/rewind/src/ui/styles.ts:35–36`:
+`packages/flashback/src/ui/styles.ts:35–36`:
 
 ```css
-.rw-dot.rw-rec { animation: rw-pulse 1.6s infinite; }
-@keyframes rw-pulse { 50% { opacity: .35; } }
+.fb-dot.fb-rec { animation: fb-pulse 1.6s infinite; }
+@keyframes fb-pulse { 50% { opacity: .35; } }
 ```
 
-Kanıt: demo'da ayrıştırma (`investigate.mjs ablate`). 1x: 3 koşu × 50 etkileşim, 700 ms tempo. 4x: 4 koşu × 40 etkileşim, 350 ms tempo. Aynı Rewind'de yalnızca bu animasyon sayfa içinden kapatıldı.
+Kanıt: demo'da ayrıştırma (`investigate.mjs ablate`). 1x: 3 koşu × 50 etkileşim, 700 ms tempo. 4x: 4 koşu × 40 etkileşim, 350 ms tempo. Aynı Flashback'te yalnızca bu animasyon sayfa içinden kapatıldı.
 
 | Değişken | 1x ort. (3 koşu) | 1x p75 | 4x ort. (4 koşu, 350 ms tempo) | 4x p75 |
 |---|---|---|---|---|
 | kayıt kapalı | 16,4 ms | 16 | 20,9 ms | 24 |
-| yalnızca rrweb (Rewind'in seçenekleriyle) | 16,2 ms | 16 | 22,6 ms | 24 |
-| tam Rewind | 19,7 ms | 24 | 30,8 ms | 40 |
-| tam Rewind, animasyon kapalı | **16,6 ms** | **16** | **24,9 ms** | **32** |
+| yalnızca rrweb (Flashback'in seçenekleriyle) | 16,2 ms | 16 | 22,6 ms | 24 |
+| tam Flashback | 19,7 ms | 24 | 30,8 ms | 40 |
+| tam Flashback, animasyon kapalı | **16,6 ms** | **16** | **24,9 ms** | **32** |
 
 Aynı deney 5.000 düğümde, 4x (3 koşu × 50 etkileşim, 700 ms tempo):
 
@@ -238,17 +238,17 @@ Aynı deney 5.000 düğümde, 4x (3 koşu × 50 etkileşim, 700 ms tempo):
 |---|---|---|---|---|
 | kayıt kapalı | 268,6 ms | 80 | 104 | 1.256 |
 | yalnızca rrweb | 286,9 ms | 80 | 96 | 1.344 |
-| tam Rewind | 312,2 ms | 104 | 128 | 1.392 |
-| tam Rewind, animasyon kapalı | 297,5 ms | 96 | 120 | 1.368 |
+| tam Flashback | 312,2 ms | 104 | 128 | 1.392 |
+| tam Flashback, animasyon kapalı | 297,5 ms | 96 | 120 | 1.368 |
 
 Sonuç:
 
 - rrweb çekirdeğinin demo'daki etkileşim başına maliyeti küçük: 1x'te ölçülemiyor, 4x'te ~2 ms.
 - Büyük listede ek yük üç parçaya ayrılıyor:
   - rrweb: +18 ms ortalama. Ağırlıklı olarak filtrenin binlerce öznitelik mutasyonunu işliyor.
-  - Rewind'in animasyon dışı eklentileri: +11 ms ortalama, medyanda +16 ms. Aday nedenler §4.2'deki seçici üretimi ve §4.3'teki olay başına `JSON.stringify`.
+  - Flashback'in animasyon dışı eklentileri: +11 ms ortalama, medyanda +16 ms. Aday nedenler §4.2'deki seçici üretimi ve §4.3'teki olay başına `JSON.stringify`.
   - Animasyon: +15 ms ortalama.
-- Rewind'in ek yükünün çoğu bu animasyondan geliyor: 1x'te tamamı, 4x'te ~%60'ı.
+- Flashback'in ek yükünün çoğu bu animasyondan geliyor: 1x'te tamamı, 4x'te ~%60'ı.
 - Sürekli animasyon her karede çizim istiyor ve etkileşimin bir sonraki boyamasını geciktiriyor.
 
 Öneri:
@@ -259,7 +259,7 @@ Sonuç:
 
 ### 4.2 Tıklama yolunda eşzamanlı seçici üretimi (büyük listelerde)
 
-`packages/rewind/src/recorder/steps.ts:109–119`, her tıklamada `buildSelectors` çağırıyor. `packages/rewind/src/dom/selector.ts:137–138` iki yapısal yol üretiyor: `structuralPath(el, doc, true/false)`. Her düzeyde `nthOfType` (`selector.ts:89`) şunu yapıyor:
+`packages/flashback/src/recorder/steps.ts:109–119`, her tıklamada `buildSelectors` çağırıyor. `packages/flashback/src/dom/selector.ts:137–138` iki yapısal yol üretiyor: `structuralPath(el, doc, true/false)`. Her düzeyde `nthOfType` (`selector.ts:89`) şunu yapıyor:
 
 ```ts
 Array.from(parent.children).filter(...)
@@ -279,16 +279,16 @@ Array.from(parent.children).filter(...)
 
 Etkileşimin içine düşmesi:
 
-- `packages/rewind/src/recorder/recorder.ts:71`, `checkoutEveryNms: bufferSeconds*1000/2` kullanıyor. rrweb tam görüntüyü süre dolduktan sonraki ilk kayıt olayının işleyicisinde, eşzamanlı alıyor.
+- `packages/flashback/src/recorder/recorder.ts:71`, `checkoutEveryNms: bufferSeconds*1000/2` kullanıyor. rrweb tam görüntüyü süre dolduktan sonraki ilk kayıt olayının işleyicisinde, eşzamanlı alıyor.
 - Sonuç: 4x'te 5.000 düğümde ~270 ms'lik iş bir kullanıcı etkileşiminin içine biniyor (§3.1: checkout'lu etkileşimler 1,0–1,8 sn).
 
 Boyut tahmini:
 
-- `packages/rewind/src/recorder/ring.ts:18–21` (`estimateEventBytes`) her olayı `JSON.stringify` ediyor. Tam görüntüde bu ~1,4 MB'lık bir metin üretmek demek: 1x'te 10 ms, 4x'te 43 ms.
+- `packages/flashback/src/recorder/ring.ts:18–21` (`estimateEventBytes`) her olayı `JSON.stringify` ediyor. Tam görüntüde bu ~1,4 MB'lık bir metin üretmek demek: 1x'te 10 ms, 4x'te 43 ms.
 
 Öneriler:
 
-1. `checkoutEveryNms`'i kaldırın; checkout'u Rewind yönetsin.
+1. `checkoutEveryNms`'i kaldırın; checkout'u Flashback yönetsin.
    - Süre dolunca `requestIdleCallback(() => record.takeFullSnapshot(true), { timeout: 5000 })` çağırın. Böylece checkout etkileşim dışında, boşta alınır.
    - Tamponun "≥ bufferSeconds" garantisi için zaman aşımı yeterli.
    - Bu değişiklik süreyi kısaltmaz, ama INP'den ve "etkileşim içi long task"tan çıkarır.
@@ -296,13 +296,13 @@ Boyut tahmini:
 3. Seçenek: dilim aralığını `bufferSeconds/2` yerine `bufferSeconds` yapıp 2 dilim tutun.
    - Checkout sıklığı yarıya iner. Pencere [B, 2B] olur.
    - Bellek ek yükü artar, ama ölçülen 22,5 MB'lık stres değerine göre sınırın altında kalması beklenir.
-4. 100 ms eşiği: rrweb `snapshot()` 4x'te tek başına ~200 ms sürüyor. Bu yüzden 4x için eşik Rewind tarafında karşılanamaz. FRD NFR-PERF-01'e ölçüm profili (1x referans, 4x bilgi amaçlı) yazılmalı.
+4. 100 ms eşiği: rrweb `snapshot()` 4x'te tek başına ~200 ms sürüyor. Bu yüzden 4x için eşik Flashback tarafında karşılanamaz. FRD NFR-PERF-01'e ölçüm profili (1x referans, 4x bilgi amaçlı) yazılmalı.
 
 ### 4.4 Panel açılışı: Replayer eşzamanlı kuruluyor; rrweb sanal DOM'u büyük DOM'da pahalı
 
 Mevcut akış:
 
-- `packages/rewind/src/ui/Timeline.tsx:267`, `new Replayer(events, {...})` ve `r.pause(total)` çağrılarını bir `useEffect` içinde yapıyor.
+- `packages/flashback/src/ui/Timeline.tsx:267`, `new Replayer(events, {...})` ve `r.pause(total)` çağrılarını bir `useEffect` içinde yapıyor.
 - Kısayol ayrık (discrete) bir olay olduğu için React efektleri aynı görevde çalıştırıyor. Bu yüzden panel, son dilim yeniden kurulup sona sarılmadan çizilmiyor (§3.4).
 - rrweb'in hızlı ileri sarma yolu varsayılan `useVirtualDom: true` ile çalışıyor. İlk eşzamanlı mutasyonda iframe'deki **tüm** DOM'u sanal DOM'a kopyalıyor, sonra geri diff'liyor.
 - Profilde (5.000 düğüm, 4x) rrweb `buildFromNode` 580 ms öz süre aldı.
@@ -325,13 +325,13 @@ Deney (`investigate.mjs replay`, 5.000 düğüm, 4x, ~25 sn'lik dilim, Timeline.
 
 5.000 düğümde 4x profilin (kaydet → onay arası) dağılımı şöyle:
 
-- Rewind toplamı: 1,45 sn.
+- Flashback toplamı: 1,45 sn.
 - Yerel `TextEncoder.encode`: 282 ms.
 - `fetch`: 467 ms (çok MB'lık gövdenin gönderimi).
 
 Sıcak noktalar:
 
-- `packages/rewind/src/draft/build.ts:107` — `byteLength = new TextEncoder().encode(s).length`. Çok MB'lık metinleri yalnızca bayt saymak için kopyalıyor. `report.ts:60` da aynısını yapıyor.
+- `packages/flashback/src/draft/build.ts:107` — `byteLength = new TextEncoder().encode(s).length`. Çok MB'lık metinleri yalnızca bayt saymak için kopyalıyor. `report.ts:60` da aynısını yapıyor.
 - `build.ts:113–124` `fitEvents`: her döngüde tüm olay dizisini `JSON.stringify` ediyor.
 - `build.ts:126–139` `fitBodies`: tüm taslağı yeniden `JSON.stringify` ediyor.
 - `build.ts:287`: bütçe için bir kez daha `JSON.stringify` yapılıyor.
@@ -347,7 +347,7 @@ Sıcak noktalar:
 
 ### 4.6 Düşük öncelik: denetleyici her saniye ve her yoklamada yeniden çiziyor
 
-`packages/rewind/src/controller.ts:119` (`set`) her çağrıda yeni durum nesnesi üretip dinleyicileri bilgilendiriyor:
+`packages/flashback/src/controller.ts:119` (`set`) her çağrıda yeni durum nesnesi üretip dinleyicileri bilgilendiriyor:
 
 - 1 sn'lik zamanlayıcı (`:129–131`) panel kapalıyken bile başlatıcıyı yeniden çizdiriyor.
 - 3 sn'lik yoklama (`:127`) değişiklik olmasa da `incidents` dizisini değiştiriyor.
@@ -360,11 +360,11 @@ Ayrıştırma bunun ölçülebilir bir payı olmadığını gösterdi. Yine de d
 - **Geliştirme kipi:** React 19 geliştirme kipi öğe başına ek maliyet getirir (owner stack). 5.000 düğümlü listede uygulamanın kendi filtre etkileşimi kayıt kapalıyken bile 1x'te ~250 ms, 4x'te ~1,3 sn sürer. Bu nedenle bu sayfada INP'yi uygulama belirliyor.
 - **Event Timing:** süreler 8 ms'ye yuvarlanır. 16 ms altındaki etkileşimler 16 ms sayıldı (iki kipte de aynı şekilde).
 - **İstatistik:** INP p75 5 koşudan hesaplandı ve koşular arası oynaklık ±8–24 ms. Demo'daki +24/+32 ms'lik artış ayrıştırma deneyiyle de doğrulandı (§4.1).
-- **Bellek:** fark, Rewind'in toplam ek yüküdür (tampon için üst sınır). Tamponun kendi payı ayrıca ölçülmedi. Açık ve kapalı oturumlar aynı anda çalıştığı için etkinlik hızı CPU paylaşımından etkilenebilir; heap ölçümü süreç başınadır.
-- **Eşzamanlı geliştirme:** `packages/rewind/dist`, ölçüm sırasında (09:27 UTC) başka bir çalışma tarafından yeniden derlendi.
+- **Bellek:** fark, Flashback'in toplam ek yüküdür (tampon için üst sınır). Tamponun kendi payı ayrıca ölçülmedi. Açık ve kapalı oturumlar aynı anda çalıştığı için etkinlik hızı CPU paylaşımından etkilenebilir; heap ölçümü süreç başınadır.
+- **Eşzamanlı geliştirme:** `packages/flashback/dist`, ölçüm sırasında (09:27 UTC) başka bir çalışma tarafından yeniden derlendi.
   - Değişiklik yalnızca kaynak çözümleme ve taslak kodundaydı: `controller.ts`, `draft/*`, `source/*`, `Compose.tsx`.
   - Kayıt yolu değişmedi: `recorder/*`, `ui/Shell.tsx`, `ui/Timeline.tsx`, `ui/styles.ts`.
-  - NFR-LAT-01 ölçümleri 09:27 derlemesiyle yeniden yapıldı (`lat-latest.json` → `env.rewindDistBuiltAt`).
+  - NFR-LAT-01 ölçümleri 09:27 derlemesiyle yeniden yapıldı (`lat-latest.json` → `env.flashbackDistBuiltAt`).
 - **Referans sayfa:** 5.000 düğümlü liste sentetiktir (100'lük memo'lu parçalar). Gerçek uygulamalarda mutasyon deseni farklı olabilir.
 
 ## 6. Yeniden üretme

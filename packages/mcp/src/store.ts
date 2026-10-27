@@ -8,8 +8,8 @@ import {
   isIncidentId,
   type Incident,
   type IncidentDraft,
-} from '@rewind/shared';
-import { RewindError } from './errors.js';
+} from '@flashback/shared';
+import { FlashbackError } from './errors.js';
 
 /** Kota dolu ve silinebilecek kapalı olay yok (FR-RCV-09 → 507). */
 export class QuotaError extends Error {
@@ -34,7 +34,7 @@ const FILE_MODE = 0o600;
 export const isClosed = (i: Pick<Incident, 'status'>) => i.status !== 'open';
 
 /**
- * `.rewind/` deposu: her olay `<dir>/<id>.json`, repro dosyaları `<dir>/repro/<id>.*`.
+ * `.flashback/` deposu: her olay `<dir>/<id>.json`, repro dosyaları `<dir>/repro/<id>.*`.
  * Tüm dosya işlemleri senkrondur; böylece süreç içinde oku-değiştir-yaz adımları bölünmez.
  */
 export class IncidentStore {
@@ -54,7 +54,7 @@ export class IncidentStore {
     this.maxIncidents = opts.maxIncidents ?? LIMITS.maxIncidents;
     this.maxBytes = opts.maxBytes ?? LIMITS.maxStoreBytes;
     this.now = opts.now ?? (() => new Date());
-    this.log = opts.log ?? ((m) => process.stderr.write(`[rewind-mcp] ${m}\n`));
+    this.log = opts.log ?? ((m) => process.stderr.write(`[flashback-mcp] ${m}\n`));
   }
 
   /** Klasörleri (0700) ve `*` içeren `.gitignore` dosyasını oluşturur (FR-RCV-02, FR-RCV-SEC-06). */
@@ -64,14 +64,14 @@ export class IncidentStore {
       if (POSIX) fs.chmodSync(d, DIR_MODE);
     }
     const gi = path.join(this.dir, '.gitignore');
-    if (!fs.existsSync(gi)) this.writeAtomic(gi, '# Rewind olay klasörü — git\'e girmez.\n*\n');
+    if (!fs.existsSync(gi)) this.writeAtomic(gi, '# Flashback olay klasörü — git\'e girmez.\n*\n');
   }
 
   /** Kimliği doğrular ve dosya yolunu klasör içinde tutar (FR-RCV-SEC-04). */
   resolvePath(id: unknown): string {
-    if (!isIncidentId(id)) throw new RewindError('invalid_id', `Geçersiz olay kimliği: ${JSON.stringify(String(id).slice(0, 80))}`);
+    if (!isIncidentId(id)) throw new FlashbackError('invalid_id', `Geçersiz olay kimliği: ${JSON.stringify(String(id).slice(0, 80))}`);
     const p = path.resolve(this.dir, `${id}.json`);
-    if (path.dirname(p) !== this.dir) throw new RewindError('invalid_id', 'Olay yolu klasör dışına çıkıyor.');
+    if (path.dirname(p) !== this.dir) throw new FlashbackError('invalid_id', 'Olay yolu klasör dışına çıkıyor.');
     return p;
   }
 
@@ -113,7 +113,7 @@ export class IncidentStore {
   /** Olay yoksa `incident_not_found` fırlatır. */
   require(id: string): Incident {
     const inc = this.get(id);
-    if (!inc) throw new RewindError('incident_not_found', `Olay bulunamadı: ${id}`);
+    if (!inc) throw new FlashbackError('incident_not_found', `Olay bulunamadı: ${id}`);
     return inc;
   }
 
@@ -270,7 +270,7 @@ export class IncidentStore {
       /* repro klasörü yok */
     }
     for (const n of names) {
-      const m = /^(rw-\d{8}-\d{6}-[a-z0-9]{4})[.-]/.exec(n);
+      const m = /^(fb-\d{8}-\d{6}-[a-z0-9]{4})[.-]/.exec(n);
       if (m && !existing.has(m[1])) fs.rmSync(path.join(this.reproDir, n), { recursive: true, force: true });
     }
     return deleted;

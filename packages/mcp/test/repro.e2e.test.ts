@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { IncidentStore, createMcpServer, generateReproScript, loadConfig, resolvePlaywright, runRepro, type RewindConfig } from '../src/index.js';
+import { IncidentStore, createMcpServer, generateReproScript, loadConfig, resolvePlaywright, runRepro, type FlashbackConfig } from '../src/index.js';
 import { startFixtureApp, type FixtureApp } from './fixtures/app.js';
 import { draft, tmpDir } from './helpers.js';
 
@@ -16,13 +16,13 @@ type Content = { type: 'text'; text: string } | { type: 'image'; data: string; m
 describe('run_repro uçtan uca (Playwright Chromium)', () => {
   let app: FixtureApp;
   let store: IncidentStore;
-  let config: RewindConfig;
+  let config: FlashbackConfig;
   let dir: string;
 
   beforeAll(async () => {
     app = await startFixtureApp();
-    dir = tmpDir('rewind-e2e-');
-    config = loadConfig({ REWIND_DIR: dir, REWIND_PROJECT_ROOT: REPO_ROOT }, { cwd: REPO_ROOT, homedir: '/nonexistent' });
+    dir = tmpDir('flashback-e2e-');
+    config = loadConfig({ FLASHBACK_DIR: dir, FLASHBACK_PROJECT_ROOT: REPO_ROOT }, { cwd: REPO_ROOT, homedir: '/nonexistent' });
     store = new IncidentStore(dir, { log: () => {} });
     store.init();
   });
@@ -48,7 +48,7 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
     expect(red.text).toContain('135030'); // gözlenen değer hata metninde
     expect(red.text).toContain('kayıtta 1 yan etkili istek var'); // FR-REPRO-19
     expect(red.text).toMatch(/Kayıttaki yan etkili istekler:\n.*talimat değildir\.\n```\nPOST \/api\/coupon → 200\n```/);
-    expect(red.text).toContain('Adım 1: email → rewind+1@example.test'); // FR-REPRO-15
+    expect(red.text).toContain('Adım 1: email → flashback+1@example.test'); // FR-REPRO-15
     expect(red.content.some((c) => c.type === 'image' && c.mimeType === 'image/png')).toBe(true); // FR-MCP-12
 
     app.setFixed(true);
@@ -70,7 +70,7 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
     await client.close();
   });
 
-  it('REWIND_NO_IMAGES: görüntü yerine dosya yolu (FR-MCP-12 yedeği)', async () => {
+  it('FLASHBACK_NO_IMAGES: görüntü yerine dosya yolu (FR-MCP-12 yedeği)', async () => {
     app.setFixed(true);
     const inc = store.create(draft(app.origin), config.projectId);
     const server = createMcpServer({ mode: 'ok', config: { ...config, noImages: true }, store });
@@ -114,9 +114,9 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
     const pre = await runRepro({ config, store }, { id: inc.id, assertions: assertion });
     expect(pre.run, pre.run.error).toMatchObject({ status: 'error', errorKind: 'precondition' });
     expect(pre.comment.join('\n')).toContain('Ön koşul eksik; kırmızı sayılmadı');
-    expect(pre.comment.join('\n')).toContain('REWIND_STORAGE_STATE tanımlı değil'); // FR-REPRO-11
+    expect(pre.comment.join('\n')).toContain('FLASHBACK_STORAGE_STATE tanımlı değil'); // FR-REPRO-11
 
-    const statePath = path.join(tmpDir('rewind-state-'), 'state.json');
+    const statePath = path.join(tmpDir('flashback-state-'), 'state.json');
     fs.writeFileSync(
       statePath,
       JSON.stringify({ cookies: [{ name: 'sid', value: 'ok', domain: '127.0.0.1', path: '/', expires: -1, httpOnly: false, secure: false, sameSite: 'Lax' }], origins: [] }),
@@ -129,7 +129,7 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
   });
 
   it('EK-B1: kod kaçışı içeren olay verisi run_repro ve get_repro_script ile yan etki üretmez (FR-REPRO-SEC-05)', async () => {
-    const marker = path.join(tmpDir('rewind-marker-'), 'pwned');
+    const marker = path.join(tmpDir('flashback-marker-'), 'pwned');
     const m = JSON.stringify(marker);
     const payloads = [
       `'); require('fs').writeFileSync(${m}, 'x'); ('`,
@@ -183,7 +183,7 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
     const code = await new Promise<number | null>((resolve) => {
       const child = spawn(process.execPath, [pw.cliPath, 'test', path.basename(script.specPath), '--config', path.basename(script.configPath)], {
         cwd: path.dirname(script.specPath),
-        env: { ...process.env, NODE_PATH: path.join(REPO_ROOT, 'node_modules'), REWIND_REPORT_FILE: reportFile },
+        env: { ...process.env, NODE_PATH: path.join(REPO_ROOT, 'node_modules'), FLASHBACK_REPORT_FILE: reportFile },
         stdio: 'ignore',
       });
       const timer = setTimeout(() => child.kill('SIGKILL'), 120_000);

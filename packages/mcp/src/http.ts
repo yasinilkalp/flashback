@@ -11,17 +11,17 @@ import {
   truncateText,
   type HealthResponse,
   type IncidentDraft,
-} from '@rewind/shared';
-import type { RewindConfig } from './config.js';
-import { RewindError } from './errors.js';
+} from '@flashback/shared';
+import type { FlashbackConfig } from './config.js';
+import { FlashbackError } from './errors.js';
 import { applyReopen, toSummary } from './lifecycle.js';
 import { projectRoots, relativizeDraft } from './paths.js';
 import { QuotaError, type IncidentStore } from './store.js';
 import { VERSION } from './version.js';
 
 export interface ReceiverOptions {
-  config: Pick<RewindConfig, 'port' | 'host' | 'allowOrigins' | 'maxBodyBytes' | 'projectId' | 'projectName' | 'rateLimitPerMin'> &
-    Partial<Pick<RewindConfig, 'projectRoot'>>;
+  config: Pick<FlashbackConfig, 'port' | 'host' | 'allowOrigins' | 'maxBodyBytes' | 'projectId' | 'projectName' | 'rateLimitPerMin'> &
+    Partial<Pick<FlashbackConfig, 'projectRoot'>>;
   store: IncidentStore;
   log?: (msg: string) => void;
   now?: () => Date;
@@ -45,7 +45,7 @@ class HttpError extends Error {
 
 const LOCAL_ORIGIN_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
-/** FR-RCV-SEC-02: localhost kökenleri (her port, http/https) ve REWIND_ALLOW_ORIGINS. */
+/** FR-RCV-SEC-02: localhost kökenleri (her port, http/https) ve FLASHBACK_ALLOW_ORIGINS. */
 export function isAllowedOrigin(origin: string, allowOrigins: string[]): boolean {
   if (origin === 'null') return false;
   let u: URL;
@@ -94,10 +94,10 @@ function clampDraft(d: IncidentDraft): IncidentDraft {
 const MessageBody = z.object({ text: z.string().min(1).max(10_000) });
 const ReopenBody = z.object({ reason: z.string().max(10_000).optional() });
 
-/** Tarayıcı ↔ rewind-mcp HTTP alıcısı (FRD §9.3, docs/IMPLEMENTATION.md). */
+/** Tarayıcı ↔ flashback-mcp HTTP alıcısı (FRD §9.3, docs/IMPLEMENTATION.md). */
 export function createReceiver(opts: ReceiverOptions): Receiver {
   const { config, store } = opts;
-  const log = opts.log ?? ((m: string) => process.stderr.write(`[rewind-mcp] ${m}\n`));
+  const log = opts.log ?? ((m: string) => process.stderr.write(`[flashback-mcp] ${m}\n`));
   const now = opts.now ?? (() => new Date());
   let boundPort = config.port;
   const roots = config.projectRoot ? projectRoots(config.projectRoot) : [];
@@ -119,7 +119,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
     // önce işler ve istemci 413 yerine ECONNRESET görür. Bu yüzden `connection: close` gönderilmez (Node o durumda
     // yanıt biter bitmez soketi kapatır). Gövde 2 sn içinde bitmezse (yavaş/sonsuz akış) bağlantı kesilir.
     const tooLarge = () => {
-      send(res, 413, { error: `Gövde ${Math.round(limit / 1048576)} MB sınırını aşıyor (REWIND_MAX_BODY_MB).` });
+      send(res, 413, { error: `Gövde ${Math.round(limit / 1048576)} MB sınırını aşıyor (FLASHBACK_MAX_BODY_MB).` });
       req.removeAllListeners('data');
       req.resume();
       const timer = setTimeout(() => {
@@ -172,7 +172,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
     const method = req.method ?? 'GET';
     if (pathname === '/health' && method === 'GET') {
       const body: HealthResponse = {
-        name: 'rewind-mcp',
+        name: 'flashback-mcp',
         version: VERSION,
         schemaVersion: SCHEMA_VERSION,
         projectId: config.projectId,
@@ -190,10 +190,10 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
           throw new HttpError(
             409,
             `Yanlış proje: olay "${claimed.slice(0, 100)}" için gönderildi, bu alıcı "${config.projectName}" projesine ait. ` +
-              'Doğru projede rewind-mcp çalıştırın ya da endpoint/REWIND_PORT değerini değiştirin.',
+              'Doğru projede flashback-mcp çalıştırın ya da endpoint/FLASHBACK_PORT değerini değiştirin.',
           );
         }
-        if (rateLimited()) throw new HttpError(429, 'Çok fazla olay (REWIND_RATE_LIMIT_PER_MIN).');
+        if (rateLimited()) throw new HttpError(429, 'Çok fazla olay (FLASHBACK_RATE_LIMIT_PER_MIN).');
         const parsed = IncidentDraftSchema.safeParse(body);
         if (!parsed.success) throw new HttpError(400, `Olay şemaya uymuyor:\n${z.prettifyError(parsed.error)}`);
         try {
@@ -273,7 +273,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
       await route(req, res, url.pathname, url.searchParams);
     } catch (e) {
       if (e instanceof HttpError) return send(res, e.status, { error: e.message });
-      if (e instanceof RewindError) {
+      if (e instanceof FlashbackError) {
         const status =
           e.code === 'invalid_id' ? 400 : e.code === 'incident_not_found' ? 404 : e.code === 'invalid_transition' ? 409 : 500;
         return send(res, status, { error: e.message, code: e.code });

@@ -118,7 +118,7 @@ export function renderEnv(env) {
   return [
     `- CPU: ${env.cpu}, RAM ${env.memoryGB} GB, ${env.os}`,
     `- Node ${env.node}, Chromium ${env.chromium} (headless), Playwright ${env.playwright}, rrweb ${env.rrweb}`,
-    `- rewind-devtools ${env.rewindDevtools} (dist: ${env.rewindDistBuiltAt}), git ${env.git}`,
+    `- flashback-devtools ${env.flashbackDevtools} (dist: ${env.flashbackDistBuiltAt}), git ${env.git}`,
   ].join('\n');
 }
 

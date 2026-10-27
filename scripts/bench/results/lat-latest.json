@@ -9,8 +9,8 @@
     "chromium": "153.0.8010.12",
     "playwright": "1.63.0",
     "rrweb": "2.2.0",
-    "rewindDevtools": "0.1.0",
-    "rewindDistBuiltAt": "2026-10-27T13:24:31.125Z",
+    "flashbackDevtools": "0.1.0",
+    "flashbackDistBuiltAt": "2026-10-27T13:24:31.125Z",
     "git": "05218f8"
   },
   "params": {
@@ -26,7 +26,7 @@
       "demo"
     ],
     "quick": false,
-    "receiver": "rewind-mcp (gerçek, stdio + HTTP)",
+    "receiver": "flashback-mcp (gerçek, stdio + HTTP)",
     "note": "list (13:29) ve demo (13:35) koşularının birleşimi"
   },
   "results": [

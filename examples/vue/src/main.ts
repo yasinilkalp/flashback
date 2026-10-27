@@ -1,6 +1,6 @@
 import { createApp } from 'vue';
 import App from './App.vue';
-import { mountRewind } from './rewind';
+import { mountFlashback } from './flashback';
 
 createApp(App).mount('#app');
-mountRewind(document.getElementById('rewind-root')!);
+mountFlashback(document.getElementById('flashback-root')!);

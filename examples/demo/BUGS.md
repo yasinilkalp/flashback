@@ -1,6 +1,6 @@
 # Demo: kasıtlı hatalar
 
-Bu demo, Rewind akışını (geri sar → göster → ajan kırmızı → düzelt → yeşil) uçtan uca denemek için üç kasıtlı hata içerir.
+Bu demo, Flashback akışını (geri sar → göster → ajan kırmızı → düzelt → yeşil) uçtan uca denemek için üç kasıtlı hata içerir.
 Her hatanın düzeltmesi **tek satırlık** bir değişikliktir ve satır `// BUG(<AD>)` yorumuyla işaretlidir.
 E2E testleri düzeltmeyi uygulamak için işaretli satırı aşağıdaki "Düzeltilmiş satır" ile değiştirir.
 
@@ -8,12 +8,12 @@ E2E testleri düzeltmeyi uygulamak için işaretli satırı aşağıdaki "Düzel
 
 ```bash
 npm install
-npm run build -w @rewind/shared && npm run build -w rewind-devtools   # demo paketi dist'ten kullanır
+npm run build -w @flashback/shared && npm run build -w flashback-devtools   # demo paketi dist'ten kullanır
 npm run dev                                                          # http://localhost:5173
 ```
 
-- Alıcı adresi varsayılan `http://127.0.0.1:4747`; değiştirmek için `VITE_REWIND_ENDPOINT=http://127.0.0.1:5858 npm run dev`.
-- `REWIND_DEMO_DETERMINISTIC=1` sunucuyu belirlenimci yapar (sabit oturum kimliği `sid=demo-session`).
+- Alıcı adresi varsayılan `http://127.0.0.1:4747`; değiştirmek için `VITE_FLASHBACK_ENDPOINT=http://127.0.0.1:5858 npm run dev`.
+- `FLASHBACK_DEMO_DETERMINISTIC=1` sunucuyu belirlenimci yapar (sabit oturum kimliği `sid=demo-session`).
 - Demo kullanıcısı: `demo@example.com` / `demo1234` (sayfada gösterilmez; gizleme testinde sızmaması için).
 
 ## API (Vite `configureServer` ara katmanı, `vite.config.ts`)
@@ -49,7 +49,7 @@ Kargo, indirimli tutar 1500 ₺ ve üzerindeyse ücretsizdir; bu yüzden hata ya
 - **Belirti:** Sunucu 500 döner, kullanıcıya hiçbir şey gösterilmez (konsola `Kupon isteği başarısız` yazılır).
 - **Beklenen:** `role="alert"` ile "Kupon uygulanamadı" mesajı.
 - **Kök neden:** `catch` bloğu hatayı yutar; mesaj durumunu `null` yapar.
-- **Dosya:** `src/Cart.tsx`, `// BUG(KIS20)` satırı. Rewind'de **sayfa düzeyi olay** olarak açılır; birincil kanıt `POST /api/coupon → 500` olur.
+- **Dosya:** `src/Cart.tsx`, `// BUG(KIS20)` satırı. Flashback'te **sayfa düzeyi olay** olarak açılır; birincil kanıt `POST /api/coupon → 500` olur.
 
 ```diff
 - setCouponError(null); // BUG(KIS20): …
@@ -65,7 +65,7 @@ Kargo, indirimli tutar 1500 ₺ ve üzerindeyse ücretsizdir; bu yüzden hata ya
 - **Beklenen:** `Sipariş sayısı: 4`.
 - **Kök neden:** Sayım `reduce` başlangıç değeri `1` ile yapılır.
 - **Dosya:** `src/Account.tsx`, `// BUG(ACCOUNT)` satırı. Oturum olmadan `/account` → `/login`'e yönlendirir; repro için
-  `storageState` (ya da `REWIND_PASSWORD` ile sentetik parola) gerekir. E-posta ve parola girişleri kayıtta
+  `storageState` (ya da `FLASHBACK_PASSWORD` ile sentetik parola) gerekir. E-posta ve parola girişleri kayıtta
   `[REDACTED:email]` / `[REDACTED:password]` olarak görünür.
 
 ```diff

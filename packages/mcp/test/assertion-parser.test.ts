@@ -1,4 +1,4 @@
-import { renderAssertions } from '@rewind/shared';
+import { renderAssertions } from '@flashback/shared';
 import { describe, expect, it } from 'vitest';
 import { AssertionParseError, parseAssertions } from '../src/index.js';
 

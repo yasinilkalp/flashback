@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { formatChecks, probePort, runChecks, suggestFreePort, wrongProjectMessage } from './checks.js';
-import { ConfigError, isLoopbackHost, loadConfig, type RewindConfig } from './config.js';
+import { ConfigError, isLoopbackHost, loadConfig, type FlashbackConfig } from './config.js';
 import { createReceiver, type Receiver } from './http.js';
 import { IncidentStore } from './store.js';
 import { SERVER_INSTRUCTIONS, createMcpServer, type ToolContext } from './tools.js';
 import { VERSION } from './version.js';
 
 // stdout MCP protokolüne aittir; tüm günlükler stderr'e gider.
-const log = (m: string) => process.stderr.write(`[rewind-mcp] ${m}\n`);
+const log = (m: string) => process.stderr.write(`[flashback-mcp] ${m}\n`);
 
-const USAGE = `rewind-mcp ${VERSION}
+const USAGE = `flashback-mcp ${VERSION}
 
 Kullanım:
-  rewind-mcp                 MCP (stdio) + HTTP alıcı (varsayılan)
-  rewind-mcp serve           Yalnızca HTTP alıcı
-  rewind-mcp check           Başlangıç kontrolleri (port, Playwright, Chromium, olay klasörü)
-  rewind-mcp prune [--all]   Saklama süresini aşan kapalı olayları sil (--all: tüm kapalı olaylar)
+  flashback-mcp                 MCP (stdio) + HTTP alıcı (varsayılan)
+  flashback-mcp serve           Yalnızca HTTP alıcı
+  flashback-mcp check           Başlangıç kontrolleri (port, Playwright, Chromium, olay klasörü)
+  flashback-mcp prune [--all]   Saklama süresini aşan kapalı olayları sil (--all: tüm kapalı olaylar)
 
 Bayraklar:
-  --unsafe-expose            Loopback dışı REWIND_HOST'a izin ver (önerilmez)`;
+  --unsafe-expose            Loopback dışı FLASHBACK_HOST'a izin ver (önerilmez)`;
 
-function config(unsafeExpose: boolean): RewindConfig {
+function config(unsafeExpose: boolean): FlashbackConfig {
   try {
     const c = loadConfig(process.env, { unsafeExpose });
     if (!isLoopbackHost(c.host)) {
@@ -37,7 +37,7 @@ function config(unsafeExpose: boolean): RewindConfig {
   }
 }
 
-function openStore(c: RewindConfig): IncidentStore {
+function openStore(c: FlashbackConfig): IncidentStore {
   const store = new IncidentStore(c.dir, { log });
   store.init();
   const pruned = store.prune({ retentionDays: c.retentionDays });
@@ -45,14 +45,14 @@ function openStore(c: RewindConfig): IncidentStore {
   return store;
 }
 
-async function serve(c: RewindConfig) {
+async function serve(c: FlashbackConfig) {
   const store = openStore(c);
   const receiver = createReceiver({ config: c, store, log });
   const port = await receiver.listen();
   log(`Alıcı http://${c.host}:${port} adresinde (olay klasörü ${c.dir}, projectId ${c.projectId}).`);
 }
 
-async function mcp(c: RewindConfig) {
+async function mcp(c: FlashbackConfig) {
   const store = openStore(c);
   let ctx: ToolContext = { mode: 'ok', config: c, store };
   let receiver: Receiver | undefined = createReceiver({ config: c, store, log });
@@ -111,7 +111,7 @@ async function main(argv: string[]) {
     case 'check': {
       const c = config(unsafeExpose);
       const items = await runChecks(c);
-      process.stdout.write(`rewind-mcp ${VERSION} — başlangıç kontrolleri (${c.projectName})\n${formatChecks(items)}\n`);
+      process.stdout.write(`flashback-mcp ${VERSION} — başlangıç kontrolleri (${c.projectName})\n${formatChecks(items)}\n`);
       process.exitCode = items.every((i) => i.ok) ? 0 : 1;
       return;
     }

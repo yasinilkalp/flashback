@@ -5,7 +5,7 @@ import { defineConfig, type Connect, type Plugin } from 'vite';
 
 /**
  * Demo API'si: Vite ile aynı süreçte çalışan ara katman. Kasıtlı hatalar için bkz. BUGS.md.
- * `REWIND_DEMO_DETERMINISTIC=1` sunucuyu belirlenimci yapar (sabit oturum kimliği), e2e testleri bunu kullanır.
+ * `FLASHBACK_DEMO_DETERMINISTIC=1` sunucuyu belirlenimci yapar (sabit oturum kimliği), e2e testleri bunu kullanır.
  */
 const PRODUCTS = [
   { id: 1, name: 'Seramik kupa', price: 250 },
@@ -46,7 +46,7 @@ function cookie(req: IncomingMessage, name: string): string | undefined {
 }
 
 function demoApi(): Plugin {
-  const deterministic = process.env.REWIND_DEMO_DETERMINISTIC === '1';
+  const deterministic = process.env.FLASHBACK_DEMO_DETERMINISTIC === '1';
   const sessions = new Set<string>();
 
   const handle: Connect.NextHandleFunction = (req, res, next) => {
@@ -84,7 +84,7 @@ function demoApi(): Plugin {
   };
 
   return {
-    name: 'rewind-demo-api',
+    name: 'flashback-demo-api',
     configureServer: (server) => void server.middlewares.use(handle),
     configurePreviewServer: (server) => void server.middlewares.use(handle),
   };
@@ -93,7 +93,7 @@ function demoApi(): Plugin {
 export default defineConfig({
   plugins: [react(), demoApi()],
   resolve: { dedupe: ['react', 'react-dom'] },
-  // rewind-devtools çalışma alanından (dist) gelir; bağımlılıkları baştan ön paketlensin ki ilk açılışta yeniden yükleme olmasın.
+  // flashback-devtools çalışma alanından (dist) gelir; bağımlılıkları baştan ön paketlensin ki ilk açılışta yeniden yükleme olmasın.
   optimizeDeps: { include: ['rrweb', 'source-map-js', 'zustand', 'react', 'react-dom/client', 'react/jsx-dev-runtime'] },
   server: { port: 5173, strictPort: true },
 });

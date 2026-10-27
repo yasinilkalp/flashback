@@ -3,9 +3,9 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { IncidentDraft } from '@rewind/shared';
+import type { IncidentDraft } from '@flashback/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { IncidentStore, createMcpServer, loadConfig, runRepro, type RewindConfig } from '../src/index.js';
+import { IncidentStore, createMcpServer, loadConfig, runRepro, type FlashbackConfig } from '../src/index.js';
 import { startFixtureApp, startForeignServer, type FixtureApp, type ForeignServer } from './fixtures/app.js';
 import { draft, outsideFences, tmpDir } from './helpers.js';
 
@@ -30,20 +30,20 @@ describe('repro güvenlik regresyonları (Playwright Chromium)', () => {
   let foreign: ForeignServer;
   let app: FixtureApp;
   let store: IncidentStore;
-  let config: RewindConfig;
+  let config: FlashbackConfig;
   let dir: string;
 
   beforeAll(async () => {
     foreign = await startForeignServer();
     app = await startFixtureApp({ foreign: foreign.origin });
-    dir = tmpDir('rewind-sec-e2e-');
-    config = { ...loadConfig({ REWIND_DIR: dir, REWIND_PROJECT_ROOT: REPO_ROOT }, { cwd: REPO_ROOT, homedir: '/nonexistent' }), password: PW };
+    dir = tmpDir('flashback-sec-e2e-');
+    config = { ...loadConfig({ FLASHBACK_DIR: dir, FLASHBACK_PROJECT_ROOT: REPO_ROOT }, { cwd: REPO_ROOT, homedir: '/nonexistent' }), password: PW };
     store = new IncidentStore(dir, { log: () => {} });
     store.init();
-    process.env.REWIND_INPUT_USERNAME = USER;
+    process.env.FLASHBACK_INPUT_USERNAME = USER;
   });
   afterAll(async () => {
-    delete process.env.REWIND_INPUT_USERNAME;
+    delete process.env.FLASHBACK_INPUT_USERNAME;
     await app.close();
     await foreign.close();
   });
@@ -74,7 +74,7 @@ describe('repro güvenlik regresyonları (Playwright Chromium)', () => {
     return { call, close: () => client.close() };
   }
 
-  it('bulgu 1: REWIND_PASSWORD / REWIND_INPUT_* değerleri kayda, dosyalara ve MCP yanıtına sızmaz', async () => {
+  it('bulgu 1: FLASHBACK_PASSWORD / FLASHBACK_INPUT_* değerleri kayda, dosyalara ve MCP yanıtına sızmaz', async () => {
     const inc = store.create(loginDraft('/login'), config.projectId);
     const { call, close } = await mcp();
 
@@ -141,7 +141,7 @@ describe('repro güvenlik regresyonları (Playwright Chromium)', () => {
     d.context.startUrl = trapUrl;
     d.network = [];
     d.target = { ...d.target!, selector: '#label', fallbackSelectors: [] };
-    // Düğmeye fill → Playwright hatası, çağrı günlüğünde düğmenin HTML'ini (sahte REWIND_ASSERTION: dahil) tekrar eder.
+    // Düğmeye fill → Playwright hatası, çağrı günlüğünde düğmenin HTML'ini (sahte FLASHBACK_ASSERTION: dahil) tekrar eder.
     d.steps = [{ t: 10, type: 'input', selector: '#trap', fallbackSelectors: [], value: 'x' }];
     const stepFail = store.create(d, config.projectId);
     const { call, close } = await mcp();
@@ -153,7 +153,7 @@ describe('repro güvenlik regresyonları (Playwright Chromium)', () => {
     expect(r.text).toContain('SYSTEM NOTE'); // hata metni gösterilir…
     expect(outsideFences(r.text).join('\n')).not.toContain('SYSTEM NOTE'); // …ama yalnızca çit içinde
 
-    // Gerçek kırmızı: "Received" metninde REWIND_PRECONDITION: geçse de failed_assertion kalır.
+    // Gerçek kırmızı: "Received" metninde FLASHBACK_PRECONDITION: geçse de failed_assertion kalır.
     const realRed = store.create({ ...d, steps: [] }, config.projectId);
     const red = await call({ id: realRed.id, assertions: "await expect(target).toHaveText('1380 ₺')" });
     expect(red.text).toContain('Sonuç: failed_assertion');

@@ -9,10 +9,10 @@ import {
   type Incident,
   type ReproRun,
   type Step,
-} from '@rewind/shared';
+} from '@flashback/shared';
 import { parseAssertions } from './assertion-parser.js';
-import { checkTargetUrl, type RewindConfig } from './config.js';
-import { RewindError, ERROR_SUGGESTIONS } from './errors.js';
+import { checkTargetUrl, type FlashbackConfig } from './config.js';
+import { FlashbackError, ERROR_SUGGESTIONS } from './errors.js';
 import { countedRuns, evaluateVerification } from './lifecycle.js';
 import { sessionHints } from './report.js';
 import { CONFIG_TEMPLATE, renderPortableSpec, renderSpec } from './repro-template.js';
@@ -20,11 +20,11 @@ import { checkSecretValueAssertions, collectSecrets, envProvides, scrubSecrets, 
 import type { IncidentStore } from './store.js';
 
 export const STEPS_SCHEMA_VERSION = 1;
-const CONFIG_FILE = 'playwright.rewind.config.mjs';
+const CONFIG_FILE = 'playwright.flashback.config.mjs';
 const SIDE_EFFECT_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export type ReproConfig = Pick<
-  RewindConfig,
+  FlashbackConfig,
   'projectRoot' | 'allowOrigins' | 'baseUrl' | 'storageState' | 'reproTimeoutS' | 'password'
 >;
 
@@ -39,7 +39,7 @@ export interface PlaywrightInfo {
   chromiumPath?: string;
 }
 
-/** Projenin kendi `@playwright/test` paketini `REWIND_PROJECT_ROOT`'tan çözer. */
+/** Projenin kendi `@playwright/test` paketini `FLASHBACK_PROJECT_ROOT`'tan çözer. */
 export function resolvePlaywright(projectRoot: string): PlaywrightInfo | undefined {
   try {
     const req = createRequire(path.join(projectRoot, 'package.json'));
@@ -97,7 +97,7 @@ export interface StepsData {
   steps: Array<{ n: number; type: Step['type']; selectors: string[]; value?: string; env?: string[]; key?: string; url?: string }>;
   firstActionIndex: number;
   target: { selectors: string[] } | null;
-  /** Taban kökene ek olarak gezinmeye izin verilen kökenler (REWIND_ALLOW_ORIGINS). */
+  /** Taban kökene ek olarak gezinmeye izin verilen kökenler (FLASHBACK_ALLOW_ORIGINS). */
   allowedOrigins: string[];
   /** Ekran görüntüsünde maskelenecek, değeri gizli/sentetik girilen alanların seçicileri. */
   maskSelectors: string[];
@@ -110,7 +110,7 @@ const MARKER_ALL = /\[REDACTED(?::([a-z_]+))?\]/g;
 function synthetic(type: string, n: number): { value: string; label: string; env?: string[] } {
   switch (type) {
     case 'email':
-      return { value: `rewind+${n}@example.test`, label: `rewind+${n}@example.test` };
+      return { value: `flashback+${n}@example.test`, label: `flashback+${n}@example.test` };
     case 'card':
       return { value: '4111111111111111', label: 'Luhn uyumlu test kartı 4111111111111111' };
     case 'tckn':
@@ -120,19 +120,19 @@ function synthetic(type: string, n: number): { value: string; label: string; env
     case 'phone':
       return { value: '+905550000000', label: '+905550000000' };
     case 'password':
-      return { value: `Rewind-Placeholder-${n}!`, label: 'parola', env: ['REWIND_PASSWORD'] };
+      return { value: `Flashback-Placeholder-${n}!`, label: 'parola', env: ['FLASHBACK_PASSWORD'] };
     default:
-      return { value: `rewind-${type}-${n}`, label: `rewind-${type}-${n}` };
+      return { value: `flashback-${type}-${n}`, label: `flashback-${type}-${n}` };
   }
 }
 
-/** Seçiciden alan adı (FR-REPRO-14: REWIND_INPUT_<ALAN_ADI>). */
+/** Seçiciden alan adı (FR-REPRO-14: FLASHBACK_INPUT_<ALAN_ADI>). */
 export function fieldEnvName(selectors: string[]): string | undefined {
   for (const sel of selectors) {
     const m = /\[name=["']?([^"'\]]+)/.exec(sel) ?? /\[id=["']?([^"'\]]+)/.exec(sel) ?? /#([A-Za-z][\w-]*)/.exec(sel);
     if (m) {
       const name = m[1].toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 64);
-      if (name) return `REWIND_INPUT_${name}`;
+      if (name) return `FLASHBACK_INPUT_${name}`;
     }
   }
   return undefined;
@@ -209,8 +209,8 @@ export function buildStepsData(inc: Incident, opts: BuildStepsOptions): { data: 
           const how =
             type === 'password'
               ? opts.passwordSet
-                ? 'REWIND_PASSWORD ortam değişkeni'
-                : 'yer tutucu (REWIND_PASSWORD tanımlı değil)'
+                ? 'FLASHBACK_PASSWORD ortam değişkeni'
+                : 'yer tutucu (FLASHBACK_PASSWORD tanımlı değil)'
               : syn.label;
           syntheticInputs.push(`Adım ${n}: ${type} → ${how}${fieldEnv ? ` (${fieldEnv} ile geçersiz kılınabilir)` : ''}`);
         } else {
@@ -300,7 +300,7 @@ export interface Classified {
 }
 
 function readObserved(r: PwResult): Observed | undefined {
-  const att = r.attachments?.find((a) => a.name === 'rewind-observed' && typeof a.body === 'string');
+  const att = r.attachments?.find((a) => a.name === 'flashback-observed' && typeof a.body === 'string');
   if (!att?.body) return undefined;
   try {
     const o = JSON.parse(Buffer.from(att.body, 'base64').toString('utf8')) as Partial<Observed>;
@@ -330,7 +330,7 @@ const browserMissing = (msg: string) => /^(Error: )?browserType\.launch: Executa
 
 /**
  * Playwright JSON raporu ve süreç çıktısından koşu sonucu (FR-REPRO-16). Faz bilgisi spec'in eklediği
- * `rewind-observed` ekinden okunur; hata metnindeki önekler dikkate alınmaz. Assertion bloğu dışındaki
+ * `flashback-observed` ekinden okunur; hata metnindeki önekler dikkate alınmaz. Assertion bloğu dışındaki
  * hata asla kırmızı sayılmaz.
  */
 export function classifyRun(input: { report?: PwReport; stdout: string; stderr: string; killedByTimeout: boolean }): Classified[] {
@@ -399,16 +399,16 @@ export interface ReproDeps {
 /** FR-REPRO-22 + FR-REPRO-SEC-03: hedef adres önceliği ve doğrulaması. */
 export function resolveBaseUrl(inc: Incident, param: string | undefined, config: Pick<ReproConfig, 'baseUrl' | 'allowOrigins'>): string {
   let raw = param || config.baseUrl;
-  const source = param ? 'base_url' : config.baseUrl ? 'REWIND_BASE_URL' : 'olay URL\'si';
+  const source = param ? 'base_url' : config.baseUrl ? 'FLASHBACK_BASE_URL' : 'olay URL\'si';
   if (!raw) {
     try {
       raw = new URL(inc.context.url).origin;
     } catch {
-      throw new RewindError('base_url_rejected', 'Olay URL\'si okunamadı; base_url ver.');
+      throw new FlashbackError('base_url_rejected', 'Olay URL\'si okunamadı; base_url ver.');
     }
   }
   const check = checkTargetUrl(raw, config.allowOrigins);
-  if (!check.ok) throw new RewindError('base_url_rejected', `${source} reddedildi: ${check.reason}.`);
+  if (!check.ok) throw new FlashbackError('base_url_rejected', `${source} reddedildi: ${check.reason}.`);
   return check.url.origin + (check.url.pathname === '/' ? '/' : check.url.pathname);
 }
 
@@ -444,7 +444,7 @@ function resolveRepro(deps: ReproDeps, input: RunReproInput, screenshotPath: str
   let storageState: string | null = null;
   if (config.storageState) {
     if (fs.existsSync(config.storageState)) storageState = config.storageState;
-    else warnings.push('REWIND_STORAGE_STATE dosyası bulunamadı; oturumsuz koşuldu.');
+    else warnings.push('FLASHBACK_STORAGE_STATE dosyası bulunamadı; oturumsuz koşuldu.');
   }
   const strict = input.strict ?? false;
   const signature = computeSignature(ir, strict, baseUrl, storageState !== null);
@@ -453,7 +453,7 @@ function resolveRepro(deps: ReproDeps, input: RunReproInput, screenshotPath: str
     storageState,
     strict,
     screenshotPath,
-    passwordSet: !!(config.password || process.env.REWIND_PASSWORD),
+    passwordSet: !!(config.password || process.env.FLASHBACK_PASSWORD),
     allowOrigins: config.allowOrigins,
   });
   // Değeri ortam değişkeninden gelen alanlar assertion ile okunamaz (gerçek değer hata metnine sızar).
@@ -520,13 +520,13 @@ interface ReproScriptBase {
   syntheticInputs: string[];
   warnings: string[];
 }
-/** Varsayılan çıktı: `.rewind/repro/` altında spec + adım verisi + yapılandırma. */
+/** Varsayılan çıktı: `.flashback/repro/` altında spec + adım verisi + yapılandırma. */
 export interface LocalReproScript extends ReproScriptBase {
   portable: false;
   stepsPath: string;
   configPath: string;
 }
-/** FR-MCP-14: tek dosya; tüm veri spec içindedir, `.rewind/` dosyalarına bağımlılık yoktur. */
+/** FR-MCP-14: tek dosya; tüm veri spec içindedir, `.flashback/` dosyalarına bağımlılık yoktur. */
 export interface PortableReproScript extends ReproScriptBase {
   portable: true;
   stepsPath: null;
@@ -541,7 +541,7 @@ export function generateReproScript(deps: ReproDeps, input: ScriptInput & { port
 export function generateReproScript(deps: ReproDeps, input: ScriptInput & { portable?: boolean }): ReproScript;
 export function generateReproScript(deps: ReproDeps, input: ScriptInput & { portable?: boolean }): ReproScript {
   if (input.portable) return generatePortableScript(deps, input);
-  if (!deps.store.tryLock(input.id)) throw new RewindError('busy', 'Bu olay için bir koşu sürüyor.');
+  if (!deps.store.tryLock(input.id)) throw new FlashbackError('busy', 'Bu olay için bir koşu sürüyor.');
   try {
     const p = prepare(deps, input, 'manual');
     return {
@@ -565,7 +565,7 @@ export function generateReproScript(deps: ReproDeps, input: ScriptInput & { port
 
 /** Taşınabilir spec'e gömülen veri. Mutlak URL yoktur: yollar projenin `baseURL`'ine göre çözülür. */
 export interface PortableData {
-  format: 'rewind-portable';
+  format: 'flashback-portable';
   stepsSchemaVersion: number;
   incidentId: string;
   /** Başlangıç yolu (ör. "/cart?x=1"); `page.goto` ile `baseURL`'e göre çözülür. */
@@ -584,7 +584,7 @@ const relPath = (abs: string) => {
   return u.pathname + u.search + u.hash;
 };
 
-/** Gerçek gizli değerleri (REWIND_PASSWORD, REWIND_INPUT_*, storageState) verideki tüm metinlerden temizler. */
+/** Gerçek gizli değerleri (FLASHBACK_PASSWORD, FLASHBACK_INPUT_*, storageState) verideki tüm metinlerden temizler. */
 function scrubDeep<T>(v: T, secrets: Secret[]): T {
   if (!secrets.length) return v;
   if (typeof v === 'string') return scrubSecrets(v, secrets) as T;
@@ -597,10 +597,10 @@ function scrubDeep<T>(v: T, secrets: Secret[]): T {
   return v;
 }
 
-/** StepsData → taşınabilir veri: köken ve `.rewind/` yolları çıkarılır, gezinmeler göreli yola çevrilir. */
+/** StepsData → taşınabilir veri: köken ve `.flashback/` yolları çıkarılır, gezinmeler göreli yola çevrilir. */
 export function buildPortableData(data: StepsData, secrets: Secret[] = []): PortableData {
   const out: PortableData = {
-    format: 'rewind-portable',
+    format: 'flashback-portable',
     stepsSchemaVersion: data.stepsSchemaVersion,
     incidentId: data.incidentId,
     startPath: relPath(data.startUrl),
@@ -639,7 +639,7 @@ function generatePortableScript(deps: ReproDeps, input: ScriptInput): PortableRe
     syntheticInputs: r.built.syntheticInputs,
     warnings: [
       ...(sessionHints(r.inc).length
-        ? ['Başlangıç bağlamında oturum işareti var: taşınabilir test projenin storageState ayarını ya da REWIND_STORAGE_STATE ortam değişkenini kullanır.']
+        ? ['Başlangıç bağlamında oturum işareti var: taşınabilir test projenin storageState ayarını ya da FLASHBACK_STORAGE_STATE ortam değişkenini kullanır.']
         : []),
       ...r.built.warnings,
     ],
@@ -656,15 +656,15 @@ function spawnPlaywright(
   fs.rmSync(reportFile, { force: true });
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    REWIND_REPORT_FILE: reportFile,
-    REWIND_OUTPUT_DIR: outputDir,
-    REWIND_TEST_TIMEOUT_MS: String(opts.timeoutS * 1000),
-    REWIND_HEADED: opts.headed ? '1' : '0',
+    FLASHBACK_REPORT_FILE: reportFile,
+    FLASHBACK_OUTPUT_DIR: outputDir,
+    FLASHBACK_TEST_TIMEOUT_MS: String(opts.timeoutS * 1000),
+    FLASHBACK_HEADED: opts.headed ? '1' : '0',
     FORCE_COLOR: '0',
-    // .rewind proje dışındaysa spec'in '@playwright/test' içe aktarımı projeden çözülsün.
+    // .flashback proje dışındaysa spec'in '@playwright/test' içe aktarımı projeden çözülsün.
     NODE_PATH: [path.join(opts.projectRoot, 'node_modules'), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
   };
-  if (opts.password) env.REWIND_PASSWORD = opts.password;
+  if (opts.password) env.FLASHBACK_PASSWORD = opts.password;
   const args = [pw.cliPath, 'test', path.basename(p.specPath), '--config', CONFIG_FILE, '--repeat-each', String(opts.repeat)];
   return new Promise((resolve) => {
     const child = spawn(process.execPath, args, {
@@ -760,7 +760,7 @@ export function buildComment(
     lines.push('Uyarı: hedef öğe kayıttaki seçicilerle bulunamadı; assertion var olmayan bir öğe üzerinde değerlendirildi.');
   }
   if (extra.sessionWarning) {
-    lines.push('Uyarı: başlangıç bağlamında oturum işareti var ama REWIND_STORAGE_STATE tanımlı değil (FR-REPRO-11); sonuç oturumsuz durumu yansıtabilir.');
+    lines.push('Uyarı: başlangıç bağlamında oturum işareti var ama FLASHBACK_STORAGE_STATE tanımlı değil (FR-REPRO-11); sonuç oturumsuz durumu yansıtabilir.');
   }
   return lines;
 }
@@ -770,7 +770,7 @@ export async function runRepro(deps: ReproDeps, input: RunReproInput): Promise<R
   const { store, config } = deps;
   const now = deps.now ?? (() => new Date());
   store.require(input.id);
-  if (!store.tryLock(input.id)) throw new RewindError('busy', 'Bu olay için bir run_repro koşusu sürüyor.');
+  if (!store.tryLock(input.id)) throw new FlashbackError('busy', 'Bu olay için bir run_repro koşusu sürüyor.');
   try {
     const before = store.require(input.id);
     const runNo = before.repros.length + 1;

@@ -1,4 +1,4 @@
-# Rewind — Uygulama durumu (FRD v1.1'e göre)
+# Flashback — Uygulama durumu (FRD v1.1'e göre)
 
 | Alan | Değer |
 |---|---|
@@ -12,7 +12,7 @@
 
 | # | Durum | Kanıt |
 |---|---|---|
-| KK-1 | ✅ | `tests/e2e/full-flow.e2e.test.ts` YAZ10 ve KIS20 senaryolarında şu akışı otomatik olarak tamamlar: panel → `rewind-mcp` (gerçek stdio + HTTP) → kırmızı → kaynak düzeltilir → yeşil ×2 → `fixed`. |
+| KK-1 | ✅ | `tests/e2e/full-flow.e2e.test.ts` YAZ10 ve KIS20 senaryolarında şu akışı otomatik olarak tamamlar: panel → `flashback-mcp` (gerçek stdio + HTTP) → kırmızı → kaynak düzeltilir → yeşil ×2 → `fixed`. |
 | KK-2 | ✅ | Aynı dosyadaki ACCOUNT senaryosu: `storageState` yokken sonuç `precondition` olur ve kırmızı sayılmaz. `storageState` verilince kırmızı → yeşil ×2 → `fixed`. |
 | KK-3 | ✅ | FR-LIFE-04'teki dört senaryo `packages/mcp/test/lifecycle.test.ts` dosyasında test ediliyor. Tam akış e2e testinde de çalışıyor. |
 | KK-4 | ✅ | Güvenlik paketi (`security.test.ts`, `security.e2e.test.ts`) ve tüm uçtan uca testler GitHub Actions'ta Ubuntu, Windows ve macOS'ta yeşil (ör. 27.10.2026 tarihli 40506650677 numaralı koşu). |
@@ -44,8 +44,8 @@
 
 - **FR-MCP-10:** Araçlar `outputSchema` ve yapılandırılmış çıktı döndürüyor.
 - **FR-MCP-13:** `list_incidents` sayfalı (`cursor`). Geçersiz cursor `invalid_cursor` hatası verir.
-- **FR-MCP-14:** `get_repro_script({ portable: true })`. Projenin kendi `playwright.config` dosyasıyla çalışan, `.rewind/`'a bağımlı olmayan tek dosyalık spec üretir.
-- **FR-RCV-06:** `project` prop'u. Tarayıcı `x-rewind-project` başlığını gönderir. Alıcı yanlış projeye gelen olayı 409 ile reddeder; panel "yanlış proje" şeridini gösterir. Alıcı, kaynak yollarını proje köküne göre göreli hâle getirir (Windows sürücü harfi ve `file:///` dahil).
+- **FR-MCP-14:** `get_repro_script({ portable: true })`. Projenin kendi `playwright.config` dosyasıyla çalışan, `.flashback/`'a bağımlı olmayan tek dosyalık spec üretir.
+- **FR-RCV-06:** `project` prop'u. Tarayıcı `x-flashback-project` başlığını gönderir. Alıcı yanlış projeye gelen olayı 409 ile reddeder; panel "yanlış proje" şeridini gösterir. Alıcı, kaynak yollarını proje köküne göre göreli hâle getirir (Windows sürücü harfi ve `file:///` dahil).
 - **FR-UI-13:** Odak panelin içinde tutuluyor (`aria-modal`). axe denetimi e2e testinde. Tekrar oynatma iframe'ine başlık eklendi.
 - **FR-MARK-06:** `examples/vue` ile smoke testi.
 - **EK-B3 regresyon testleri:** `examples/next-app`, `examples/react18` ve `examples/vue` örnek uygulamaları ve uçtan uca testleri. Kaynak çözümleme kodu `spikes/ek-b3` çalışmasından (güncel fiber, HMR bayatlık sinyali, webpack `eval` haritaları, RSC); bu testler o kodun üstünde koşar. Konum öğenin atasından geldiğinde panel ve Kanıt güveni bunu belirtir (`fromAncestor`).
@@ -61,14 +61,14 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 |---|---|---|---|
 | D-1 | HTTP API (§9.3) | `GET /incidents` ve `GET /incidents/:id` eklendi. Panelin Kayıtlar sekmesi bunları kullanıyor. | §9.3'e eklenmeli. |
 | D-2 | Hata kodları (§9.6) | Yeni kodlar: `base_url_rejected`, `invalid_transition`, `selector`, `internal`. | §9.6'ya eklenmeli. |
-| D-3 | Ortam değişkenleri (§9.4) | Yeni değişkenler: `REWIND_NO_IMAGES`, `REWIND_RATE_LIMIT_PER_MIN` (30), `REWIND_INPUT_<ALAN>`. | §9.4'e eklenmeli. |
+| D-3 | Ortam değişkenleri (§9.4) | Yeni değişkenler: `FLASHBACK_NO_IMAGES`, `FLASHBACK_RATE_LIMIT_PER_MIN` (30), `FLASHBACK_INPUT_<ALAN>`. | §9.4'e eklenmeli. |
 | D-4 | FR-CFG-09 `allowProduction` | `NODE_ENV=production` olan bir build'de kaydedici pakete hiç girmez (FR-CFG-08 🔒). Bu yüzden `allowProduction` yalnızca `NODE_ENV`'nin production olmadığı build'lerde (ör. staging) işe yarar. | Kilitli FR-CFG-08 öncelikli kabul edilsin. FR-CFG-09 metni buna göre düzeltilmeli. |
 | D-5 | FR-UI-08 önizleme | Önizleme her **tarayıcı oturumunun** ilk gönderiminde zorunlu. FRD'nin kabul kriteri "her olayın ilk gönderiminde" diyor. | Karar verilmeli. Her olayda zorunlu önizleme daha güvenli, ama daha fazla sürtünme yaratır. |
 | D-6 | Kanıt güveni (FR-PKG-08) | Güvenlik incelemesinden sonra sunucu, maddelerin metnini sabit şablonlardan yeniden kuruyor. Tarayıcıdan yalnızca anahtar ve seviye alınıyor. Olaydan gelen metin ayrı ve çitli bir "Kanıt ayrıntıları" bloğunda gösteriliyor. | FR-PKG-08'e eklenmeli (prompt injection önlemi). |
 | D-7 | `get_incident` raporu (FR-PKG-02) | Bölüm 6'ya "İşaretlenen andan önceki son başarılı istekler" alt bölümü eklendi. YAZ10'daki `"fee": "30"` gibi hata olmayan ama yanlış değer taşıyan yanıtlar ajana ilk turda ulaşsın diye. | FR-PKG-02'ye eklenmeli. |
-| D-8 | Ortam değişkeniyle doldurulan alanlar | Ajan, `REWIND_PASSWORD` gibi ortam değişkeninden doldurulan bir alanın değerini `toHaveValue` ile okuyamaz. Okumaya çalışırsa `assertion_rejected` döner. Belirsiz semantik konumlayıcılarla yazılan değer okumaları da reddedilir. | FR-REPRO-SEC-01'e eklenmeli (parola sızıntısı önlemi). |
+| D-8 | Ortam değişkeniyle doldurulan alanlar | Ajan, `FLASHBACK_PASSWORD` gibi ortam değişkeninden doldurulan bir alanın değerini `toHaveValue` ile okuyamaz. Okumaya çalışırsa `assertion_rejected` döner. Belirsiz semantik konumlayıcılarla yazılan değer okumaları da reddedilir. | FR-REPRO-SEC-01'e eklenmeli (parola sızıntısı önlemi). |
 | D-9 | Repro köken kilidi | Her adımdan ve assertion'dan önce köken denetleniyor. İzin verilmeyen kökenlere giden üst düzey gezinmeler iptal ediliyor. | FR-REPRO-SEC-03'e eklenmeli. |
-| D-10 | `REWIND_PROJECT_ROOT` varsayılanı | `cwd`'den yukarı doğru bulunan ilk `package.json` klasörü. Boşsa `cwd`. | §9.4 güncellenmeli. |
+| D-10 | `FLASHBACK_PROJECT_ROOT` varsayılanı | `cwd`'den yukarı doğru bulunan ilk `package.json` klasörü. Boşsa `cwd`. | §9.4 güncellenmeli. |
 | D-11 | Güncel fiber (FR-MARK-03/04/05) | DOM düğümündeki fiber, öğe oluşturulduğundaki kopyadır ve çift tampon yüzünden eski olabilir. Bu kopya eski props/state ve eski konum taşır. Artık React'in `findCurrentFiberUsingSlowPath` algoritmasıyla güncel kopya okunuyor. Atalar da güncel kopyadan yürünüyor. EK-B3'te bulundu. | FR-MARK-05'e eklenmeli ("canlı" iddiasının koşulu). |
 | D-12 | HMR'de bayat konum (FR-MARK-11) | React 19'da Fast Refresh ile değişen bileşenin eski öğeleri ve RSC yükü yenilendikten sonraki sunucu öğeleri `resolved:false` döner. Turbopack HMR modülleri (`chunk.js?id=`) ve React 18'de çelişen fiber kopyaları da öyle. Dosya adı verilir, kod parçası verilmez. Gerekçe panelde ve raporda görünür. | FR-MARK-11'in "çözülemiyorsa" koşuluna "HMR yüzünden doğrulanamıyorsa" eklenmeli (R12). |
 | D-13 | Kaynak yolu (FR-PKG-02) | Alıcı, `target.file` ve konsol kaynaklarındaki mutlak yolları proje köküne göre kısaltır. React 18 `_debugSource`, Turbopack ve webpack haritaları mutlak yol verir; kısaltma kullanıcı adının pakete girmesini de önler. | §9.3'e eklenmeli. |
@@ -78,7 +78,7 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 
 | # | Önem | Bulgu | Durum |
 |---|---|---|---|
-| 1 | High | Ajanın assertion'ı Playwright hata metni üzerinden `REWIND_PASSWORD`'ü okuyup diske ve yanıta sızdırabiliyordu | ✅ Gizli değerler her çıktıda temizleniyor. Playwright çıktı dosyaları siliniyor. Değer okuyan assertion'lar reddediliyor. |
+| 1 | High | Ajanın assertion'ı Playwright hata metni üzerinden `FLASHBACK_PASSWORD`'ü okuyup diske ve yanıta sızdırabiliyordu | ✅ Gizli değerler her çıktıda temizleniyor. Playwright çıktı dosyaları siliniyor. Değer okuyan assertion'lar reddediliyor. |
 | 2 | High | Repro tarayıcısı başka bir kökene yönlenip parolayı oraya yazabiliyordu | ✅ Tam köken denetimi yapılıyor ve izinsiz üst düzey gezinmeler engelleniyor. |
 | 3 | High | Store değişikliklerinde anahtar adına göre gizleme atlanıyordu (`auth.token`) | ✅ `Redactor.pathType` ile düzeltildi. |
 | 4 | Medium | Güvenilmeyen içerik çit dışına çıkıyordu (`run_repro` hata metni, `get_repro_script`, Kanıt güveni) | ✅ |
@@ -91,10 +91,10 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 ## 5. Sıradaki işler (öneri sırası)
 
 1. **Cursor ve Codex smoke testi** (KK-5) ve kırmızı takım koşusu (FR-MCP-SEC-02).
-2. **Mini benchmark** (KK-11): 8–10 hata, Rewind ile ve Rewind olmadan. Sitedeki "%60" ifadesi o zamana kadar "n=1" notuyla verilmeli (FRD §2.3).
+2. **Mini benchmark** (KK-11): 8–10 hata, Flashback ile ve Flashback olmadan. Sitedeki "%60" ifadesi o zamana kadar "n=1" notuyla verilmeli (FRD §2.3).
 3. **npm adlarının rezervasyonu** ve CI'dan provenance ile yayın (§11.3, KK-10).
 4. **Ürün kararları:** AS-3 (kısayol), AS-4 (telefon), AS-5 (arayüz dili), AS-10 (önizleme olay başına mı, oturum başına mı).
 5. **Kısayol çakışma testi** (FR-UI-03, AS-3): Windows, macOS ve Linux'ta; TR-Q, TR-F ve US düzenlerinde; IME açıkken `Alt+Shift+R`. Kısayol fiziksel tuşa (`KeyboardEvent.code`) bağlı olduğu için düzen değişse de aynı tuşla tetiklenir. Asıl risk, Windows'ta `Alt+Shift` ile dil değiştirme.
-6. **`data-rewind-source` (v1.1, R13):** Derleme anında JSX'e kaynak konumu ekleyen Vite/Babel/SWC eklentisi. React 19'da HMR sonrası `resolved:false` kalan konumları kalıcı olarak çözer. EK-B3 bu işi "yedek plan"dan öncelikli işe taşıdı.
+6. **`data-flashback-source` (v1.1, R13):** Derleme anında JSX'e kaynak konumu ekleyen Vite/Babel/SWC eklentisi. React 19'da HMR sonrası `resolved:false` kalan konumları kalıcı olarak çözer. EK-B3 bu işi "yedek plan"dan öncelikli işe taşıdı.
 7. **EK-B3 ölçümünü CI'a almak:** `spikes/ek-b3` haftalık ya da sürüm öncesi bir işte çalışsın. Firefox kayıt e2e'si de eklensin (Firefox → "Doğrulandı").
 8. **Sürüm notu:** NFR-PERF-01'in 5.000 düğümdeki INP sonucu (07 §0) ve HMR sınırı (R13).

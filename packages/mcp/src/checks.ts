@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
-import { CLIENT_HEADER, type HealthResponse } from '@rewind/shared';
-import type { RewindConfig } from './config.js';
+import { CLIENT_HEADER, type HealthResponse } from '@flashback/shared';
+import type { FlashbackConfig } from './config.js';
 import { resolvePlaywright } from './repro.js';
 import { IncidentStore } from './store.js';
 
@@ -13,15 +13,15 @@ export type PortStatus =
   | { kind: 'foreign' };
 
 /** Port doluysa GET /health ile kimin dinlediğini öğrenir (FR-RCV-05). */
-export async function probePort(config: Pick<RewindConfig, 'host' | 'port' | 'projectId'>): Promise<PortStatus> {
+export async function probePort(config: Pick<FlashbackConfig, 'host' | 'port' | 'projectId'>): Promise<PortStatus> {
   const host = config.host.includes(':') ? `[${config.host}]` : config.host;
   try {
     const res = await fetch(`http://${host}:${config.port}/health`, {
-      headers: { [CLIENT_HEADER]: 'rewind-mcp' },
+      headers: { [CLIENT_HEADER]: 'flashback-mcp' },
       signal: AbortSignal.timeout(2000),
     });
     const body = (await res.json()) as Partial<HealthResponse>;
-    if (body.name !== 'rewind-mcp' || typeof body.projectId !== 'string') return { kind: 'foreign' };
+    if (body.name !== 'flashback-mcp' || typeof body.projectId !== 'string') return { kind: 'foreign' };
     const health = body as HealthResponse;
     return health.projectId === config.projectId ? { kind: 'same_project', health } : { kind: 'other_project', health };
   } catch (e) {
@@ -43,14 +43,14 @@ export async function suggestFreePort(host: string, from: number): Promise<numbe
   return undefined;
 }
 
-export function wrongProjectMessage(config: Pick<RewindConfig, 'port'>, status: PortStatus, free?: number): string {
+export function wrongProjectMessage(config: Pick<FlashbackConfig, 'port'>, status: PortStatus, free?: number): string {
   const who =
     status.kind === 'other_project'
-      ? `başka bir projenin (${status.health.projectName}, projectId ${status.health.projectId}) rewind-mcp sunucusu`
-      : 'Rewind olmayan bir uygulama';
+      ? `başka bir projenin (${status.health.projectName}, projectId ${status.health.projectId}) flashback-mcp sunucusu`
+      : 'Flashback olmayan bir uygulama';
   const hint = free
-    ? ` Bu projede REWIND_PORT=${free} ile başlat ve <Rewind endpoint="http://127.0.0.1:${free}" /> ver.`
-    : ' REWIND_PORT ile boş bir port seç.';
+    ? ` Bu projede FLASHBACK_PORT=${free} ile başlat ve <Flashback endpoint="http://127.0.0.1:${free}" /> ver.`
+    : ' FLASHBACK_PORT ile boş bir port seç.';
   return `Port ${config.port} ${who} tarafından kullanılıyor; başka projenin olayları okunmaz.${hint}`;
 }
 
@@ -61,14 +61,14 @@ export interface CheckItem {
 }
 
 /** FR-CFG-11: port/projectId, Playwright, Chromium, olay klasörü. */
-export async function runChecks(config: RewindConfig): Promise<CheckItem[]> {
+export async function runChecks(config: FlashbackConfig): Promise<CheckItem[]> {
   const items: CheckItem[] = [];
   const port = await probePort(config);
   items.push(
     port.kind === 'free'
       ? { ok: true, label: 'Port', detail: `${config.host}:${config.port} boş (projectId ${config.projectId})` }
       : port.kind === 'same_project'
-        ? { ok: true, label: 'Port', detail: `${config.port} bu projenin rewind-mcp sunucusunda (projectId ${config.projectId})` }
+        ? { ok: true, label: 'Port', detail: `${config.port} bu projenin flashback-mcp sunucusunda (projectId ${config.projectId})` }
         : { ok: false, label: 'Port', detail: wrongProjectMessage(config, port, await suggestFreePort(config.host, config.port + 1)) },
   );
 
@@ -100,10 +100,10 @@ export async function runChecks(config: RewindConfig): Promise<CheckItem[]> {
   }
 
   if (config.storageState && !fs.existsSync(config.storageState)) {
-    items.push({ ok: false, label: 'storageState', detail: `REWIND_STORAGE_STATE dosyası yok: ${config.storageState}` });
+    items.push({ ok: false, label: 'storageState', detail: `FLASHBACK_STORAGE_STATE dosyası yok: ${config.storageState}` });
   }
   if (config.allowUnsafeAssertions) {
-    items.push({ ok: false, label: 'Assertion', detail: 'REWIND_ALLOW_UNSAFE_ASSERTIONS bu sürümde desteklenmiyor; yok sayıldı.' });
+    items.push({ ok: false, label: 'Assertion', detail: 'FLASHBACK_ALLOW_UNSAFE_ASSERTIONS bu sürümde desteklenmiyor; yok sayıldı.' });
   }
   return items;
 }

@@ -10,7 +10,7 @@
  *  - stress : 5.000 öğeli liste + `?ticker=100` (100 ms'de bir 50 satır güncellenir ≈ 500 metin mutasyonu/sn) + etkileşim
  *
  * Her 10 sn'de CDP `HeapProfiler.collectGarbage` ardından `Runtime.getHeapUsage` (usedSize: V8 JS heap; embedder:
- * DOM/Oilpan). Kayıt açık − kapalı farkı = Rewind'in toplam bellek ek yükü (rrweb + mirror + halka tampon + ağ/konsol
+ * DOM/Oilpan). Kayıt açık − kapalı farkı = Flashback'in toplam bellek ek yükü (rrweb + mirror + halka tampon + ağ/konsol
  * kayıtları + panel kökü); tamponun kendisi bu farkın bir parçasıdır, yani fark ≤ 50 MB ise tampon da ≤ 50 MB'tır.
  * "Sınırlı" ölçütü: ilk 90 sn'den (3 dilim dolar) sonra farkın büyümemesi.
  * Aynı oturumdaki long task'lar ve doğal checkout'lar da toplanır (NFR-PERF-01'e uzun oturum kanıtı).
@@ -55,7 +55,7 @@ async function session(server, { pageName, mode, durationS, sampleS, ticker }) {
     while ((Date.now() - t0) / 1000 < durationS) {
       await sleep(Math.max(0, t0 + next * 1000 - Date.now()));
       const h = await heap(cdp);
-      const bufferText = mode === 'on' ? await page.locator('[data-rw="buffer-seconds"]').textContent().catch(() => null) : null;
+      const bufferText = mode === 'on' ? await page.locator('[data-fb="buffer-seconds"]').textContent().catch(() => null) : null;
       samples.push({ t: (Date.now() - t0) / 1000, ...h, buffer: bufferText });
       next += sampleS;
     }
@@ -69,8 +69,8 @@ async function session(server, { pageName, mode, durationS, sampleS, ticker }) {
       // Kısayol metin girişindeyken tetiklenmez (FR-UI-02).
       await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
       await page.keyboard.press('Alt+Shift+KeyR');
-      await page.locator('[data-rw="panel"]').waitFor({ timeout: 30_000 });
-      memoryWarning = await page.locator('[data-rw="panel"] .rw-strip-warn', { hasText: /50 MB/ }).count().then((n) => n > 0);
+      await page.locator('[data-fb="panel"]').waitFor({ timeout: 30_000 });
+      memoryWarning = await page.locator('[data-fb="panel"] .fb-strip-warn', { hasText: /50 MB/ }).count().then((n) => n > 0);
     }
     return {
       pageName,

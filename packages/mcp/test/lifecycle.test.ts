@@ -1,12 +1,12 @@
-import { IncidentSchema, type Incident, type ReproRun } from '@rewind/shared';
+import { IncidentSchema, type Incident, type ReproRun } from '@flashback/shared';
 import { describe, expect, it } from 'vitest';
-import { RewindError, applyMarkFixed, applyReopen, countedRuns, evaluateVerification, toSummary } from '../src/index.js';
+import { FlashbackError, applyMarkFixed, applyReopen, countedRuns, evaluateVerification, toSummary } from '../src/index.js';
 import { draft, fakeRun } from './helpers.js';
 
 function incident(runs: ReproRun[]): Incident {
   return IncidentSchema.parse({
     ...draft(),
-    id: 'rw-20261027-120000-abcd',
+    id: 'fb-20261027-120000-abcd',
     projectId: 'p',
     status: 'open',
     createdAt: '2026-10-27T12:00:00.000Z',
@@ -53,7 +53,7 @@ describe('FR-LIFE-04: doğrulanmış kapanış koşulu', () => {
       try {
         applyMarkFixed(inc, { resolution: 'fixed', summary: 's' }, now);
       } catch (e) {
-        return e as RewindError;
+        return e as FlashbackError;
       }
     })();
     expect(err?.code).toBe('reason_required');
@@ -102,7 +102,7 @@ describe('geçişler (FR-LIFE-01)', () => {
     applyMarkFixed(inc, { resolution: 'fixed', summary: 's' }, now);
     applyReopen(inc, 'r', new Date('2030-01-01T00:00:00.000Z'));
     expect(countedRuns(inc)).toHaveLength(0);
-    expect(() => applyMarkFixed(inc, { resolution: 'fixed', summary: 's' }, now)).toThrow(RewindError);
+    expect(() => applyMarkFixed(inc, { resolution: 'fixed', summary: 's' }, now)).toThrow(FlashbackError);
   });
 
   it('özet: assertion metni ve koşular (FR-UI-16)', () => {

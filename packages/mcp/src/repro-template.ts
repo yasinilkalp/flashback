@@ -6,20 +6,20 @@
  * Tek değişken kod parçası, doğrulanmış IR'den `renderAssertions` ile üretilen beklenti bloğudur.
  */
 
-export const ASSERTIONS_PLACEHOLDER = '/*__REWIND_ASSERTIONS__*/';
+export const ASSERTIONS_PLACEHOLDER = '/*__FLASHBACK_ASSERTIONS__*/';
 
-export const SPEC_TEMPLATE = `// Rewind repro testi — rewind-mcp tarafından üretildi; elle düzenlemeyin.
+export const SPEC_TEMPLATE = `// Flashback repro testi — flashback-mcp tarafından üretildi; elle düzenlemeyin.
 // Olay verisi bu dosyada YOKTUR: yanındaki <id>.steps.json dosyasından çalışma anında okunur.
 // Bu dosyadaki tek üretilmiş kod, doğrulanmış assertion IR'den üretilen beklenti bloğudur.
 import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 
-const ENV_NAME = /^REWIND_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;
+const ENV_NAME = /^FLASHBACK_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;
 
-test('rewind repro', async ({ browser }) => {
+test('flashback repro', async ({ browser }) => {
   const data = JSON.parse(fs.readFileSync(test.info().file.replace(/\\.spec\\.ts$/, '.steps.json'), 'utf8'));
   const base = new URL(data.baseUrl);
-  // İzinli kökenler: taban adresin kökeni + REWIND_ALLOW_ORIGINS.
+  // İzinli kökenler: taban adresin kökeni + FLASHBACK_ALLOW_ORIGINS.
   const allowed = new Set([base.origin, ...(data.allowedOrigins || [])]);
   const originOf = (u) => {
     try {
@@ -181,13 +181,13 @@ test('rewind repro', async ({ browser }) => {
     throw e;
   } finally {
     try {
-      await test.info().attach('rewind-observed', { body: JSON.stringify(observed), contentType: 'application/json' });
+      await test.info().attach('flashback-observed', { body: JSON.stringify(observed), contentType: 'application/json' });
     } catch {
       // gözlem eklenemedi
     }
     if (page) {
-      // Parola alanları, data-rewind-mask ve ortam değişkeninden doldurulan alanlar maskelenir (FR-RED-12).
-      const mask = [page.locator('[data-rewind-mask]'), page.locator('input[type="password"]')];
+      // Parola alanları, data-flashback-mask ve ortam değişkeninden doldurulan alanlar maskelenir (FR-RED-12).
+      const mask = [page.locator('[data-flashback-mask]'), page.locator('input[type="password"]')];
       for (const sel of data.maskSelectors || []) {
         try {
           await page.locator(sel).count();
@@ -204,21 +204,21 @@ test('rewind repro', async ({ browser }) => {
 `;
 
 /** Tüm olaylar için ortak, sabit yapılandırma. Değerler ortam değişkenlerinden okunur. */
-export const CONFIG_TEMPLATE = `// rewind-mcp tarafından üretildi. Projenin playwright.config dosyası kullanılmaz (FR-REPRO-01).
+export const CONFIG_TEMPLATE = `// flashback-mcp tarafından üretildi. Projenin playwright.config dosyası kullanılmaz (FR-REPRO-01).
 const env = process.env;
 export default {
   testDir: '.',
   testMatch: '*.spec.ts',
-  timeout: Number(env.REWIND_TEST_TIMEOUT_MS) || 60000,
+  timeout: Number(env.FLASHBACK_TEST_TIMEOUT_MS) || 60000,
   expect: { timeout: 5000 },
   retries: 0,
   workers: 1,
   fullyParallel: false,
-  reporter: [['json', { outputFile: env.REWIND_REPORT_FILE || 'rewind-report.json' }]],
-  outputDir: env.REWIND_OUTPUT_DIR || '.results',
+  reporter: [['json', { outputFile: env.FLASHBACK_REPORT_FILE || 'flashback-report.json' }]],
+  outputDir: env.FLASHBACK_OUTPUT_DIR || '.results',
   use: {
     browserName: 'chromium',
-    headless: env.REWIND_HEADED !== '1',
+    headless: env.FLASHBACK_HEADED !== '1',
     actionTimeout: 10000,
     navigationTimeout: 15000,
     trace: 'off',
@@ -236,39 +236,39 @@ export function renderSpec(assertionCode: string): string {
 
 // ---- Taşınabilir spec (FR-MCP-14) ---------------------------------------------
 
-export const DATA_PLACEHOLDER = '/*__REWIND_DATA__*/';
+export const DATA_PLACEHOLDER = '/*__FLASHBACK_DATA__*/';
 
 /**
  * `get_repro_script { portable: true }` şablonu. Projenin test klasörüne kopyalanıp projenin KENDİ
  * playwright.config dosyasıyla çalışır: yollar `use.baseURL`'e göredir, yardımcılar satır içidir,
- * `.rewind/` klasörüne ve `node:fs`'e bağımlılık yoktur.
+ * `.flashback/` klasörüne ve `node:fs`'e bağımlılık yoktur.
  *
  * Şablon SABİTTİR. İki değişken parça vardır:
  *   1. DATA: olay verisi, yalnızca `JSON.stringify` çıktısı olarak (kod değil, veri sabiti),
  *   2. beklenti bloğu: doğrulanmış IR'den `renderAssertions` ile üretilen kod.
  */
 export const PORTABLE_SPEC_TEMPLATE = `// @ts-nocheck
-// Rewind taşınabilir repro testi — rewind-mcp get_repro_script (portable: true) ile üretildi.
+// Flashback taşınabilir repro testi — flashback-mcp get_repro_script (portable: true) ile üretildi.
 // Projenin kendi playwright.config dosyasıyla çalışır; yollar use.baseURL'e göre çözülür.
 // Olay verisi yalnızca aşağıdaki DATA sabitindedir (JSON.stringify ile serileştirilmiş veri; kod değil).
-// Gizli/sentetik girişler ortam değişkenlerinden okunur (REWIND_PASSWORD, REWIND_INPUT_<ALAN>); yoksa yer tutucu kullanılır.
-// Oturum gerekiyorsa projenin storageState ayarını ya da REWIND_STORAGE_STATE ortam değişkenini kullanın.
+// Gizli/sentetik girişler ortam değişkenlerinden okunur (FLASHBACK_PASSWORD, FLASHBACK_INPUT_<ALAN>); yoksa yer tutucu kullanılır.
+// Oturum gerekiyorsa projenin storageState ayarını ya da FLASHBACK_STORAGE_STATE ortam değişkenini kullanın.
 import { test, expect } from '@playwright/test';
 
 const DATA = ${DATA_PLACEHOLDER};
 
-const ENV_NAME = /^REWIND_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;
+const ENV_NAME = /^FLASHBACK_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;
 
 test.use({
   viewport: DATA.viewport,
   locale: DATA.locale,
   timezoneId: DATA.timezone,
-  ...(process.env.REWIND_STORAGE_STATE ? { storageState: process.env.REWIND_STORAGE_STATE } : {}),
+  ...(process.env.FLASHBACK_STORAGE_STATE ? { storageState: process.env.FLASHBACK_STORAGE_STATE } : {}),
 });
 
-test('rewind repro ' + DATA.incidentId, async ({ page, context, baseURL }) => {
-  const root = baseURL || process.env.REWIND_BASE_URL;
-  if (!root) throw new Error('Rewind: playwright.config içinde use.baseURL (ya da REWIND_BASE_URL) tanımlı olmalı.');
+test('flashback repro ' + DATA.incidentId, async ({ page, context, baseURL }) => {
+  const root = baseURL || process.env.FLASHBACK_BASE_URL;
+  if (!root) throw new Error('Flashback: playwright.config içinde use.baseURL (ya da FLASHBACK_BASE_URL) tanımlı olmalı.');
   const base = new URL(root);
   const originOf = (u) => {
     try {
@@ -277,9 +277,9 @@ test('rewind repro ' + DATA.incidentId, async ({ page, context, baseURL }) => {
       return null;
     }
   };
-  // İzinli kökenler: baseURL kökeni + REWIND_ALLOW_ORIGINS (virgülle ayrılmış).
+  // İzinli kökenler: baseURL kökeni + FLASHBACK_ALLOW_ORIGINS (virgülle ayrılmış).
   const allowed = new Set([base.origin]);
-  for (const o of (process.env.REWIND_ALLOW_ORIGINS || '').split(',')) {
+  for (const o of (process.env.FLASHBACK_ALLOW_ORIGINS || '').split(',')) {
     const origin = o.trim() ? originOf(o.trim()) : null;
     if (origin && origin !== 'null') allowed.add(origin);
   }
@@ -329,7 +329,7 @@ test('rewind repro ' + DATA.incidentId, async ({ page, context, baseURL }) => {
   };
   const settle = () => page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
   const ensureOrigin = (what) => {
-    if (!isAllowed(page.url())) throw new Error('Rewind ön koşul: sayfa izinli olmayan bir kökene geçti; ' + what + ' yapılmadı.');
+    if (!isAllowed(page.url())) throw new Error('Flashback ön koşul: sayfa izinli olmayan bir kökene geçti; ' + what + ' yapılmadı.');
   };
 
   await page.goto(DATA.startPath);
@@ -337,7 +337,7 @@ test('rewind repro ' + DATA.incidentId, async ({ page, context, baseURL }) => {
   const want = new URL(DATA.startPath, base);
   const landed = new URL(page.url());
   if (landed.origin !== want.origin || landed.pathname !== want.pathname) {
-    throw new Error('Rewind ön koşul: ilk gezinme ' + want.pathname + ' yerine ' + landed.origin + landed.pathname + ' adresine yönlendi (oturum gerekli olabilir).');
+    throw new Error('Flashback ön koşul: ilk gezinme ' + want.pathname + ' yerine ' + landed.origin + landed.pathname + ' adresine yönlendi (oturum gerekli olabilir).');
   }
   for (let i = 0; i < DATA.steps.length; i++) {
     const s = DATA.steps[i];
@@ -355,7 +355,7 @@ test('rewind repro ' + DATA.incidentId, async ({ page, context, baseURL }) => {
       const first = i === DATA.firstActionIndex;
       loc = await find(s.selectors, first ? 5000 : 10000);
       if (!loc) {
-        throw new Error((first ? 'Rewind ön koşul: ilk ' : 'Rewind: ') + 'adım ' + s.n + ' (' + s.type + ') için seçici bulunamadı: ' + JSON.stringify(s.selectors[0]));
+        throw new Error((first ? 'Flashback ön koşul: ilk ' : 'Flashback: ') + 'adım ' + s.n + ' (' + s.type + ') için seçici bulunamadı: ' + JSON.stringify(s.selectors[0]));
       }
     }
     ensureOrigin('adım ' + s.n);
@@ -399,5 +399,5 @@ export function renderPortableSpec(data: unknown, assertionCode: string): string
   const indented = assertionCode.split('\n').join('\n  ');
   const literal = dataLiteral(data);
   // Yer tutucular tek geçişte değiştirilir; değiştirilen metin yeniden taranmaz (veri, beklenti yer tutucusunu içerse bile).
-  return PORTABLE_SPEC_TEMPLATE.replace(/\/\*__REWIND_(DATA|ASSERTIONS)__\*\//g, (m) => (m === DATA_PLACEHOLDER ? literal : indented));
+  return PORTABLE_SPEC_TEMPLATE.replace(/\/\*__FLASHBACK_(DATA|ASSERTIONS)__\*\//g, (m) => (m === DATA_PLACEHOLDER ? literal : indented));
 }

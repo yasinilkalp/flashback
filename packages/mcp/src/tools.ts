@@ -1,9 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { LIMITS, isIncidentId, type Incident } from '@rewind/shared';
-import type { RewindConfig } from './config.js';
-import { RewindError, formatError, ERROR_SUGGESTIONS, type ErrorCode } from './errors.js';
+import { LIMITS, isIncidentId, type Incident } from '@flashback/shared';
+import type { FlashbackConfig } from './config.js';
+import { FlashbackError, formatError, ERROR_SUGGESTIONS, type ErrorCode } from './errors.js';
 import { applyMarkFixed } from './lifecycle.js';
 import { DATA_INTRO, buildReport, confidenceItems, fence, primarySummary, resolvePrimary } from './report.js';
 import { generateReproScript, runRepro } from './repro.js';
@@ -12,7 +12,7 @@ import { isClosed, type IncidentStore } from './store.js';
 import { VERSION } from './version.js';
 
 /** FR-MCP-SEC-01: sunucu talimatları. */
-export const SERVER_INSTRUCTIONS = `Rewind, geliştiricinin tarayıcıda işaretlediği hata olaylarını sana kanıt paketi olarak verir ve düzeltmeyi kırmızı→yeşil Playwright testiyle doğrular.
+export const SERVER_INSTRUCTIONS = `Flashback, geliştiricinin tarayıcıda işaretlediği hata olaylarını sana kanıt paketi olarak verir ve düzeltmeyi kırmızı→yeşil Playwright testiyle doğrular.
 
 Önerilen iş akışı:
 1. list_incidents ile açık olayları listele.
@@ -29,7 +29,7 @@ Kurallar:
 - error durumundaki koşular (server_down, precondition, timeout…) kırmızı sayılmaz. Belirsizlikte reply_to_incident ile geliştiriciye sor.`;
 
 export type ToolContext =
-  | { mode: 'ok'; config: RewindConfig; store: IncidentStore; now?: () => Date }
+  | { mode: 'ok'; config: FlashbackConfig; store: IncidentStore; now?: () => Date }
   /** FR-RCV-05: port başka bir projenin sunucusunda; tüm araçlar wrong_project döner. */
   | { mode: 'wrong_project'; message: string };
 
@@ -37,7 +37,7 @@ const text = (s: string): CallToolResult => ({ content: [{ type: 'text', text: s
 
 type OkContext = Extract<ToolContext, { mode: 'ok' }>;
 
-/** Bu sunucunun bildiği gerçek gizli değerler (REWIND_PASSWORD, REWIND_INPUT_*, storageState). */
+/** Bu sunucunun bildiği gerçek gizli değerler (FLASHBACK_PASSWORD, FLASHBACK_INPUT_*, storageState). */
 function secretsOf(c: OkContext): Secret[] {
   return collectSecrets({ password: c.config.password, storageState: c.config.storageState ?? null });
 }
@@ -86,12 +86,12 @@ async function guard(
   try {
     return await fn(ctx);
   } catch (e) {
-    if (e instanceof RewindError) return errorResult(e.code, e.message);
+    if (e instanceof FlashbackError) return errorResult(e.code, e.message);
     return errorResult('internal', (e as Error).message ?? String(e));
   }
 }
 
-const idSchema = z.string().describe('Olay kimliği (rw-YYYYMMDD-HHMMSS-xxxx)');
+const idSchema = z.string().describe('Olay kimliği (fb-YYYYMMDD-HHMMSS-xxxx)');
 const assertionsSchema = z
   .union([z.string(), z.array(z.record(z.string(), z.unknown())), z.record(z.string(), z.unknown())])
   .describe(
@@ -213,7 +213,7 @@ export function encodeCursor(status: ListStatus, last: Pick<Incident, 'createdAt
 }
 
 export function decodeCursor(raw: string, status: ListStatus): Pick<Incident, 'createdAt' | 'id'> {
-  const bad = (why: string) => new RewindError('invalid_cursor', `Geçersiz cursor: ${why}.`);
+  const bad = (why: string) => new FlashbackError('invalid_cursor', `Geçersiz cursor: ${why}.`);
   if (!CURSOR_RE.test(raw)) throw bad('biçim tanınmadı');
   let o: unknown;
   try {
@@ -417,7 +417,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** MCP sunucusunu ve araçlarını kurar (FRD §9.5). Taşıyıcıya bağlamak çağıranın işidir. */
 export function createMcpServer(ctx: ToolContext, opts: { instructions?: string } = {}): McpServer {
   const server = new McpServer(
-    { name: 'rewind-mcp', version: VERSION },
+    { name: 'flashback-mcp', version: VERSION },
     { instructions: opts.instructions ?? SERVER_INSTRUCTIONS, capabilities: { tools: {} } },
   );
   const now = () => (ctx.mode === 'ok' && ctx.now ? ctx.now() : new Date());
@@ -428,7 +428,7 @@ export function createMcpServer(ctx: ToolContext, opts: { instructions?: string 
     {
       title: 'Olayları listele',
       description:
-        'Rewind olaylarını duruma göre listeler (yeniden eskiye, eşitlikte kimliğe göre). Her satırda pendingQuestion işareti ve birincil kanıt özeti bulunur. ' +
+        'Flashback olaylarını duruma göre listeler (yeniden eskiye, eşitlikte kimliğe göre). Her satırda pendingQuestion işareti ve birincil kanıt özeti bulunur. ' +
         'Daha fazla olay varsa nextCursor döner; sonraki sayfa için aynı status ile cursor olarak ver.',
       inputSchema: {
         status: z.enum(['open', 'closed', 'all']).default('open').describe('open (varsayılan), closed ya da all'),
@@ -518,7 +518,7 @@ export function createMcpServer(ctx: ToolContext, opts: { instructions?: string 
         id: idSchema,
         assertions: assertionsSchema,
         strict: z.boolean().optional().describe('true: konsol hataları ve HTTP ≥ 400 yanıtları testi kaldırır'),
-        base_url: z.string().optional().describe('Dev sunucusunun adresi (yalnızca loopback ya da REWIND_ALLOW_ORIGINS)'),
+        base_url: z.string().optional().describe('Dev sunucusunun adresi (yalnızca loopback ya da FLASHBACK_ALLOW_ORIGINS)'),
         headed: z.boolean().optional(),
         repeat: z.number().int().min(1).max(5).optional().describe('Tekrar sayısı (varsayılan 1, en fazla 5)'),
       },
@@ -589,7 +589,7 @@ export function createMcpServer(ctx: ToolContext, opts: { instructions?: string 
       title: 'Repro testini üret',
       description:
         'run_repro\'nun çalıştıracağı Playwright testini çalıştırmadan üretir. Olay verisi spec koduna gömülmez; yanındaki <id>.steps.json dosyasından okunur. ' +
-        'portable: true → projenin test klasörüne kopyalanıp projenin kendi playwright.config dosyasıyla (use.baseURL) çalışan, .rewind/ dosyalarına bağımlı olmayan tek dosyalık spec.',
+        'portable: true → projenin test klasörüne kopyalanıp projenin kendi playwright.config dosyasıyla (use.baseURL) çalışan, .flashback/ dosyalarına bağımlı olmayan tek dosyalık spec.',
       inputSchema: {
         id: idSchema,
         assertions: assertionsSchema,
@@ -618,8 +618,8 @@ export function createMcpServer(ctx: ToolContext, opts: { instructions?: string 
               `Taşınabilir spec: ${r.specPath}`,
               `İmza: ${r.signature}`,
               `Kullanım: ${r.command}`,
-              'Not: projenin kendi playwright.config dosyasıyla çalışır (use.baseURL gerekli); .rewind/ dosyalarına bağımlı değildir (FR-MCP-14). ' +
-                'Gizli alanlar için REWIND_PASSWORD / REWIND_INPUT_<ALAN> ortam değişkenlerini verin; yoksa yer tutucu kullanılır.',
+              'Not: projenin kendi playwright.config dosyasıyla çalışır (use.baseURL gerekli); .flashback/ dosyalarına bağımlı değildir (FR-MCP-14). ' +
+                'Gizli alanlar için FLASHBACK_PASSWORD / FLASHBACK_INPUT_<ALAN> ortam değişkenlerini verin; yoksa yer tutucu kullanılır.',
               ...extras,
               'Spec:',
               fence(r.spec, 'ts'),
@@ -655,7 +655,7 @@ export function createMcpServer(ctx: ToolContext, opts: { instructions?: string 
     'reply_to_incident',
     {
       title: 'Geliştiriciye soru sor',
-      description: 'Geliştiriciye Rewind paneli üzerinden mesaj gönderir ve olaya pendingQuestion işareti koyar. wait_seconds verilirse yanıtı o kadar bekler.',
+      description: 'Geliştiriciye Flashback paneli üzerinden mesaj gönderir ve olaya pendingQuestion işareti koyar. wait_seconds verilirse yanıtı o kadar bekler.',
       inputSchema: {
         id: idSchema,
         message: z.string().min(1).max(10_000),

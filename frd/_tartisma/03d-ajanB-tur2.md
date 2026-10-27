@@ -1,4 +1,4 @@
-# Rewind FRD v0.1 — Öneri değerlendirmesi, Tur 2 (Ajan B)
+# Flashback FRD v0.1 — Öneri değerlendirmesi, Tur 2 (Ajan B)
 
 | Alan | Değer |
 |---|---|
@@ -21,13 +21,13 @@ Tablo sütunları: B1 = benim Tur 1 bileşik puanım, A1 = A'nın Tur 1 bileşik
 ### ÖN-01 — Localhost alıcısının sertleştirilmesi (B1 7,7 · A1 9,0 → B2 **8,7**)
 
 **A'nın haklı olduğu yerler:**
-- **GET uçlarında Origin.** Teknik ayrıntıya inince A'nın preflight/özel başlık savunması da benim "gereksiz katman" dediğim şey de yarı haklı çıkıyor. FR-RCV-04'teki ikinci `rewind-mcp` süreci (Node) alıcıya **Origin başlığı olmadan** erişiyor. Origin'i her yerde zorunlu tutarsak bu kullanım kırılır; Origin'siz isteğe izin verirsek tarayıcı dışı her şey geçer. Bunu doğru ayıran şey A'nın özel başlığı: tarayıcı, `X-Rewind-Client` gibi bir başlığı başka bir kökenden ancak CORS preflight ile gönderebilir ve biz preflight'ı reddediyoruz.
-  - **Ortak kural:** (1) Her istekte Host doğrulanır. (2) Origin varsa izin listesinde olmalı; tüm uçlar için, GET dahil. (3) Origin yoksa `X-Rewind-Client` başlığı zorunlu. (4) Gövdeli isteklerde `Content-Type: application/json` zorunlu. Tur 1'deki "X-Rewind-Client gereksiz" görüşümü geri çekiyorum.
+- **GET uçlarında Origin.** Teknik ayrıntıya inince A'nın preflight/özel başlık savunması da benim "gereksiz katman" dediğim şey de yarı haklı çıkıyor. FR-RCV-04'teki ikinci `flashback-mcp` süreci (Node) alıcıya **Origin başlığı olmadan** erişiyor. Origin'i her yerde zorunlu tutarsak bu kullanım kırılır; Origin'siz isteğe izin verirsek tarayıcı dışı her şey geçer. Bunu doğru ayıran şey A'nın özel başlığı: tarayıcı, `X-Flashback-Client` gibi bir başlığı başka bir kökenden ancak CORS preflight ile gönderebilir ve biz preflight'ı reddediyoruz.
+  - **Ortak kural:** (1) Her istekte Host doğrulanır. (2) Origin varsa izin listesinde olmalı; tüm uçlar için, GET dahil. (3) Origin yoksa `X-Flashback-Client` başlığı zorunlu. (4) Gövdeli isteklerde `Content-Type: application/json` zorunlu. Tur 1'deki "X-Flashback-Client gereksiz" görüşümü geri çekiyorum.
 - **SEC-06 (POSIX izinleri) M olsun.** `chmod` tek satır. Kabul. Windows ACL konusundaki itirazım duruyor.
 - **SEC-05 sayıları keyfi.** Kabul: "sınır vardır, yapılandırılabilir" yazılsın, değerler ölçümle belirlensin.
 - **421 yerine "4xx".** Kabul.
 
-**Savunduğum ve geliştirdiğim nokta, FR-CFG-SEC-01 (sürüm sabitleme):** A bunu M yapıyor. Katılıyorum, ama daha iyi bir yöntem var. Paket zaten devDependency olarak kuruluyor (FR-CFG-01). Dokümandaki yapılandırma `npx --no-install rewind-mcp` (ya da `node_modules/.bin/rewind-mcp`) kullanırsa sürümü **lockfile** sabitler ve registry her açılışta yeniden çözülmez. Sürümü yapılandırmaya yazmak kopyalanan snippet'lerin güncelliğini yitirmesine yol açar; bu yöntem buna gerek bırakmaz. M, efor S.
+**Savunduğum ve geliştirdiğim nokta, FR-CFG-SEC-01 (sürüm sabitleme):** A bunu M yapıyor. Katılıyorum, ama daha iyi bir yöntem var. Paket zaten devDependency olarak kuruluyor (FR-CFG-01). Dokümandaki yapılandırma `npx --no-install flashback-mcp` (ya da `node_modules/.bin/flashback-mcp`) kullanırsa sürümü **lockfile** sabitler ve registry her açılışta yeniden çözülmez. Sürümü yapılandırmaya yazmak kopyalanan snippet'lerin güncelliğini yitirmesine yol açar; bu yöntem buna gerek bırakmaz. M, efor S.
 
 **Puan:** D 8→9 (zincirin tamamını kesiyor), R 9 (A'nın 10'una çıkmıyorum: saldırı, dev sunucusu açıkken kötü bir siteyi ziyaret etmeyi ve ajanın o olayı okumasını gerektiriyor), U 6→8 (kalibrasyon).
 
@@ -76,7 +76,7 @@ RED-12 M (ikimiz de), RED-13 ve RED-15 bu bölüme taşınır (A'nın birleştir
 
 ### ÖN-07 — Sentetik girişler (B1 5,7 · A1 7,0 → B2 **6,6**)
 
-A'nın "yanlış kırmızıya giden ikinci yol" argümanı R'yi 7'ye çıkarmaya yetiyor; kabul. Alan bazında geçersiz kılma talebini de kabul ediyorum, yalnızca numaralandırmaya itirazım var. Ad bazlı anahtar kullanılsın: `REWIND_INPUT_<NORMALIZE_EDILMIS_ALAN_ADI>`, ör. `REWIND_INPUT_EMAIL`. `<n>` sıra numarası, kayıttaki adım sırası değiştiğinde kırılır.
+A'nın "yanlış kırmızıya giden ikinci yol" argümanı R'yi 7'ye çıkarmaya yetiyor; kabul. Alan bazında geçersiz kılma talebini de kabul ediyorum, yalnızca numaralandırmaya itirazım var. Ad bazlı anahtar kullanılsın: `FLASHBACK_INPUT_<NORMALIZE_EDILMIS_ALAN_ADI>`, ör. `FLASHBACK_INPUT_EMAIL`. `<n>` sıra numarası, kayıttaki adım sırası değiştiğinde kırılır.
 
 D'yi 6'da tutuyorum: giriş akışlarının çoğu `storageState` ile ortadan kalkıyor.
 
@@ -94,7 +94,7 @@ D'yi 6'da tutuyorum: giriş akışlarının çoğu `storageState` ile ortadan ka
 
 Esasen uzlaştık: mini benchmark, mutlak hedefler ilk ölçümden sonra, onayın ölçüme bağlanmaması ve "%60" iddiasının n=1 olarak nitelendirilmesi. Puan farkı U kalibrasyonundan geliyor (2→6).
 
-**Tek fark `.rewind/stats.json`:** A S diyor, ben Ertele. Dışa aktarma olmadan bu veriyi kimse toplayamaz ve geliştirici kendi dosyasına bakmaz. M4/M5 metriklerini mini benchmark zaten ölçüyor. Ertele görüşümü koruyorum; küçük bir fark, uzlaşmazlık listesine almıyorum.
+**Tek fark `.flashback/stats.json`:** A S diyor, ben Ertele. Dışa aktarma olmadan bu veriyi kimse toplayamaz ve geliştirici kendi dosyasına bakmaz. M4/M5 metriklerini mini benchmark zaten ölçüyor. Ertele görüşümü koruyorum; küçük bir fark, uzlaşmazlık listesine almıyorum.
 
 ### ÖN-10 — Sayısal NFR'ler (B1 5,4 · A1 6,7 → B2 **6,7**)
 
@@ -202,7 +202,7 @@ Gerçekçi ve ucuz:
 - rrweb tam sürümle sabitlenir.
 - NFR-SUP-03 (paket içeriği karşılaştırması): S. `release:check` zaten dosya listesi üretiyor; geriye beklenen listeyle karşılaştırmak kalıyor.
 
-**Eklemelerim:** npm adlarının (`rewind-devtools`, `rewind-mcp`) hemen kontrol edilip rezerve edilmesi, `GITHUB_KULLANICI` yer tutucusunun kaldırılması ve `npx --no-install` ile lockfile sabitlemesi (bkz. ÖN-01). R 7: `rewind-mcp`, ajanın yanında dosya yazan ve tarayıcı başlatan bir süreç; ele geçirilirse etkisi yüksek.
+**Eklemelerim:** npm adlarının (`flashback-devtools`, `flashback-mcp`) hemen kontrol edilip rezerve edilmesi, `GITHUB_KULLANICI` yer tutucusunun kaldırılması ve `npx --no-install` ile lockfile sabitlemesi (bkz. ÖN-01). R 7: `flashback-mcp`, ajanın yanında dosya yazan ve tarayıcı başlatan bir süreç; ele geçirilirse etkisi yüksek.
 
 ### EK-A3 — Raporun başında "Kanıt güveni" bloğu
 **D 8 · R 6 · U 8 · Bileşik 7,4 · Kabul**
@@ -223,13 +223,13 @@ Puanlar nihai kapsama göre verilmiştir. Yerleşim: **M** = v1.0 Must, **S** = 
 
 | Kimlik | D | R | U | Bileşik | Nihai karar | v1.0 yerleşimi | Tek cümlelik nihai kapsam |
 |---|---:|---:|---:|---:|---|---|---|
-| ÖN-01 | 9 | 9 | 8 | **8,7** | Kabul-değiştirilmiş | M | Girer: Host doğrulama, "Origin varsa izin listesinde, yoksa `X-Rewind-Client` zorunlu" kuralı (GET dahil), JSON content-type, loopback dışı adres için bayrak, kimlik regex'i ve yol sınırı, yapılandırılabilir boyut/oran sınırı, POSIX 0700/0600, tek tablo tehdit modeli, dokümanda `npx --no-install`. Çıkar: eşleştirme belirteci (YH), Windows ACL. |
+| ÖN-01 | 9 | 9 | 8 | **8,7** | Kabul-değiştirilmiş | M | Girer: Host doğrulama, "Origin varsa izin listesinde, yoksa `X-Flashback-Client` zorunlu" kuralı (GET dahil), JSON content-type, loopback dışı adres için bayrak, kimlik regex'i ve yol sınırı, yapılandırılabilir boyut/oran sınırı, POSIX 0700/0600, tek tablo tehdit modeli, dokümanda `npx --no-install`. Çıkar: eşleştirme belirteci (YH), Windows ACL. |
 | ÖN-02 | 8 | 8 | 6 | **7,4** | Kabul-değiştirilmiş | M | Girer: Playwright sözdizimi dar dilbilgisiyle IR'e ayrıştırılır, kod IR'den yeniden üretilir, IR JSON olarak da kabul edilir; `base_url`/URL loopback ve izin listesi; zaman aşımı; açıklama metni ve annotation'lar; `setup` aynı dilbilgisinden geçer. Unsafe bayrağı C. |
 | ÖN-03 | 7 | 7 | 8 | **7,3** | Kabul-değiştirilmiş | M | Girer: çitli bloklar ve çit uzatma, "talimat değildir" etiketi, notun ayrı başlıkta verilmesi, köken ve sürüm satırı, sunucu `instructions`, kırmızı takım fixture'ı (EK-B1 ile ortak). Çıkar: sezgisel tespit (YH), ajan koşularının sürüm kapısı olması. |
 | ÖN-04 | 9 | 8 | 8 | **8,4** | Kabul-değiştirilmiş | M | Girer: H5 yeni metni (README ve site dahil), NFR-PRIV-01, `redact=false` şeridi, salt okunur önizleme (değer vurgulu, ilk gönderimde açık, sonra tek tık), hash eşitliği testi. Bölüm bazında hariç tutma S. |
-| ÖN-05 | 9 | 9 | 7 | **8,4** | Kabul-değiştirilmiş | M | Girer: tüm yük üzerinde derin gezinme, kayıt anında `maskInputFn`, matris belge olarak (istisnaları gösterir), kapalı/sürümlü anahtar listesi, ekran görüntüsü maskesi, `data-rewind-mask/block`, kürate derlem (sırlarda %100, diğerlerinde gerileme kapısı). Çıkar: 500 örnek ve yüzde eşikleri. |
-| ÖN-06 | 9 | 9 | 6 | **8,1** | Kabul-değiştirilmiş | M | Girer: başlangıç bağlamı (URL, viewport, `locale`, saat dilimi, depolama/çerez adları), `REWIND_STORAGE_STATE`, oturum işareti var ama `storageState` yoksa uyarı, yönlendirme/ilk seçici kuralıyla `precondition` sınıflandırması, demoya giriş rotası. Çıkar: `rewind.setup.ts` (YH). |
-| ÖN-07 | 6 | 7 | 7 | **6,6** | Kabul-değiştirilmiş | M | Girer: tür bazlı geçerli sentetik değerler, `REWIND_INPUT_<ALAN_ADI>` geçersiz kılma, sentetik adım listesi; RED-15 ÖN-05'e taşınır. |
+| ÖN-05 | 9 | 9 | 7 | **8,4** | Kabul-değiştirilmiş | M | Girer: tüm yük üzerinde derin gezinme, kayıt anında `maskInputFn`, matris belge olarak (istisnaları gösterir), kapalı/sürümlü anahtar listesi, ekran görüntüsü maskesi, `data-flashback-mask/block`, kürate derlem (sırlarda %100, diğerlerinde gerileme kapısı). Çıkar: 500 örnek ve yüzde eşikleri. |
+| ÖN-06 | 9 | 9 | 6 | **8,1** | Kabul-değiştirilmiş | M | Girer: başlangıç bağlamı (URL, viewport, `locale`, saat dilimi, depolama/çerez adları), `FLASHBACK_STORAGE_STATE`, oturum işareti var ama `storageState` yoksa uyarı, yönlendirme/ilk seçici kuralıyla `precondition` sınıflandırması, demoya giriş rotası. Çıkar: `flashback.setup.ts` (YH). |
+| ÖN-07 | 6 | 7 | 7 | **6,6** | Kabul-değiştirilmiş | M | Girer: tür bazlı geçerli sentetik değerler, `FLASHBACK_INPUT_<ALAN_ADI>` geçersiz kılma, sentetik adım listesi; RED-15 ÖN-05'e taşınır. |
 | ÖN-08 | 10 | 9 | 7 | **8,8** | Kabul-değiştirilmiş | M | Girer: yalnızca assertion bloğundaki başarısızlık kırmızı sayılır, `errorKind`, koşu imzası hash'i (IR + `strict` + adım sürümü), durumlar `open`/`fixed`/`fixed_unverified`/`cannot_reproduce`, gerekçe zorunlu, ayrı rozet. Yeniden açma S; `needs_info` durum değil. |
 | ÖN-09 | 7 | 5 | 6 | **6,1** | Kabul-değiştirilmiş | S | Girer (M): "Hedef" sütunu, metrik tanımları, "%60"ın n=1 olarak nitelenmesi. Girer (S): Claude Code ile 8–10 hatalık mini benchmark, halka açık iddiaların kapısı. Çıkar: tam benchmark ve `stats.json` (YH), onayın ölçüme bağlanması. |
 | ÖN-10 | 7 | 6 | 7 | **6,7** | Kabul-değiştirilmiş | M | Girer: NFR-SIZE, ölçümle belirlenen token bütçesi ve belirlenimci kırpma, repro zaman aşımı, NFR-MEM, Node ≥22, Chromium "Doğrulandı" ve Firefox/Safari "en iyi çaba". PERF ve LAT sürüm öncesi bench ile S. |
@@ -240,7 +240,7 @@ Puanlar nihai kapsama göre verilmiştir. Yerleşim: **M** = v1.0 Must, **S** = 
 | ÖN-15 | 8 | 6 | 7 | **7,1** | Kabul-değiştirilmiş | M | Girer: `target=null` sayfa düzeyi olay, işaretlenen ana en yakın hataların otomatik olarak birincil kanıt sıralanması. Elle işaretçi seçimi koşullu M/S (uzlaşmazlık 3). Çoklu öğe YH. |
 | ÖN-16 | 7 | 7 | 7 | **7,0** | Kabul-değiştirilmiş | M | Girer: `projectId`, `/health`, sessizce okumak yerine `WRONG_PROJECT`, klasör çözümleme ve ev/kök dizin reddi, proje başına port. S: köken kaydı ve uyuşmazlık uyarısı. Makine genelinde yönlendirici YH. |
 | ÖN-17 | 9 | 9 | 8 | **8,7** | Kabul-değiştirilmiş | M | Girer: `NODE_ENV` varsayılanı, üretim bundle'ında kaydedici kodunun bulunmaması (yöntem dayatılmadan), `allowProduction` ve kalıcı uyarı, varsayılanlar tablosu ve README tutarlılığı. Resmî örnekler ÖN-13'e. |
-| ÖN-18 | 6 | 5 | 7 | **6,0** | Kabul-değiştirilmiş | M | Girer (M): H6 dürüst metni, `PLAYWRIGHT_NOT_FOUND`/`BROWSER_NOT_INSTALLED`. Girer (S): başlangıçta otomatik çalışan kontroller ve `rewind-mcp check`. `init` YH (uzlaşmazlık 2). |
+| ÖN-18 | 6 | 5 | 7 | **6,0** | Kabul-değiştirilmiş | M | Girer (M): H6 dürüst metni, `PLAYWRIGHT_NOT_FOUND`/`BROWSER_NOT_INSTALLED`. Girer (S): başlangıçta otomatik çalışan kontroller ve `flashback-mcp check`. `init` YH (uzlaşmazlık 2). |
 | ÖN-19 | 7 | 5 | 7 | **6,4** | Kabul-değiştirilmiş | M | Girer (M): durum göstergesi, zorunlu "Ne olmalıydı?" alanı, `event.code` ve metin girişinde tetiklenmeme, Shadow DOM yalıtımı. S: kısayol değişikliği (testten sonra), ARIA/axe, EN varsayılan ve TR. Tema YH. |
 | ÖN-20 | 5 | 6 | 8 | **6,2** | Kabul-değiştirilmiş | S | M: ajan mesajlarının düz metin render edilmesi ve XSS testi. S: `wait_seconds` ≤60, `pendingQuestion` işareti (uzlaşmazlık 4). |
 | ÖN-21 | 7 | 7 | 7 | **7,0** | Kabul-değiştirilmiş | M | Girer: `fixed` için ardışık 2 yeşil, karışık sonuçta `fixed_unverified`, yan etkili istek uyarısı. Çıkar: `recorded` ağ modu (YH). |
@@ -264,7 +264,7 @@ Puanlar nihai kapsama göre verilmiştir. Yerleşim: **M** = v1.0 Must, **S** = 
 | # | Konu | A'nın tutumu | Benim tutumum | Önerdiğim uzlaşma |
 |---|---|---|---|---|
 | 1 | **ÖN-02: assertion giriş biçimi** | Dar dilbilgisi allowlist'i (JSON DSL alternatif) | Yapılandırılmış JSON DSL; ajan metni asla çalıştırılmaz | **Ayrıştır → IR → yeniden üret.** Ajan Playwright sözdizimi yazar, dar dilbilgisi metni IR'e çevirir, kod yalnızca IR'den üretilir, IR doğrudan JSON olarak da kabul edilir. A'nın kullanılabilirliği ve benim "veri ≠ kod" ilkem birlikte korunur; ek maliyet ~1 gün. |
-| 2 | **ÖN-18: `init` mi `doctor` mı** | `init` S (v1.0), `doctor` Ertele; kontroller `init` içinde | `doctor` S, `init` Ertele (3 ajanın yapılandırma biçimini izlemek kalıcı bakım yükü) | **Kontroller (port/projectId, Playwright, Chromium, `/health`) `rewind-mcp` her başladığında otomatik çalışır ve stderr'e yazar; aynı kontroller `rewind-mcp check` ile elle de çalıştırılır (S).** Yapılandırma dosyası yazan `init` v1.1'e. Sürüm sabitleme `npx --no-install` ile çözülür, böylece A'nın `init` gerekçesi (CFG-SEC-01) `init` olmadan karşılanır. |
+| 2 | **ÖN-18: `init` mi `doctor` mı** | `init` S (v1.0), `doctor` Ertele; kontroller `init` içinde | `doctor` S, `init` Ertele (3 ajanın yapılandırma biçimini izlemek kalıcı bakım yükü) | **Kontroller (port/projectId, Playwright, Chromium, `/health`) `flashback-mcp` her başladığında otomatik çalışır ve stderr'e yazar; aynı kontroller `flashback-mcp check` ile elle de çalıştırılır (S).** Yapılandırma dosyası yazan `init` v1.1'e. Sürüm sabitleme `npx --no-install` ile çözülür, böylece A'nın `init` gerekçesi (CFG-SEC-01) `init` olmadan karşılanır. |
 | 3 | **ÖN-15: FR-MARK-08 (elle birincil kanıt seçimi)** | M ("seçimle aynı UI, ucuz") | S; otomatik sıralama yeterli | **Otomatik sıralama M. Elle seçim, FR-UI-04 işaretçileri bugün tıklanabilir ise ("Durum: Mevcut") M, değilse S.** Ucuzluk iddiası kodun mevcut durumuna bağlı; ÖN-25'teki "Durum" sütunu bunu belirler. |
 | 4 | **ÖN-20/ÖN-08: `needs_info` durumu** | ÖN-20 ile birlikte durum setine eklensin | Durum değil | **Durum enum'u 4 değerde kalır; `list_incidents` ve panel `pendingQuestion: true` işareti gösterir.** Bilgi aynı, ama geçiş tablosu, `mark_fixed` kuralları ve testler büyümüyor. Ajan, yanıt bekleyen olayı yine görür. |
-| 5 | **ÖN-24: FR-REC-12 (erken yakalama)** | Ertele ("bundler entegrasyonu gerekir") | S; bundler gerekmez | **`fetch`/XHR yamalaması bileşen montajından modül değerlendirmesine taşınır**, `NODE_ENV` ile korunur ve `enabled` değilse geçirgen kalır. Doküman "ilk import olarak ekleyin" der (S). Teknik gerekçe: `<App/>` ile `<Rewind/>` kardeş olduğunda React efektleri ağaç sırasıyla çalışır; App'in ilk `useEffect` fetch'i, Rewind'in montaj sırasında yaptığı yamadan **önce** gider ve kaçırılır. Ayrı bir erken yükleme script'i ya da bundler eklentisi YH'de kalır; bu noktada A ile aynı görüşteyiz. |
+| 5 | **ÖN-24: FR-REC-12 (erken yakalama)** | Ertele ("bundler entegrasyonu gerekir") | S; bundler gerekmez | **`fetch`/XHR yamalaması bileşen montajından modül değerlendirmesine taşınır**, `NODE_ENV` ile korunur ve `enabled` değilse geçirgen kalır. Doküman "ilk import olarak ekleyin" der (S). Teknik gerekçe: `<App/>` ile `<Flashback/>` kardeş olduğunda React efektleri ağaç sırasıyla çalışır; App'in ilk `useEffect` fetch'i, Flashback'in montaj sırasında yaptığı yamadan **önce** gider ve kaçırılır. Ayrı bir erken yükleme script'i ya da bundler eklentisi YH'de kalır; bu noktada A ile aynı görüşteyiz. |

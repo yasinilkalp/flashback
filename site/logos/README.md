@@ -24,4 +24,4 @@ Bütün logolar ilgili markanın kendi yayımladığı kaynaklardan alındı. Ç
 
 ## Marka kuralları
 
-Logolar yalnızca "bu araçlarla çalışır" anlamında, her birinin adıyla birlikte ve aynı boyda kullanılır; hiçbiri Rewind'in kendi markası gibi gösterilmez. Markaların yönergeleri değişebilir; özellikle OpenAI (ortaklık kilitlerinde Blossom kullanılmaz, tek renk) ve Google (Gemini marka kuralları) için yayından önce güncel kurallara bakın. Bir marka logosunun kaldırılmasını isterse dosyayı silmek yeterlidir; sayfa adıyla göstermeye devam eder.
+Logolar yalnızca "bu araçlarla çalışır" anlamında, her birinin adıyla birlikte ve aynı boyda kullanılır; hiçbiri Flashback'in kendi markası gibi gösterilmez. Markaların yönergeleri değişebilir; özellikle OpenAI (ortaklık kilitlerinde Blossom kullanılmaz, tek renk) ve Google (Gemini marka kuralları) için yayından önce güncel kurallara bakın. Bir marka logosunun kaldırılmasını isterse dosyayı silmek yeterlidir; sayfa adıyla göstermeye devam eder.

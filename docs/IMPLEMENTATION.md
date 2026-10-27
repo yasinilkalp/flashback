@@ -1,4 +1,4 @@
-# Rewind — Uygulama sözleşmesi (geliştiriciler ve ajanlar için)
+# Flashback — Uygulama sözleşmesi (geliştiriciler ve ajanlar için)
 
 Bağlayıcı gereksinim kaynağı: `frd/04-FRD-v1.0.md`. Bu dosya, paketler arasındaki **teknik sözleşmeyi** sabitler.
 Burada yazmayan bir konuda FRD'ye bakın; FRD ile çelişen bir şey görürseniz FRD geçerlidir.
@@ -6,19 +6,19 @@ Burada yazmayan bir konuda FRD'ye bakın; FRD ile çelişen bir şey görürseni
 ## Depo yapısı
 
 ```
-packages/shared   → @rewind/shared (private): zod şeması, gizleme (Redactor), sınırlar, kimlik, assertion render, protokol sabitleri
-packages/rewind   → rewind-devtools: <Rewind/> bileşeni, kaydedici, panel (tarayıcı)
-packages/mcp      → rewind-mcp: MCP stdio sunucusu + HTTP alıcı + .rewind/ deposu + run_repro (Node)
+packages/shared   → @flashback/shared (private): zod şeması, gizleme (Redactor), sınırlar, kimlik, assertion render, protokol sabitleri
+packages/flashback   → flashback-devtools: <Flashback/> bileşeni, kaydedici, panel (tarayıcı)
+packages/mcp      → flashback-mcp: MCP stdio sunucusu + HTTP alıcı + .flashback/ deposu + run_repro (Node)
 examples/demo     → Vite + React 19 sepet demosu, kasıtlı hatalar, oturumlu /account rotası
 frd/              → FRD belgeleri
 ```
 
 - Dil: TypeScript, ESM. Node ≥ 22. Derleme `tsup`. Test `vitest` (kök `vitest.config.ts`: `packages/*/test/**/*.test.ts(x)`; e2e: `*.e2e.test.ts`).
-- `@rewind/shared` yayımlanmaz; iki paket de onu `tsup` ile **bundle eder** (`noExternal: ['@rewind/shared']`).
+- `@flashback/shared` yayımlanmaz; iki paket de onu `tsup` ile **bundle eder** (`noExternal: ['@flashback/shared']`).
 - Kod tanımlayıcıları İngilizce. Kullanıcıya ve ajana giden metinler **Türkçe** (README ile tutarlı).
 - Bağımlılıklar az ve sabit sürümlü olsun (rrweb tam sürüm: `2.2.0`).
 
-## Paylaşılan paket (`@rewind/shared`) — değiştirmeden kullanın
+## Paylaşılan paket (`@flashback/shared`) — değiştirmeden kullanın
 
 - `IncidentDraftSchema` / `IncidentDraftInput`: tarayıcının POST ettiği yük. `IncidentSchema`: sunucunun sakladığı olay.
 - `Redactor` (FR-RED-*): `text`, `value`, `headers`, `url`, `body`, `input`; `stats` (count, byType).
@@ -29,7 +29,7 @@ frd/              → FRD belgeleri
 
 Paylaşılan pakete yalnızca **ekleme** yapılabilir (geriye uyumlu). Ekleme yaptıysanız raporunuzda belirtin.
 
-## HTTP alıcı API'si (tarayıcı ↔ rewind-mcp)
+## HTTP alıcı API'si (tarayıcı ↔ flashback-mcp)
 
 Taban: `endpoint` prop'u (varsayılan `http://127.0.0.1:4747`). Tüm yanıtlar JSON.
 
@@ -44,14 +44,14 @@ Taban: `endpoint` prop'u (varsayılan `http://127.0.0.1:4747`). Tüm yanıtlar J
 | `/incidents/:id/reopen` | POST | `{ reason }` | 200 `IncidentSummary` · 409 zaten açık |
 
 Güvenlik (sunucu uygular, istemci uyar):
-- Tarayıcı istekleri `Origin` başlığını kendiliğinden taşır; izin listesi: `http(s)://localhost:*`, `http(s)://127.0.0.1:*`, `http(s)://[::1]:*` ve `REWIND_ALLOW_ORIGINS`.
-- `Origin` yoksa (tarayıcı dışı istemci) `x-rewind-client: <ad>` başlığı zorunlu.
+- Tarayıcı istekleri `Origin` başlığını kendiliğinden taşır; izin listesi: `http(s)://localhost:*`, `http(s)://127.0.0.1:*`, `http(s)://[::1]:*` ve `FLASHBACK_ALLOW_ORIGINS`.
+- `Origin` yoksa (tarayıcı dışı istemci) `x-flashback-client: <ad>` başlığı zorunlu.
 - POST'ta `Content-Type: application/json` zorunlu → tarayıcı preflight (OPTIONS) yapar; sunucu izinli kökenlere CORS yanıtı verir.
 - `Host` başlığı loopback olmalı (421).
 
 ## Olay taslağı nasıl dolar (tarayıcı)
 
-- `schemaVersion: 1`, `source` (origin, rewindVersion, framework `react`, userAgent, tabId), `recordingStartedAt` (ISO UTC), tüm `t` alanları kayıt başlangıcına göre ms (FR-PKG-06).
+- `schemaVersion: 1`, `source` (origin, flashbackVersion, framework `react`, userAgent, tabId), `recordingStartedAt` (ISO UTC), tüm `t` alanları kayıt başlangıcına göre ms (FR-PKG-06).
 - `context`: `url` (işaretlenen andaki), `startUrl` (pencere başındaki), viewport, locale, timezone, storage anahtarları (değer yok), çerez adları (değer yok) — FR-PKG-07.
 - `note.expected` zorunlu (FR-UI-07).
 - `target`: seçilen öğe ya da `null` (sayfa düzeyi olay, FR-MARK-07).
@@ -63,9 +63,9 @@ Güvenlik (sunucu uygular, istemci uyar):
 
 **Önizleme ile gönderilen yük aynı serileştirilmiş nesneden üretilir** (FR-UI-08).
 
-## MCP tarafı özet (rewind-mcp)
+## MCP tarafı özet (flashback-mcp)
 
-- `npx rewind-mcp` → stdio MCP + HTTP alıcı tek süreçte. `serve` → yalnızca alıcı. `check` → başlangıç kontrolleri. `prune` → temizlik.
+- `npx flashback-mcp` → stdio MCP + HTTP alıcı tek süreçte. `serve` → yalnızca alıcı. `check` → başlangıç kontrolleri. `prune` → temizlik.
 - Olaylar `<dir>/<id>.json`; repro dosyaları `<dir>/repro/<id>.spec.ts`, `<id>.steps.json`, ekran görüntüleri `<dir>/repro/<id>-<run>.png`.
 - Araçlar: `list_incidents`, `get_incident`, `get_incident_events`, `get_dom_snapshot`, `run_repro`, `get_repro_script`, `reply_to_incident`, `mark_fixed` (sözleşmeler FRD §9.5, hata kodları §9.6).
 

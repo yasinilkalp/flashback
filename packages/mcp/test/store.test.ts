@@ -1,14 +1,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { IncidentStore, QuotaError, RewindError } from '../src/index.js';
+import { IncidentStore, QuotaError, FlashbackError } from '../src/index.js';
 import { draft, tmpDir } from './helpers.js';
 
 const quiet = { log: () => {} };
 
 describe('IncidentStore', () => {
   it('klasörü .gitignore (*) ile oluşturur; POSIX izinleri 0700/0600 (FR-RCV-02, FR-RCV-SEC-06)', () => {
-    const dir = path.join(tmpDir(), '.rewind');
+    const dir = path.join(tmpDir(), '.flashback');
     const store = new IncidentStore(dir, quiet);
     store.init();
     expect(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8')).toMatch(/^\*$/m);
@@ -32,10 +32,10 @@ describe('IncidentStore', () => {
   it('kimlik doğrulaması ve yol sınırı (FR-RCV-SEC-04)', () => {
     const store = new IncidentStore(tmpDir(), quiet);
     store.init();
-    for (const bad of ['../../x', 'rw-20261027-000000-abc', 'rw-20261027-000000-ABCD', '', 'rw-20261027-000000-abcd/../x']) {
-      expect(() => store.resolvePath(bad)).toThrow(RewindError);
+    for (const bad of ['../../x', 'fb-20261027-000000-abc', 'fb-20261027-000000-ABCD', '', 'fb-20261027-000000-abcd/../x']) {
+      expect(() => store.resolvePath(bad)).toThrow(FlashbackError);
     }
-    expect(() => store.require('rw-20261027-000000-abcd')).toThrow(/bulunamadı/);
+    expect(() => store.require('fb-20261027-000000-abcd')).toThrow(/bulunamadı/);
   });
 
   it('kota: yalnızca en eski KAPALI olaylar silinir, repro dosyalarıyla birlikte (FR-RCV-09)', () => {
@@ -94,9 +94,9 @@ describe('IncidentStore', () => {
       i.status = 'fixed';
       i.resolution = { kind: 'fixed', summary: 's', t: new Date(now).toISOString() };
     });
-    fs.writeFileSync(path.join(store.reproDir, 'rw-20200101-000000-zzzz.spec.ts'), '//'); // sahipsiz
+    fs.writeFileSync(path.join(store.reproDir, 'fb-20200101-000000-zzzz.spec.ts'), '//'); // sahipsiz
     expect(store.prune({ retentionDays: 30 })).toEqual([old.id]);
-    expect(fs.existsSync(path.join(store.reproDir, 'rw-20200101-000000-zzzz.spec.ts'))).toBe(false);
+    expect(fs.existsSync(path.join(store.reproDir, 'fb-20200101-000000-zzzz.spec.ts'))).toBe(false);
     expect(store.prune({ retentionDays: 30, all: true })).toEqual([recent.id]);
     expect(store.list().map((i) => i.id)).toEqual([oldOpen.id]);
   });

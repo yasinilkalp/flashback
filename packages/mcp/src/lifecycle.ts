@@ -1,5 +1,5 @@
-import { renderAssertions, type Incident, type IncidentSummary, type ReproRun } from '@rewind/shared';
-import { RewindError } from './errors.js';
+import { renderAssertions, type Incident, type IncidentSummary, type ReproRun } from '@flashback/shared';
+import { FlashbackError } from './errors.js';
 
 /**
  * Olay yaşam döngüsü (FRD §7.9).
@@ -95,7 +95,7 @@ export interface MarkFixedResult {
 /** `mark_fixed`: hedef durumu sunucu belirler (FR-MCP-08, FR-LIFE-01…05). `inc` yerinde değiştirilir. */
 export function applyMarkFixed(inc: Incident, input: MarkFixedInput, now: Date): MarkFixedResult {
   if (inc.status !== 'open') {
-    throw new RewindError('invalid_transition', `Olay zaten kapalı (${inc.status}); yalnızca açık olay kapatılabilir.`);
+    throw new FlashbackError('invalid_transition', `Olay zaten kapalı (${inc.status}); yalnızca açık olay kapatılabilir.`);
   }
   const runs = countedRuns(inc);
   const v = evaluateVerification(runs);
@@ -103,7 +103,7 @@ export function applyMarkFixed(inc: Incident, input: MarkFixedInput, now: Date):
   let status: Incident['status'];
   if (input.resolution === 'cannot_reproduce') {
     if (runs.length === 0) {
-      throw new RewindError(
+      throw new FlashbackError(
         'invalid_transition',
         'cannot_reproduce için en az bir geçerli (error olmayan) koşu gerekiyor. Önce run_repro çalıştır.',
       );
@@ -113,7 +113,7 @@ export function applyMarkFixed(inc: Incident, input: MarkFixedInput, now: Date):
     status = 'fixed';
   } else {
     if (!input.reason?.trim()) {
-      throw new RewindError('reason_required', `Doğrulama koşulu sağlanmadı: ${v.missing}`, { missing: v.missing });
+      throw new FlashbackError('reason_required', `Doğrulama koşulu sağlanmadı: ${v.missing}`, { missing: v.missing });
     }
     status = 'fixed_unverified';
   }
@@ -133,7 +133,7 @@ export function applyMarkFixed(inc: Incident, input: MarkFixedInput, now: Date):
 
 /** Panelden yeniden açma (FR-LIFE tablosu, FR-UI-18). Zaten açıksa 409 için `invalid_transition`. */
 export function applyReopen(inc: Incident, reason: string, now: Date): void {
-  if (inc.status === 'open') throw new RewindError('invalid_transition', 'Olay zaten açık.');
+  if (inc.status === 'open') throw new FlashbackError('invalid_transition', 'Olay zaten açık.');
   const t = now.toISOString();
   inc.status = 'open';
   inc.resolution = undefined;

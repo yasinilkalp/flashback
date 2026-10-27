@@ -49,20 +49,20 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
   afterAll(() => receiver.close());
 
   it('sahte Host başlığı 421 alır (DNS rebinding)', async () => {
-    const r = await raw(port, { headers: { host: `evil.test:${port}`, 'x-rewind-client': 't' } });
+    const r = await raw(port, { headers: { host: `evil.test:${port}`, 'x-flashback-client': 't' } });
     expect(r.status).toBe(421);
-    const wrongPort = await raw(port, { headers: { host: '127.0.0.1:1', 'x-rewind-client': 't' } });
+    const wrongPort = await raw(port, { headers: { host: '127.0.0.1:1', 'x-flashback-client': 't' } });
     expect(wrongPort.status).toBe(421);
   });
 
   it('loopback Host varyantları kabul edilir', async () => {
     for (const host of [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]) {
-      const r = await raw(port, { headers: { host, 'x-rewind-client': 't' } });
+      const r = await raw(port, { headers: { host, 'x-flashback-client': 't' } });
       expect(r.status, host).toBe(200);
     }
   });
 
-  it('Origin ve x-rewind-client yoksa 403 (GET dahil)', async () => {
+  it('Origin ve x-flashback-client yoksa 403 (GET dahil)', async () => {
     expect((await raw(port, {})).status).toBe(403);
     expect((await raw(port, { path: '/incidents' })).status).toBe(403);
   });
@@ -73,7 +73,7 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     expect((await raw(port, { headers: { origin: 'http://localhost.evil.example' } })).status).toBe(403);
   });
 
-  it('localhost kökenleri ve REWIND_ALLOW_ORIGINS kabul edilir', async () => {
+  it('localhost kökenleri ve FLASHBACK_ALLOW_ORIGINS kabul edilir', async () => {
     const r = await raw(port, { headers: { origin: 'http://localhost:5173' } });
     expect(r.status).toBe(200);
     expect(r.headers['access-control-allow-origin']).toBe('http://localhost:5173');
@@ -152,8 +152,8 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     // Bu yüzden varlık denetimi yerine üst klasörün içeriğini önce/sonra karşılaştır.
     const grand = path.join(dir, '..', '..');
     const grandBefore = fs.readdirSync(grand).sort();
-    for (const p of ['/incidents/..%2F..%2Fx', '/incidents/..%2F..%2Fx/messages', '/incidents/rw-20261027-000000-ab%2F..']) {
-      const get = await raw(port, { path: p, headers: { 'x-rewind-client': 't' } });
+    for (const p of ['/incidents/..%2F..%2Fx', '/incidents/..%2F..%2Fx/messages', '/incidents/fb-20261027-000000-ab%2F..']) {
+      const get = await raw(port, { path: p, headers: { 'x-flashback-client': 't' } });
       expect(get.status, p).toBe(400);
     }
     const post = await raw(port, { method: 'POST', path: '/incidents/..%2F..%2Fx/messages', headers: BROWSER, body: JSON.stringify({ text: 'hi' }) });
@@ -166,18 +166,18 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     const ok = await raw(port, { method: 'POST', path: '/incidents', headers: BROWSER, body: JSON.stringify(draftInput()) });
     expect(ok.status).toBe(201);
     const { id } = JSON.parse(ok.body) as { id: string };
-    expect(id).toMatch(/^rw-\d{8}-\d{6}-[a-z0-9]{4}$/);
+    expect(id).toMatch(/^fb-\d{8}-\d{6}-[a-z0-9]{4}$/);
     const stored = store.require(id);
     expect(stored.status).toBe('open');
     expect(stored.projectId).toBe('p1');
 
     // FR-RCV-06: başka bir proje için gönderilen olay reddedilir ve saklanmaz; doğru proje kabul edilir.
     const countBefore = store.list().length;
-    const wrong = await raw(port, { method: 'POST', path: '/incidents', headers: { ...BROWSER, 'x-rewind-project': 'admin-panel' }, body: JSON.stringify(draftInput()) });
+    const wrong = await raw(port, { method: 'POST', path: '/incidents', headers: { ...BROWSER, 'x-flashback-project': 'admin-panel' }, body: JSON.stringify(draftInput()) });
     expect(wrong.status).toBe(409);
     expect(wrong.body).toContain('Yanlış proje');
     expect(store.list().length).toBe(countBefore);
-    const right = await raw(port, { method: 'POST', path: '/incidents', headers: { ...BROWSER, 'x-rewind-project': 'demo' }, body: JSON.stringify(draftInput()) });
+    const right = await raw(port, { method: 'POST', path: '/incidents', headers: { ...BROWSER, 'x-flashback-project': 'demo' }, body: JSON.stringify(draftInput()) });
     expect(right.status).toBe(201);
 
     const bad = await raw(port, { method: 'POST', path: '/incidents', headers: BROWSER, body: JSON.stringify({ ...draftInput(), schemaVersion: 2 }) });
@@ -196,8 +196,8 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     expect(ok.status).toBe(204);
     expect(ok.headers['access-control-allow-origin']).toBe('http://localhost:5173');
     expect(ok.headers['access-control-allow-headers']).toContain('content-type');
-    expect(ok.headers['access-control-allow-headers']).toContain('x-rewind-client');
-    expect(ok.headers['access-control-allow-headers']).toContain('x-rewind-project');
+    expect(ok.headers['access-control-allow-headers']).toContain('x-flashback-client');
+    expect(ok.headers['access-control-allow-headers']).toContain('x-flashback-project');
     const evil = await raw(port, { method: 'OPTIONS', path: '/incidents', headers: { origin: 'https://evil.example', ...pre } });
     expect(evil.status).toBe(403);
     expect(evil.headers['access-control-allow-origin']).toBeUndefined();
@@ -208,7 +208,7 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     const { id } = JSON.parse(created.body) as { id: string };
     const list = JSON.parse((await raw(port, { path: '/incidents', headers: BROWSER })).body) as Array<{ id: string }>;
     expect(list.some((s) => s.id === id)).toBe(true);
-    expect((await raw(port, { path: `/incidents/rw-20200101-000000-zzzz`, headers: BROWSER })).status).toBe(404);
+    expect((await raw(port, { path: `/incidents/fb-20200101-000000-zzzz`, headers: BROWSER })).status).toBe(404);
 
     store.update(id, (i) => {
       i.messages.push({ from: 'agent', text: 'Soru?', t: '2020-01-01T00:00:00.000Z' });

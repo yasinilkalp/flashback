@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { IncidentDraftSchema } from '@rewind/shared';
+import { IncidentDraftSchema } from '@flashback/shared';
 import { describe, expect, it } from 'vitest';
 import { projectRoots, relativizeDraft, toProjectRelative } from '../src/paths.js';
 import { draftInput, tmpDir } from './helpers.js';

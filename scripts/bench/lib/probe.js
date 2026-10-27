@@ -1,4 +1,4 @@
-// Yalnızca kayıt AÇIK bench koşularında sayfaya eklenir: Rewind'in kullandığı rrweb örneğine ölçüm erişimi.
+// Yalnızca kayıt AÇIK bench koşularında sayfaya eklenir: Flashback'in kullandığı rrweb örneğine ölçüm erişimi.
 import { record } from 'rrweb';
 
 window.__benchRecord = record;

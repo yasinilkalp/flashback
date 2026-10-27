@@ -1,8 +1,8 @@
-import { IncidentSchema, renderAssertions, tcknValid, luhnValid, ibanValid, type Incident, type IncidentDraft } from '@rewind/shared';
+import { IncidentSchema, renderAssertions, tcknValid, luhnValid, ibanValid, type Incident, type IncidentDraft } from '@flashback/shared';
 import { describe, expect, it } from 'vitest';
 import {
   IncidentStore,
-  RewindError,
+  FlashbackError,
   SPEC_TEMPLATE,
   aggregate,
   buildComment,
@@ -19,7 +19,7 @@ import {
 import { draft, fakeRun, tmpDir } from './helpers.js';
 
 function incident(d: IncidentDraft = draft()): Incident {
-  return IncidentSchema.parse({ ...d, id: 'rw-20261027-100005-abcd', projectId: 'p', status: 'open', createdAt: '2026-10-27T10:00:05.000Z' });
+  return IncidentSchema.parse({ ...d, id: 'fb-20261027-100005-abcd', projectId: 'p', status: 'open', createdAt: '2026-10-27T10:00:05.000Z' });
 }
 
 const stepsOpts = { baseUrl: 'http://127.0.0.1:4000/', storageState: null, strict: false, screenshotPath: '/x.png', passwordSet: false };
@@ -38,27 +38,27 @@ describe('adım verisi ve sentetik değerler (FR-REPRO-13/14/15, EK-B1)', () => 
     ];
     const { data, syntheticInputs } = buildStepsData(incident(d), stepsOpts);
     expect(data.steps.map((s) => s.value)).toEqual([
-      'rewind+1@example.test',
+      'flashback+1@example.test',
       '4111111111111111',
       '10000000146',
-      'Rewind-Placeholder-1!',
-      'yaz: rewind+2@example.test ve rewind+3@example.test',
-      'rewind-token-1',
+      'Flashback-Placeholder-1!',
+      'yaz: flashback+2@example.test ve flashback+3@example.test',
+      'flashback-token-1',
     ]);
     expect(luhnValid('4111111111111111')).toBe(true);
     expect(tcknValid('10000000146')).toBe(true);
     expect(ibanValid('TR330006100519786457841326')).toBe(true);
-    expect(data.steps[0].env).toEqual(['REWIND_INPUT_EMAIL']);
-    expect(data.steps[1].env).toEqual(['REWIND_INPUT_CARD_NUMBER']);
-    expect(data.steps[3].env).toEqual(['REWIND_INPUT_PW', 'REWIND_PASSWORD']);
-    expect(syntheticInputs[0]).toBe('Adım 1: email → rewind+1@example.test (REWIND_INPUT_EMAIL ile geçersiz kılınabilir)');
-    expect(syntheticInputs[3]).toContain('yer tutucu (REWIND_PASSWORD tanımlı değil)');
+    expect(data.steps[0].env).toEqual(['FLASHBACK_INPUT_EMAIL']);
+    expect(data.steps[1].env).toEqual(['FLASHBACK_INPUT_CARD_NUMBER']);
+    expect(data.steps[3].env).toEqual(['FLASHBACK_INPUT_PW', 'FLASHBACK_PASSWORD']);
+    expect(syntheticInputs[0]).toBe('Adım 1: email → flashback+1@example.test (FLASHBACK_INPUT_EMAIL ile geçersiz kılınabilir)');
+    expect(syntheticInputs[3]).toContain('yer tutucu (FLASHBACK_PASSWORD tanımlı değil)');
     expect(data.steps.find((s) => s.selectors.includes('#after'))).toBeUndefined(); // markedAtMs sonrası oynatılmaz
   });
 
   it('alan adı ortam değişkeni', () => {
-    expect(fieldEnvName(['input[name="e-mail"]'])).toBe('REWIND_INPUT_E_MAIL');
-    expect(fieldEnvName(['div > #userEmail'])).toBe('REWIND_INPUT_USEREMAIL');
+    expect(fieldEnvName(['input[name="e-mail"]'])).toBe('FLASHBACK_INPUT_E_MAIL');
+    expect(fieldEnvName(['div > #userEmail'])).toBe('FLASHBACK_INPUT_USEREMAIL');
     expect(fieldEnvName(['.x'])).toBeUndefined();
   });
 
@@ -79,7 +79,7 @@ describe('adım verisi ve sentetik değerler (FR-REPRO-13/14/15, EK-B1)', () => 
   it('spec şablonu sabittir: tek değişken parça IR\'den üretilen beklenti bloğu', () => {
     const { ir } = parseAssertions("await expect(target).toHaveText('\\'); require(\"fs\")')", { hasTarget: true });
     const spec = renderSpec(renderAssertions(ir));
-    expect(spec.replace(`      ${renderAssertions(ir)}`, '      /*__REWIND_ASSERTIONS__*/')).toBe(SPEC_TEMPLATE);
+    expect(spec.replace(`      ${renderAssertions(ir)}`, '      /*__FLASHBACK_ASSERTIONS__*/')).toBe(SPEC_TEMPLATE);
     expect(spec).toContain('await expect(target).toHaveText("\'); require(\\"fs\\")");');
   });
 });
@@ -96,19 +96,19 @@ describe('imza ve hedef adres (§4, FR-REPRO-22)', () => {
     expect(computeSignature(ir, false, 'http://127.0.0.1:5173/', true)).not.toBe(s);
   });
 
-  it('öncelik: base_url > REWIND_BASE_URL > olay kökeni; izinsiz adres reddedilir', () => {
+  it('öncelik: base_url > FLASHBACK_BASE_URL > olay kökeni; izinsiz adres reddedilir', () => {
     const inc = incident(draft('http://localhost:5173'));
     expect(resolveBaseUrl(inc, undefined, { allowOrigins: [] })).toBe('http://localhost:5173/');
     expect(resolveBaseUrl(inc, undefined, { baseUrl: 'http://127.0.0.1:3000', allowOrigins: [] })).toBe('http://127.0.0.1:3000/');
     expect(resolveBaseUrl(inc, 'http://[::1]:8080', { baseUrl: 'http://127.0.0.1:3000', allowOrigins: [] })).toBe('http://[::1]:8080/');
     expect(() => resolveBaseUrl(inc, 'https://example.com', { allowOrigins: [] })).toThrow(/base_url reddedildi/);
-    expect(() => resolveBaseUrl(incident(draft('https://prod.example')), undefined, { allowOrigins: [] })).toThrow(RewindError);
+    expect(() => resolveBaseUrl(incident(draft('https://prod.example')), undefined, { allowOrigins: [] })).toThrow(FlashbackError);
   });
 });
 
 describe('koşu sınıflandırması (FR-REPRO-16)', () => {
   const obs = (failure: string | null) => [
-    { name: 'rewind-observed', body: Buffer.from(JSON.stringify({ phase: 'x', failure, console: [], network: [], targetFound: true })).toString('base64') },
+    { name: 'flashback-observed', body: Buffer.from(JSON.stringify({ phase: 'x', failure, console: [], network: [], targetFound: true })).toString('base64') },
   ];
   const rep = (status: string, message?: string, failure?: string | null) => ({
     suites: [{ specs: [{ tests: [{ results: [{ status, error: message ? { message } : undefined, attachments: failure === undefined ? [] : obs(failure) }] }] }] }],
@@ -130,15 +130,15 @@ describe('koşu sınıflandırması (FR-REPRO-16)', () => {
   });
 
   it('sayfa metnindeki önekler sınıflandırmayı değiştiremez (bulgu 7)', () => {
-    // Adım hatası, çağrı günlüğünde sayfa metnini (REWIND_ASSERTION:) tekrar etse de kırmızı sayılmaz.
-    expect(c('failed', 'Error: locator.fill: not an input\n  - locator resolved to <button>REWIND_ASSERTION: x</button>', 'selector')).toMatchObject({
+    // Adım hatası, çağrı günlüğünde sayfa metnini (FLASHBACK_ASSERTION:) tekrar etse de kırmızı sayılmaz.
+    expect(c('failed', 'Error: locator.fill: not an input\n  - locator resolved to <button>FLASHBACK_ASSERTION: x</button>', 'selector')).toMatchObject({
       status: 'error',
       errorKind: 'selector',
     });
-    // Gerçek kırmızı, "Received" içinde REWIND_PRECONDITION: geçse de kırmızı kalır.
-    expect(c('failed', 'Error: expect(locator).toHaveText\nReceived: "REWIND_PRECONDITION: x"', 'assertion')).toMatchObject({ status: 'failed_assertion' });
+    // Gerçek kırmızı, "Received" içinde FLASHBACK_PRECONDITION: geçse de kırmızı kalır.
+    expect(c('failed', 'Error: expect(locator).toHaveText\nReceived: "FLASHBACK_PRECONDITION: x"', 'assertion')).toMatchObject({ status: 'failed_assertion' });
     // Faz bilgisi yoksa mesaj önekine güvenilmez.
-    expect(c('failed', 'Error: REWIND_ASSERTION: x')).toMatchObject({ status: 'error', errorKind: 'internal' });
+    expect(c('failed', 'Error: FLASHBACK_ASSERTION: x')).toMatchObject({ status: 'error', errorKind: 'internal' });
     expect(c('failed', "Error: x\nbrowserType.launch: Executable doesn't exist")).toMatchObject({ errorKind: 'internal' });
   });
 
@@ -164,7 +164,7 @@ describe('yorumlar (FR-REPRO-06/17)', () => {
     expect(buildComment(incident(), fakeRun('failed_assertion', 'A'), extra)[0]).toMatch(/^Hata yeniden üretildi/);
     const pre = buildComment(incident(), fakeRun('error', 'A', { errorKind: 'precondition' }), { targetFound: null, sessionWarning: true });
     expect(pre[0]).toMatch(/^Ön koşul eksik; kırmızı sayılmadı/);
-    expect(pre.join('\n')).toContain('REWIND_STORAGE_STATE');
+    expect(pre.join('\n')).toContain('FLASHBACK_STORAGE_STATE');
   });
   it('kırmızıdan sonra iki yeşil → mark_fixed önerisi', () => {
     const inc = incident();

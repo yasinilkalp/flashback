@@ -120,7 +120,7 @@ async function probeBundle() {
 async function loadFixture(page, url) {
   await page.goto(url, { timeout: 240_000, waitUntil: 'load' });
   // Lazy parça, portal, gecikmeli içerik ve panel düğmesi hazır olana kadar bekle.
-  for (const sel of ['figure[data-ekb3]', 'aside[data-ekb3]', 'mark[data-ekb3]', '[data-rw="launcher"]']) {
+  for (const sel of ['figure[data-ekb3]', 'aside[data-ekb3]', 'mark[data-ekb3]', '[data-fb="launcher"]']) {
     await page.locator(sel).first().waitFor({ state: 'attached', timeout: 120_000 });
   }
   await page.waitForTimeout(1500);
@@ -169,11 +169,11 @@ const fmt = (s) => s && `${s.correct}/${s.n} doğru, ${s.unresolved} çözüleme
 async function panelRun(page, probeResults) {
   const candidates = probeResults.filter((r) => r.expected && r.tag !== 'input' && r.tag !== 'img');
   await page.keyboard.press('Alt+Shift+KeyR');
-  await page.locator('[data-rw="panel"]').waitFor({ timeout: 15_000 });
+  await page.locator('[data-fb="panel"]').waitFor({ timeout: 15_000 });
   await page.waitForTimeout(800);
   // Tekrar oynatma görünümünde görünen öğeler.
   const visible = await page.evaluate((expectedList) => {
-    const iframe = document.querySelector('rewind-devtools')?.shadowRoot?.querySelector('iframe');
+    const iframe = document.querySelector('flashback-devtools')?.shadowRoot?.querySelector('iframe');
     if (!iframe?.contentDocument) return [];
     const f = iframe.getBoundingClientRect();
     const scale = f.width / iframe.offsetWidth;
@@ -196,15 +196,15 @@ async function panelRun(page, probeResults) {
   }, candidates.map((r) => r.expected));
   const results = [];
   for (const target of sample(visible, PANEL_SAMPLE, 7)) {
-    const overlay = page.locator('[data-rw="pick-overlay"]');
-    if (!(await overlay.isVisible())) await page.locator('[data-rw="select"]').click();
+    const overlay = page.locator('[data-fb="pick-overlay"]');
+    if (!(await overlay.isVisible())) await page.locator('[data-fb="select"]').click();
     await overlay.waitFor({ timeout: 5000 });
-    const before = (await page.locator('[data-rw="selected-source"]').textContent({ timeout: 500 }).catch(() => null)) ?? null;
+    const before = (await page.locator('[data-fb="selected-source"]').textContent({ timeout: 500 }).catch(() => null)) ?? null;
     await page.mouse.click(target.x, target.y);
-    const selected = await page.locator('[data-rw="selected-selector"]').textContent({ timeout: 10_000 }).catch(() => null);
+    const selected = await page.locator('[data-fb="selected-selector"]').textContent({ timeout: 10_000 }).catch(() => null);
     let text = null;
     for (let i = 0; i < 40; i++) {
-      text = await page.locator('[data-rw="selected-source"]').textContent().catch(() => null);
+      text = await page.locator('[data-fb="selected-source"]').textContent().catch(() => null);
       if (text && text !== before && text !== '—') break;
       await page.waitForTimeout(250);
     }
@@ -213,8 +213,8 @@ async function panelRun(page, probeResults) {
     results.push({ expected: target.expected, selector: selected, text, loc, verdict: classify(target.expected, loc) });
   }
   // Paneli kapat (odak metin alanındayken kısayol çalışmaz): kayıt sürer, sonraki aşama canlı sayfada yapılır.
-  await page.locator('[data-rw="close"]').click();
-  await page.locator('[data-rw="panel"]').waitFor({ state: 'detached', timeout: 10_000 });
+  await page.locator('[data-fb="close"]').click();
+  await page.locator('[data-fb="panel"]').waitFor({ state: 'detached', timeout: 10_000 });
   return results;
 }
 

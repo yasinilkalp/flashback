@@ -22,7 +22,7 @@ export function App() {
   return (
     <div className="app">
       <header>
-        <h1>Rewind Mağaza</h1>
+        <h1>Flashback Mağaza</h1>
         <nav aria-label="Ana menü">
           <Link to="/">Ürünler</Link>
           <Link to="/account">Hesabım</Link>

@@ -1,9 +1,9 @@
-import { IncidentSchema, estimateTokens, type Incident, type IncidentDraft } from '@rewind/shared';
+import { IncidentSchema, estimateTokens, type Incident, type IncidentDraft } from '@flashback/shared';
 import { describe, expect, it } from 'vitest';
 import { DATA_INTRO, buildReport, fence } from '../src/index.js';
 import { draft, outsideFences, pageLevelDraft } from './helpers.js';
 
-function incident(d: IncidentDraft, id = 'rw-20261027-100005-abcd'): Incident {
+function incident(d: IncidentDraft, id = 'fb-20261027-100005-abcd'): Incident {
   return IncidentSchema.parse({ ...d, id, projectId: 'p', status: 'open', createdAt: '2026-10-27T10:00:05.000Z' });
 }
 
@@ -19,7 +19,7 @@ describe('get_incident raporu (FR-PKG-02/03/08, FR-PKG-SEC-01…03)', () => {
   it('öğe olayı (YAZ10) — snapshot', () => {
     const r = buildReport(incident(draft()));
     expectOrder(r);
-    expect(r.split('\n')[0]).toBe('Köken: `http://localhost:5173` · Rewind 0.1.0 · şema v1 · olay rw-20261027-100005-abcd · durum open');
+    expect(r.split('\n')[0]).toBe('Köken: `http://localhost:5173` · Flashback 0.1.0 · şema v1 · olay fb-20261027-100005-abcd · durum open');
     expect(r).toContain('`src/Cart.tsx:42:7` — çözümleme: exact');
     expect(r).toContain('props/state: canlı (geçmiş değil)');
     expect(r).toMatchSnapshot();
@@ -99,9 +99,9 @@ describe('get_incident raporu (FR-PKG-02/03/08, FR-PKG-SEC-01…03)', () => {
     const d = draft(undefined, {});
     d.context.cookieNames = ['sid'];
     const r = buildReport(incident(d));
-    expect(r).toMatch(/- uyarı · Pencere öncesi oturum işareti var, REWIND_STORAGE_STATE tanımlı değil → /);
+    expect(r).toMatch(/- uyarı · Pencere öncesi oturum işareti var, FLASHBACK_STORAGE_STATE tanımlı değil → /);
     expect(r).toContain('oturum işaretleri: sid');
-    expect(buildReport(incident(d), { storageStateConfigured: true })).toMatch(/- ok · Pencere öncesi durum: oturum işareti yok ya da REWIND_STORAGE_STATE tanımlı/);
+    expect(buildReport(incident(d), { storageStateConfigured: true })).toMatch(/- ok · Pencere öncesi durum: oturum işareti yok ya da FLASHBACK_STORAGE_STATE tanımlı/);
   });
 
   it('Kanıt güveni tarayıcının serbest metnini göstermez; maddeler sunucu şablonundan kurulur (bulgu 4c)', () => {

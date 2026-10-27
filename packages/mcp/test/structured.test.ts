@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { estimateTokens } from '@rewind/shared';
+import { estimateTokens } from '@flashback/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   IncidentStore,
@@ -9,7 +9,7 @@ import {
   decodeCursor,
   encodeCursor,
   loadConfig,
-  type RewindConfig,
+  type FlashbackConfig,
   type ToolContext,
 } from '../src/index.js';
 import { draft, fakeRun, pageLevelDraft, tmpDir } from './helpers.js';
@@ -32,9 +32,9 @@ async function connect(ctx: ToolContext) {
   return { client, tools, call, close: () => client.close() };
 }
 
-function okContext(over: Partial<RewindConfig> = {}, now?: () => Date) {
+function okContext(over: Partial<FlashbackConfig> = {}, now?: () => Date) {
   const dir = tmpDir();
-  const config = { ...loadConfig({ REWIND_DIR: dir }, { cwd: process.cwd(), homedir: '/nonexistent' }), ...over };
+  const config = { ...loadConfig({ FLASHBACK_DIR: dir }, { cwd: process.cwd(), homedir: '/nonexistent' }), ...over };
   const store = new IncidentStore(dir, { log: () => {}, now });
   store.init();
   return { ctx: { mode: 'ok', config, store } as ToolContext & { mode: 'ok' }, store, config };
@@ -116,7 +116,7 @@ describe('FR-MCP-10: outputSchema + structuredContent', () => {
     expect(script.text).toContain('Adım verisi: ');
     expect(script.sc).toMatchObject({ portable: false, assertion: 'await expect(target).toHaveText("1380 ₺");' });
     expect(script.sc!.stepsPath).toMatch(/\.steps\.json$/);
-    expect(script.sc!.spec).toContain('rewind repro');
+    expect(script.sc!.spec).toContain('flashback repro');
     expect(script.text).toContain(script.sc!.spec);
 
     const reply = await call('reply_to_incident', { id: a.id, message: 'Hangi kupon?' });
@@ -159,7 +159,7 @@ describe('FR-MCP-10: outputSchema + structuredContent', () => {
     cleanup.push(close);
     for (const [name, args, code] of [
       ['get_incident', { id: '../../x' }, 'invalid_id'],
-      ['get_incident_events', { id: 'rw-20200101-000000-zzzz' }, 'incident_not_found'],
+      ['get_incident_events', { id: 'fb-20200101-000000-zzzz' }, 'incident_not_found'],
       ['get_repro_script', { id: page.id, assertions: "require('fs').writeFileSync('/tmp/x','x')" }, 'assertion_rejected'],
       ['get_repro_script', { id: page.id, assertions: "await expect(page.getByRole('alert')).toBeVisible()", portable: true, base_url: 'https://example.com' }, 'base_url_rejected'],
       ['mark_fixed', { id: page.id, resolution: 'fixed', summary: 's' }, 'reason_required'],
@@ -204,7 +204,7 @@ describe('FR-MCP-10: outputSchema + structuredContent', () => {
     expect(again.sc!.previousRuns[0]).toMatchObject({ status: 'error', errorKind: 'server_down', signature: r.sc!.signature });
   });
 
-  it('gizli değerler (REWIND_PASSWORD) structuredContent\'e ve metne girmez', async () => {
+  it('gizli değerler (FLASHBACK_PASSWORD) structuredContent\'e ve metne girmez', async () => {
     const PW = 'Sup3r-Secret-Pw!';
     const { ctx, store } = okContext({ password: PW });
     const d = draft(undefined, { note: { expected: `Parola ${PW} ile giriş yapılabilmeli.` } });
@@ -321,7 +321,7 @@ describe('FR-MCP-13: list_incidents cursor sayfalaması', () => {
   });
 
   it('encodeCursor / decodeCursor gidiş-dönüş', () => {
-    const key = { createdAt: '2026-10-27T10:00:00.000Z', id: 'rw-20261027-100000-abcd' };
+    const key = { createdAt: '2026-10-27T10:00:00.000Z', id: 'fb-20261027-100000-abcd' };
     expect(decodeCursor(encodeCursor('all', key), 'all')).toEqual(key);
     expect(() => decodeCursor(encodeCursor('all', key), 'open')).toThrow(/imleç status/);
   });

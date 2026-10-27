@@ -21,7 +21,7 @@ async function connect(ctx: ToolContext) {
 
 function okContext() {
   const dir = tmpDir();
-  const config = { ...loadConfig({ REWIND_DIR: dir }, { cwd: process.cwd(), homedir: '/nonexistent' }) };
+  const config = { ...loadConfig({ FLASHBACK_DIR: dir }, { cwd: process.cwd(), homedir: '/nonexistent' }) };
   const store = new IncidentStore(dir, { log: () => {} });
   store.init();
   return { ctx: { mode: 'ok', config, store } as ToolContext & { mode: 'ok' }, store };
@@ -93,7 +93,7 @@ describe('MCP sunucusu', () => {
     const invalid = await call('get_incident', { id: '../../x' });
     expect(invalid).toMatchObject({ isError: true });
     expect(invalid.text).toMatch(/^Hata \(invalid_id\): .+\nÖneri: Kimliği list_incidents ile doğrula\.$/);
-    const missing = await call('get_incident', { id: 'rw-20200101-000000-zzzz' });
+    const missing = await call('get_incident', { id: 'fb-20200101-000000-zzzz' });
     expect(missing.text).toMatch(/^Hata \(incident_not_found\)/);
     const rejected = await call('run_repro', { id: page.id, assertions: "await expect(target).toHaveText('x')" });
     expect(rejected.text).toMatch(/^Hata \(assertion_rejected\): .*target = null/);
@@ -197,8 +197,8 @@ describe('MCP sunucusu', () => {
     cleanup.push(close);
     for (const [name, args] of [
       ['list_incidents', {}],
-      ['get_incident', { id: 'rw-20261027-000000-abcd' }],
-      ['mark_fixed', { id: 'rw-20261027-000000-abcd', resolution: 'fixed', summary: 's' }],
+      ['get_incident', { id: 'fb-20261027-000000-abcd' }],
+      ['mark_fixed', { id: 'fb-20261027-000000-abcd', resolution: 'fixed', summary: 's' }],
     ] as const) {
       const r = await call(name, args);
       expect(r.isError).toBe(true);

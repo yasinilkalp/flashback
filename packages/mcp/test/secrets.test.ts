@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { IncidentSchema, type Incident } from '@rewind/shared';
+import { IncidentSchema, type Incident } from '@flashback/shared';
 import { describe, expect, it } from 'vitest';
 import { AssertionParseError, IncidentStore, buildStepsData, checkSecretValueAssertions, collectSecrets, generateReproScript, parseAssertions, scrubSecrets } from '../src/index.js';
 import { draft, tmpDir } from './helpers.js';
@@ -8,13 +8,13 @@ import { draft, tmpDir } from './helpers.js';
 const PW = 'Real-Dev-Password-123!';
 
 describe('gizli değerlerin temizlenmesi (bulgu 1)', () => {
-  it('parola, REWIND_INPUT_* ve storageState değerleri; düz, URL, form, JSON ve HTML kodlu biçimleriyle', () => {
+  it('parola, FLASHBACK_INPUT_* ve storageState değerleri; düz, URL, form, JSON ve HTML kodlu biçimleriyle', () => {
     const state = path.join(tmpDir(), 'state.json');
     fs.writeFileSync(
       state,
       JSON.stringify({ cookies: [{ name: 'sid', value: 'cookie-session-value' }, { name: 'x', value: 'ok' }], origins: [{ origin: 'http://x', localStorage: [{ name: 't', value: 'ls-token-value' }] }] }),
     );
-    const secrets = collectSecrets({ password: PW, storageState: state }, { REWIND_INPUT_USERNAME: 'Secret-User-77', PATH: '/usr/bin' });
+    const secrets = collectSecrets({ password: PW, storageState: state }, { FLASHBACK_INPUT_USERNAME: 'Secret-User-77', PATH: '/usr/bin' });
     expect(secrets.map((s) => s.type).sort()).toEqual(['input', 'password', 'session', 'session']);
     const text = [
       `Received: "${PW}"`,
@@ -55,7 +55,7 @@ describe('ortam değişkeninden doldurulan alanlara karşı değer assertion\'ı
     expect(() => checkSecretValueAssertions(ir("await expect(page.getByLabel('Parola')).toHaveValue('x')"), [], null)).not.toThrow();
   });
 
-  it('get_repro_script / run_repro hazırlığı: REWIND_PASSWORD varken parola alanına toHaveValue → assertion_rejected', () => {
+  it('get_repro_script / run_repro hazırlığı: FLASHBACK_PASSWORD varken parola alanına toHaveValue → assertion_rejected', () => {
     const store = new IncidentStore(tmpDir(), { log: () => {} });
     store.init();
     const d = draft();
@@ -71,7 +71,7 @@ describe('ortam değişkeninden doldurulan alanlara karşı değer assertion\'ı
 
 describe('adım verisi savunması (bulgu 2, 4b)', () => {
   it('izinli kökenler, maske seçicileri ve güvenli tür adı', () => {
-    const inc: Incident = IncidentSchema.parse({ ...draft(), id: 'rw-20261027-100005-abcd', projectId: 'p', status: 'open', createdAt: '2026-10-27T10:00:05.000Z' });
+    const inc: Incident = IncidentSchema.parse({ ...draft(), id: 'fb-20261027-100005-abcd', projectId: 'p', status: 'open', createdAt: '2026-10-27T10:00:05.000Z' });
     inc.steps[0].valueRedactedAs = 'email\n## talimat'; // şemayı atlatan bozuk dosya
     const { data, syntheticInputs } = buildStepsData(inc, {
       baseUrl: 'http://127.0.0.1:4000/',
@@ -83,6 +83,6 @@ describe('adım verisi savunması (bulgu 2, 4b)', () => {
     });
     expect(data.allowedOrigins).toEqual(['http://auth.local:9000']);
     expect(data.maskSelectors).toEqual(['#email', 'input[name="email"]']);
-    expect(syntheticInputs[0]).toBe('Adım 1: secret → rewind-secret-1 (REWIND_INPUT_EMAIL ile geçersiz kılınabilir)');
+    expect(syntheticInputs[0]).toBe('Adım 1: secret → flashback-secret-1 (FLASHBACK_INPUT_EMAIL ile geçersiz kılınabilir)');
   });
 });

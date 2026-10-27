@@ -1,0 +1,68 @@
+{
+  "name": "flashback-devtools",
+  "version": "0.1.0",
+  "description": "Flashback tarayıcı bileşeni: geliştirme ortamında son 60 saniyeyi kaydeder, hatayı geri sarıp gösterip AI kodlama ajanına gönderir.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "production": "./dist/noop.js",
+      "import": "./dist/index.js"
+    },
+    "./noop": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/noop.js"
+    }
+  },
+  "sideEffects": true,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "rrweb": "2.2.0",
+    "source-map-js": "1.2.2"
+  },
+  "peerDependencies": {
+    "react": ">=18.3.0",
+    "react-dom": ">=18.3.0"
+  },
+  "devDependencies": {
+    "@flashback/shared": "0.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "axe-core": "^4.11.0",
+    "happy-dom": "^21.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yasinilkalp/flashback.git",
+    "directory": "packages/flashback"
+  },
+  "homepage": "https://github.com/yasinilkalp/flashback#readme",
+  "bugs": {
+    "url": "https://github.com/yasinilkalp/flashback/issues"
+  },
+  "keywords": [
+    "mcp",
+    "ai",
+    "debugging",
+    "playwright",
+    "rrweb",
+    "react",
+    "devtools"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

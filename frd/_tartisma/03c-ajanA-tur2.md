@@ -25,7 +25,7 @@ B'nin genel çerçevesine katılıyorum:
 
 ### ÖN-01 — Localhost alıcısı (9,0 → 7,7 → **9,0**)
 
-**Kabul ediyorum: `X-Rewind-Client` ile preflight zorlaması gereksiz katman.** Tarayıcılar çapraz kökenli her POST'ta (form ve `no-cors` fetch dahil) Origin gönderir ve bu başlık sahtelenemez. DNS rebinding senaryosunda da Origin `http://evil.test:4747` olur ve izin listesine takılır. Origin'siz gelen aynı-köken GET'leri Host doğrulaması yakalar. Host + Origin ikilisi yeterli. Özel başlık en fazla C düzeyinde derinlemesine savunma olabilir.
+**Kabul ediyorum: `X-Flashback-Client` ile preflight zorlaması gereksiz katman.** Tarayıcılar çapraz kökenli her POST'ta (form ve `no-cors` fetch dahil) Origin gönderir ve bu başlık sahtelenemez. DNS rebinding senaryosunda da Origin `http://evil.test:4747` olur ve izin listesine takılır. Origin'siz gelen aynı-köken GET'leri Host doğrulaması yakalar. Host + Origin ikilisi yeterli. Özel başlık en fazla C düzeyinde derinlemesine savunma olabilir.
 
 **Ek şart: `Origin: null` açıkça reddedilmeli.** Sandbox'lı iframe, `file:` ve bazı yönlendirmeler `null` gönderir. Bu satır FR'ye yazılmazsa uygulamada atlanır.
 
@@ -49,7 +49,7 @@ Bunları bir AST izin listesinde sürekli kapalı tutmak kırılgan bir bakım i
 - `on`: `target` | `{role, name}` | `{text}` | `{testId}` | `{css}`. Sayfa düzeyi assertion'lar için `page` (ÖN-15).
 - Matcher listesine `toHaveURL` ve `toHaveCount` dahil. `expected` alanı `{ "regex": "…" }` biçimini kabul etmeli; "1.380 ₺" ile "1380 ₺" gibi biçim farklarında aksi hâlde ajan zayıf bir `toContainText`'e kaçar.
 - Dizi hâlinde birden fazla assertion ve `not` desteği.
-- `REWIND_ALLOW_UNSAFE_ASSERTIONS` kaçış kapısı S olabilir (B ile uzlaşıyorum). Etkinse sonuç `unsafe: true` taşır, panelde ve raporda görünür ve **o koşu `verified` kapanışa sayılmaz**.
+- `FLASHBACK_ALLOW_UNSAFE_ASSERTIONS` kaçış kapısı S olabilir (B ile uzlaşıyorum). Etkinse sonuç `unsafe: true` taşır, panelde ve raporda görünür ve **o koşu `verified` kapanışa sayılmaz**.
 
 U 6 → 8.
 
@@ -92,7 +92,7 @@ U 6 → 7.
 
 ### ÖN-07 — Sentetik girişler (7,0 → 5,7 → **6,6**)
 
-**Kabul ediyorum.** En sık durum olan giriş formunu `storageState` (ÖN-06) zaten emiyor; bu yüzden D'yi 7'den 6'ya indiriyorum. `REWIND_INPUT_<n>` numaralandırması adım sırası değişince kırılır. v1.0 için tek bir `REWIND_PASSWORD` ve tür tablosu yeterli. Alan adına göre geçersiz kılma yol haritasına.
+**Kabul ediyorum.** En sık durum olan giriş formunu `storageState` (ÖN-06) zaten emiyor; bu yüzden D'yi 7'den 6'ya indiriyorum. `FLASHBACK_INPUT_<n>` numaralandırması adım sırası değişince kırılır. v1.0 için tek bir `FLASHBACK_PASSWORD` ve tür tablosu yeterli. Alan adına göre geçersiz kılma yol haritasına.
 
 ### ÖN-08 — Kırmızı→yeşil (9,1 → 7,8 → **9,4**)
 
@@ -245,13 +245,13 @@ Puanlar nihai kapsama aittir. "v1.0 yerleşimi" önerinin çekirdeğinin yeridir
 
 | Kimlik | D | R | U | Bileşik | Nihai karar | v1.0 yerleşimi | Nihai kapsam (girer / çıkar) |
 |---|---:|---:|---:|---:|---|---|---|
-| ÖN-01 | 9 | 10 | 8 | **9,0** | Kabul-değiştirilmiş | M 🔒 | Girer: Host doğrulaması, zorunlu Origin (`null` reddi), JSON content-type, kimlik regex'i ve yol sınırı, 413 boyut sınırı, loopback dışına yalnızca bayrak ve uyarıyla, POSIX 0700/0600 (S). Çıkar: `X-Rewind-Client` başlığı, oran sınırı (ÖN-23 üst sınırına devredildi), Windows ACL, SEC-07 eşleştirme belirteci (yol haritası). |
-| ÖN-02 | 9 | 9 | 8 | **8,7** | Kabul-değiştirilmiş | M 🔒 | Girer: yapılandırılmış JSON assertion DSL'i (`on`, kapalı matcher listesi, `regex`, `not`, dizi), `base_url` için loopback/izin listesi, zaman aşımı, dürüst araç açıklaması. Unsafe kaçış kapısı S, `verified` kapanışa sayılmaz. Çıkar: AST izin listesi, `.rewind/repro` dizinini sandbox gibi sunan ifade. |
-| ÖN-03 | 7 | 7 | 9 | **7,6** | Kabul-değiştirilmiş | M 🔒 | Girer: çitli bloklar ve çit uzatma, notun ayrı "niyet" başlığı, köken + Rewind sürümü satırı, sunucu `instructions` (G7), snapshot ve kaçış testleri. Çıkar: SEC-04 sezgisel tespit (Ret), kırmızı takım koşularının sürüm kapısı olması. |
+| ÖN-01 | 9 | 10 | 8 | **9,0** | Kabul-değiştirilmiş | M 🔒 | Girer: Host doğrulaması, zorunlu Origin (`null` reddi), JSON content-type, kimlik regex'i ve yol sınırı, 413 boyut sınırı, loopback dışına yalnızca bayrak ve uyarıyla, POSIX 0700/0600 (S). Çıkar: `X-Flashback-Client` başlığı, oran sınırı (ÖN-23 üst sınırına devredildi), Windows ACL, SEC-07 eşleştirme belirteci (yol haritası). |
+| ÖN-02 | 9 | 9 | 8 | **8,7** | Kabul-değiştirilmiş | M 🔒 | Girer: yapılandırılmış JSON assertion DSL'i (`on`, kapalı matcher listesi, `regex`, `not`, dizi), `base_url` için loopback/izin listesi, zaman aşımı, dürüst araç açıklaması. Unsafe kaçış kapısı S, `verified` kapanışa sayılmaz. Çıkar: AST izin listesi, `.flashback/repro` dizinini sandbox gibi sunan ifade. |
+| ÖN-03 | 7 | 7 | 9 | **7,6** | Kabul-değiştirilmiş | M 🔒 | Girer: çitli bloklar ve çit uzatma, notun ayrı "niyet" başlığı, köken + Flashback sürümü satırı, sunucu `instructions` (G7), snapshot ve kaçış testleri. Çıkar: SEC-04 sezgisel tespit (Ret), kırmızı takım koşularının sürüm kapısı olması. |
 | ÖN-04 | 9 | 9 | 8 | **8,7** | Kabul-değiştirilmiş | M 🔒 | Girer: H5 yeni metni (README ve site aynı PR'da), NFR-PRIV-01, `redact=false` şeridi, Markdown önizlemesi + "Ayrıca gönderilenler" özeti + `[REDACTED]` vurgusu, tek kaynak birim testi. Çıkar: hash eşitliği testi. Bölüm bazında hariç tutma S. |
-| ÖN-05 | 9 | 9 | 7 | **8,4** | Kabul-değiştirilmiş | M 🔒 | Girer: tüm yük üzerinde derin gezinme, `maskInputFn` ile kayıt anında maskeleme, kapalı ve sürümlü anahtar listesi, ekran görüntüsü `mask`, `data-rewind-mask/block`, ~150 örneklik fixture ve korunan değerlerde sıfır yanlış pozitif. Çıkar: 500 örnek ve yüzde eşikleri. Telefon numarası varsayılan kapalı. |
-| ÖN-06 | 9 | 9 | 7 | **8,4** | Kabul-değiştirilmiş | M 🔒 | Girer: başlangıç bağlamı (URL, viewport, locale, saat dilimi, depolama/çerez adları), `REWIND_STORAGE_STATE` (MCP'den okunamaz), belirlenimci `precondition` kuralı, demoya giriş rotası. Çıkar: `rewind.setup.ts`, sezgisel durum algılama, ajan `setup` adımları (yol haritası). |
-| ÖN-07 | 6 | 6 | 8 | **6,6** | Kabul-değiştirilmiş | M | Girer: tür bazlı sentetik değer tablosu, tek `REWIND_PASSWORD`, sentetik adım listesi, `grep` testi (FR-RED-15 → ÖN-05 bölümüne). Çıkar: `REWIND_INPUT_<n>` (alan bazlı geçersiz kılma yol haritasında). |
+| ÖN-05 | 9 | 9 | 7 | **8,4** | Kabul-değiştirilmiş | M 🔒 | Girer: tüm yük üzerinde derin gezinme, `maskInputFn` ile kayıt anında maskeleme, kapalı ve sürümlü anahtar listesi, ekran görüntüsü `mask`, `data-flashback-mask/block`, ~150 örneklik fixture ve korunan değerlerde sıfır yanlış pozitif. Çıkar: 500 örnek ve yüzde eşikleri. Telefon numarası varsayılan kapalı. |
+| ÖN-06 | 9 | 9 | 7 | **8,4** | Kabul-değiştirilmiş | M 🔒 | Girer: başlangıç bağlamı (URL, viewport, locale, saat dilimi, depolama/çerez adları), `FLASHBACK_STORAGE_STATE` (MCP'den okunamaz), belirlenimci `precondition` kuralı, demoya giriş rotası. Çıkar: `flashback.setup.ts`, sezgisel durum algılama, ajan `setup` adımları (yol haritası). |
+| ÖN-07 | 6 | 6 | 8 | **6,6** | Kabul-değiştirilmiş | M | Girer: tür bazlı sentetik değer tablosu, tek `FLASHBACK_PASSWORD`, sentetik adım listesi, `grep` testi (FR-RED-15 → ÖN-05 bölümüne). Çıkar: `FLASHBACK_INPUT_<n>` (alan bazlı geçersiz kılma yol haritasında). |
 | ÖN-08 | 10 | 10 | 8 | **9,4** | Kabul-değiştirilmiş | M 🔒 | Girer: `failed_assertion / passed / error` + `errorKind`, `open/closed` + `resolution`, koşu imzası (assertion + strict + adım sürümü + base_url + storageState), ilk koşu yeşilse "yeniden üretilemedi", dört e2e senaryosu. Çıkar: 6 olay durumu, `needs_info`, `reopened` durumu (yeniden açma `open`'a döner). |
 | ÖN-09 | 7 | 6 | 6 | **6,4** | Kabul-değiştirilmiş | M | Girer: her FR'ye "Hedef" sütunu, M1–M8 tanımları ("kalibre edilecek" notuyla), "%60" iddiasının niteliklendirilmesi. Mini benchmark (8–10 hata, Claude Code, M1 ve M3) S ama halka açık iddialardan önce zorunlu. Çıkar: tam benchmark, `stats.json`/export, ölçümün v0.2 onayını bloklaması. |
 | ÖN-10 | 7 | 7 | 7 | **7,0** | Kabul-değiştirilmiş | M | Girer: NFR-SIZE, NFR-REPRO zaman aşımı, NFR-MEM (yerel bench), Node ≥ 22, token bütçesi (değer ölçümle) + belirlenimci kırpma ve devam işareti, Firefox e2e (Linux). NFR-PERF yerel bench S. Çıkar: INP p75 CI ölçümü, 4.000 token sabiti, dört tarayıcı için resmî destek beyanı. |
@@ -266,7 +266,7 @@ Puanlar nihai kapsama aittir. "v1.0 yerleşimi" önerinin çekirdeğinin yeridir
 | ÖN-19 | 7 | 5 | 7 | **6,4** | Kabul-değiştirilmiş | M | Girer: kayıt/alıcı/proje durum göstergesi, zorunlu "Ne olmalıydı?" alanı, `event.code` eşlemesi ve girişte tetiklenmeme, Shadow DOM yalıtımı. Tam a11y/axe, İngilizce varsayılan + TR, ilk açılışta kısayol değiştirme S. Çıkar: test edilmemiş `Ctrl+Shift+Y` varsayılanı, tema (yol haritası), kullanılabilirlik eşiğinin sürüm kapısı olması. |
 | ÖN-20 | 5 | 6 | 8 | **6,2** | Kabul-değiştirilmiş | S | Girer: `wait_seconds` (en fazla 60) + `NO_REPLY_YET` (S), **düz metin render FR-UI-15 (M)**, okunmamış rozeti. Çıkar: `needs_info` durumu (Ret). |
 | ÖN-21 | 7 | 7 | 7 | **7,0** | Kabul-değiştirilmiş | M 🔒 | Girer: yan etkili istek uyarısı, `verified` için aynı imzayla en az 2 `passed` koşu (yalnızca kapanışta), isteğe bağlı `repeat` (varsayılan 1). Çıkar: `recorded` ağ modu (yol haritası). |
-| ÖN-22 | 6 | 6 | 9 | **6,9** | Kabul-değiştirilmiş | M | Girer: 10 satırlık risk tablosu, R1 = canary CI + zarif düşüş (EK-B3 ile beslenir), R6 = kullanıcı uyarısı, R8 = npm adlarının hemen rezervasyonu (+EK-A2). Çıkar: hukuk görüşü, v1.0 taahhüdü olarak `data-rewind-source` eklentisi. |
+| ÖN-22 | 6 | 6 | 9 | **6,9** | Kabul-değiştirilmiş | M | Girer: 10 satırlık risk tablosu, R1 = canary CI + zarif düşüş (EK-B3 ile beslenir), R6 = kullanıcı uyarısı, R8 = npm adlarının hemen rezervasyonu (+EK-A2). Çıkar: hukuk görüşü, v1.0 taahhüdü olarak `data-flashback-source` eklentisi. |
 | ÖN-23 | 5 | 5 | 8 | **5,9** | Kabul-değiştirilmiş | M | Girer: olay sayısı ve boyut üst sınırı (güvenlik kontrolü; yalnızca kapalı olaylar silinir, açıklarda uyarı), kapalı olaylar için 14 gün (yapılandırılabilir). `prune` S. Çıkar: açık olayların otomatik silinmesi. |
 | ÖN-24 | 6 | 5 | 8 | **6,3** | Kabul-değiştirilmiş | M | Girer: 3 dilim (≥ `bufferSeconds` garantisi), modül değerlendirmesinde erken yama (yalnızca üretim dışı; `enabled=false` ise geri alınır ve tampon silinir), FR-REC-01 hizalaması. Çıkar: yenilemede kalıcılık ve bundler eklentisi (yol haritası). |
 | ÖN-25 | 8 | 6 | 9 | **7,7** | Kabul | M | Girer: küçük destek matrisi (hücreler EK-B3 ve fixture'larla doldurulur), FR başına "Durum" sütunu, kapsam dışı eklemeleri. Çıkar: yok. |
@@ -277,7 +277,7 @@ Puanlar nihai kapsama aittir. "v1.0 yerleşimi" önerinin çekirdeğinin yeridir
 | EK-B2 | 8 | 6 | 9 | **7,7** | Kabul-değiştirilmiş | M (süreç) | Girer: §3.3 sürüm kesimi, gereksinim başına `v1.0 / v1.1 / Yol haritası` etiketi, ~10–12 kişi-hafta tavanı, 🔒 kilitli M'lerin takasa girmemesi. Çıkar: tüm M'lerin serbestçe takas edilebilmesi. |
 | EK-B3 | 8 | 8 | 8 | **8,0** | Kabul | M (v0.2 öncesi, 3 gün) | Girer: React 19 + canary, React 18.3, Next App Router + Turbopack, Next + webpack, Vite, Firefox yığın ayrıştırma; 20 seçimde doğru oran ve `resolved:false` yolunun doğruluğu; sonuçlar matrise ve R1'e yazılır. Çıkar: B planı eklentisinin v1.0'a alınması. |
 
-**Özet:** 31 maddenin hiçbiri bütünüyle reddedilmiyor. Alt düzeyde reddedilenler: SEC-04, `needs_info`, hash eşitliği testi, `X-Rewind-Client`. Yol haritasına gidenler: SEC-07, `setup` kancası, `recorded` modu, tam benchmark, `init`, yenilemede kalıcılık, çoklu öğe, RCV-08, N-1 uyumluluğu, webpack ve Vue fixture'ları, tema. Ortak v1.0 çekirdeği B'nin ~11 kişi-hafta tahminine eklerimle birlikte **~12 kişi-hafta**.
+**Özet:** 31 maddenin hiçbiri bütünüyle reddedilmiyor. Alt düzeyde reddedilenler: SEC-04, `needs_info`, hash eşitliği testi, `X-Flashback-Client`. Yol haritasına gidenler: SEC-07, `setup` kancası, `recorded` modu, tam benchmark, `init`, yenilemede kalıcılık, çoklu öğe, RCV-08, N-1 uyumluluğu, webpack ve Vue fixture'ları, tema. Ortak v1.0 çekirdeği B'nin ~11 kişi-hafta tahminine eklerimle birlikte **~12 kişi-hafta**.
 
 ---
 
@@ -289,6 +289,6 @@ Puanlar nihai kapsama aittir. "v1.0 yerleşimi" önerinin çekirdeğinin yeridir
 | 2 | **ÖN-14: HMR ±3 satır parçası** | M; satır kayması olağan durum, H2'yi doğrudan etkiliyor ve `sourcesContent`'ten bedava. | S. | Parça `sourcesContent` mevcutsa M (ek istek yok, 1 günlük zaman kutusu). Mevcut değilse parça atlanır ve EK-A3 bloğunda uyarı çıkar. Zaman kutusu aşılırsa S'ye iner. |
 | 3 | **EK-B2: efor tavanında takas kuralı** | Güvenlik ve kanıt bütünlüğü M'leri takasa girmemeli. | Tavanı aşan her M, bir M'nin ertelenmesiyle dengelenir. | Tavan ~10–12 kişi-hafta kabul. 🔒 işaretli kalemler (ÖN-01/02/03/04/05/06/08/17/21 kapanış kuralı, EK-A1, EK-B1) kilitli; kayma sırası önce S, sonra kilitsiz M. Tavan kilitli kalemler yüzünden aşılırsa tarih kayar, kapsam değil. |
 | 4 | **ÖN-04: önizleme ne göstermeli** | Önizleme gönderilen her şeyi temsil etmeli; yalnızca Markdown göstermek gizlilik iddiasını yeniden yanıltıcı yapar. | Markdown'un salt okunur önizlemesi ve gizleme sayacı yeterli; vurgu ve hash testi gereksiz. | Markdown önizlemesi + zorunlu "Ayrıca gönderilenler" satırı (olay sayısı, DOM boyutu, ağ girdisi, türe göre gizleme) + yalnızca CSS ile vurgu. Hash testi yerine tek kaynak birim testi. Ek efor ≤ 1 gün. |
-| 5 | **ÖN-18: dokümandaki sürüm sabitleme** | M; sıfır maliyetli doküman değişikliği ve halka açık npm'in tedarik zinciri riskini kapatıyor. | S. | M olarak doküman parçacıklarında `rewind-mcp@<sürüm>`. Sürüm numarası `release` betiğiyle README'de otomatik güncellenir; elle güncelleme yükü olmaz. `init` ertelendiği için bu tek yol. |
+| 5 | **ÖN-18: dokümandaki sürüm sabitleme** | M; sıfır maliyetli doküman değişikliği ve halka açık npm'in tedarik zinciri riskini kapatıyor. | S. | M olarak doküman parçacıklarında `flashback-mcp@<sürüm>`. Sürüm numarası `release` betiğiyle README'de otomatik güncellenir; elle güncelleme yükü olmaz. `init` ertelendiği için bu tek yol. |
 
 **Not (anlaşmazlık değil, B'ye teknik soru):** ÖN-24'teki modül düzeyi erken yama ile ÖN-17'deki üretim koruması arasındaki etkileşim (yamanın yalnızca üretim dışında yapılması, `enabled=false` ise geri alınması ve tamponun silinmesi) B'nin önerisinde yazılı değil. B'nin bu şartı kabul edeceğini varsayıyorum. Kabul etmezse 6. uzlaşmazlık maddesi olur.

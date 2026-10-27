@@ -9,8 +9,8 @@
     "chromium": "153.0.8010.12",
     "playwright": "1.63.0",
     "rrweb": "2.2.0",
-    "rewindDevtools": "0.1.0",
-    "rewindDistBuiltAt": "2026-10-27T09:27:15.245Z",
+    "flashbackDevtools": "0.1.0",
+    "flashbackDistBuiltAt": "2026-10-27T09:27:15.245Z",
     "git": "05218f8"
   },
   "params": {

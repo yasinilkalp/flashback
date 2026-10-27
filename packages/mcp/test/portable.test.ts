@@ -10,22 +10,22 @@ import {
   generateReproScript,
   loadConfig,
   renderPortableSpec,
-  type RewindConfig,
+  type FlashbackConfig,
 } from '../src/index.js';
 import { codeOutsideData, draft, extractData, pageLevelDraft, tmpDir } from './helpers.js';
 
 const ASSERT = "await expect(target).toHaveText('1380 ₺')";
 
-function setup(over: Partial<RewindConfig> = {}) {
+function setup(over: Partial<FlashbackConfig> = {}) {
   const dir = tmpDir();
-  const config = { ...loadConfig({ REWIND_DIR: dir }, { cwd: process.cwd(), homedir: '/nonexistent' }), ...over };
+  const config = { ...loadConfig({ FLASHBACK_DIR: dir }, { cwd: process.cwd(), homedir: '/nonexistent' }), ...over };
   const store = new IncidentStore(dir, { log: () => {} });
   store.init();
   return { dir, config, store };
 }
 
 describe('FR-MCP-14: get_repro_script portable', () => {
-  it('kendi kendine yeterli spec: .rewind/ ve fs bağımlılığı yok, göreli yollar, satır içi yardımcılar', () => {
+  it('kendi kendine yeterli spec: .flashback/ ve fs bağımlılığı yok, göreli yollar, satır içi yardımcılar', () => {
     const { config, store } = setup();
     const d = draft();
     d.context.startUrl = 'http://localhost:5173/cart?x=1#top';
@@ -47,7 +47,7 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     const spec = r.spec;
     expect(spec.startsWith('// @ts-nocheck\n')).toBe(true);
     expect(spec).toContain("import { test, expect } from '@playwright/test';");
-    for (const banned of ['.rewind', 'node:fs', 'readFileSync', 'steps.json', 'require(', 'eval(', 'new Function', 'REWIND_REPORT_FILE', 'screenshotPath']) {
+    for (const banned of ['.flashback', 'node:fs', 'readFileSync', 'steps.json', 'require(', 'eval(', 'new Function', 'FLASHBACK_REPORT_FILE', 'screenshotPath']) {
       expect(spec, banned).not.toContain(banned);
     }
     // Göreli yollar: kayıttaki köken hiçbir yerde yok; gezinme DATA'daki yolla ve baseURL'e göre.
@@ -60,9 +60,9 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     for (const helper of ['const find = async', 'const valueOf = ', 'const settle = ', 'const ensureOrigin = ', "context.route('**/*'"]) expect(spec).toContain(helper);
 
     const { value } = extractData(spec);
-    expect(value).toMatchObject({ format: 'rewind-portable', incidentId: inc.id, startPath: '/cart?x=1#top', locale: 'tr-TR', timezone: 'Europe/Istanbul' });
+    expect(value).toMatchObject({ format: 'flashback-portable', incidentId: inc.id, startPath: '/cart?x=1#top', locale: 'tr-TR', timezone: 'Europe/Istanbul' });
     expect(value.steps.filter((s: { type: string }) => s.type === 'navigate')).toEqual([{ n: 4, type: 'navigate', selectors: [], path: '/checkout?step=2' }]);
-    expect(value.steps[0]).toMatchObject({ type: 'input', value: 'rewind+1@example.test', env: ['REWIND_INPUT_EMAIL'] });
+    expect(value.steps[0]).toMatchObject({ type: 'input', value: 'flashback+1@example.test', env: ['FLASHBACK_INPUT_EMAIL'] });
     expect(r.warnings.join('\n')).toContain('Adım 5: dış kökene ya da geçersiz URL\'ye gezinme atlandı.');
     // Beklenti yalnızca IR'den (renderAssertions çıktısı)
     expect(spec).toContain('  await expect(target).toHaveText("1380 ₺");');
@@ -80,7 +80,7 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     expect(explicit.spec).toBe(local.spec);
   });
 
-  it('REWIND_PASSWORD değeri gömülmez: parola alanı yer tutucu + ortam değişkeni; olay verisindeki gerçek değer temizlenir', () => {
+  it('FLASHBACK_PASSWORD değeri gömülmez: parola alanı yer tutucu + ortam değişkeni; olay verisindeki gerçek değer temizlenir', () => {
     const PW = 'Gercek-Parola-123!';
     const { config, store } = setup({ password: PW });
     const d = draft();
@@ -96,13 +96,13 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     expect(fs.readFileSync(r.specPath, 'utf8')).not.toContain(PW);
     const steps = extractData(r.spec).value.steps;
     expect(steps.find((s: { selectors: string[] }) => s.selectors[0] === '#password')).toMatchObject({
-      value: 'Rewind-Placeholder-1!',
-      env: ['REWIND_INPUT_PASSWORD', 'REWIND_PASSWORD'],
+      value: 'Flashback-Placeholder-1!',
+      env: ['FLASHBACK_INPUT_PASSWORD', 'FLASHBACK_PASSWORD'],
     });
     expect(steps.find((s: { selectors: string[] }) => s.selectors[0] === '#note').value).toBe('not: [REDACTED:password]');
     // Ortam değişkeni çalışma anında okunur, yalnızca izinli adlar.
     expect(r.spec).toContain('process.env[name]');
-    expect(r.spec).toContain('const ENV_NAME = /^REWIND_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;');
+    expect(r.spec).toContain('const ENV_NAME = /^FLASHBACK_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;');
   });
 
   it('portable kilit gerektirmez (run_repro dosyalarına dokunmaz); sayfa düzeyi olayda target yok', () => {
@@ -120,7 +120,7 @@ describe('FR-MCP-14: get_repro_script portable', () => {
   });
 
   it('oturum işareti olan olayda uyarı; storageState yolu spec\'e girmez', () => {
-    const state = path.join(tmpDir('rewind-state-'), 'state.json');
+    const state = path.join(tmpDir('flashback-state-'), 'state.json');
     fs.writeFileSync(state, JSON.stringify({ cookies: [{ name: 'sid', value: 'cookie-secret-value' }], origins: [] }));
     const { config, store } = setup({ storageState: state });
     const d = draft();
@@ -130,7 +130,7 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     expect(r.warnings.join('\n')).toContain('oturum işareti var');
     expect(r.spec).not.toContain(state);
     expect(r.spec).not.toContain('cookie-secret-value');
-    expect(r.spec).toContain('process.env.REWIND_STORAGE_STATE');
+    expect(r.spec).toContain('process.env.FLASHBACK_STORAGE_STATE');
   });
 
   it('EK-B1: kod kaçışı yükleri yalnızca JSON.stringify ile DATA içine girer; kodun geri kalanında yoktur', () => {
@@ -142,7 +142,7 @@ describe('FR-MCP-14: get_repro_script portable', () => {
       `\`; require('fs').writeFileSync('/tmp/pwned', 'x'); \``,
       `*/ require('fs').writeFileSync('/tmp/pwned', 'x'); /*`,
       `\n};\nrequire('fs').writeFileSync('/tmp/pwned', 'x');\nconst Y = {`,
-      `/*__REWIND_ASSERTIONS__*/ /*__REWIND_DATA__*/`,
+      `/*__FLASHBACK_ASSERTIONS__*/ /*__FLASHBACK_DATA__*/`,
       `\u2028require('fs')\u2029`,
     ];
     const d = draft(undefined, {
@@ -163,7 +163,7 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     expect(outside).not.toContain('writeFileSync');
     // Yer tutucu enjeksiyonu: şablon tek geçişte doldurulur.
     expect(r.spec.match(/^const DATA = /gm)).toHaveLength(1);
-    expect(r.spec).not.toMatch(/^\s*\/\*__REWIND_(DATA|ASSERTIONS)__\*\/\s*$/m);
+    expect(r.spec).not.toMatch(/^\s*\/\*__FLASHBACK_(DATA|ASSERTIONS)__\*\/\s*$/m);
     // Beklenti satırı JSON.stringify'lı sabit.
     expect(r.spec).toContain(`await expect(target).toHaveText(${JSON.stringify(payloads[0])});`);
     // DATA, JSON olarak birebir aynı veriyi verir.
@@ -185,20 +185,20 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     expect(lit).not.toContain('__proto__');
     expect(lit).toContain('x\\u2028y');
     expect(JSON.parse(lit)).toEqual({ a: 1, s: 'x\u2028y' });
-    const spec = renderPortableSpec({ s: '/*__REWIND_ASSERTIONS__*/' }, 'await expect(page).toHaveTitle("t");');
+    const spec = renderPortableSpec({ s: '/*__FLASHBACK_ASSERTIONS__*/' }, 'await expect(page).toHaveTitle("t");');
     expect(spec.match(/await expect\(page\)\.toHaveTitle/g)).toHaveLength(1);
-    expect(spec).toContain('"s": "/*__REWIND_ASSERTIONS__*/"');
-    expect(PORTABLE_SPEC_TEMPLATE.match(/\/\*__REWIND_DATA__\*\//g)).toHaveLength(1);
-    expect(PORTABLE_SPEC_TEMPLATE.match(/\/\*__REWIND_ASSERTIONS__\*\//g)).toHaveLength(1);
+    expect(spec).toContain('"s": "/*__FLASHBACK_ASSERTIONS__*/"');
+    expect(PORTABLE_SPEC_TEMPLATE.match(/\/\*__FLASHBACK_DATA__\*\//g)).toHaveLength(1);
+    expect(PORTABLE_SPEC_TEMPLATE.match(/\/\*__FLASHBACK_ASSERTIONS__\*\//g)).toHaveLength(1);
   });
 
   it('buildPortableData: StepsData\'dan köken, ekran görüntüsü ve storageState yolu çıkarılır', () => {
-    const inc = { ...store0(), id: 'rw-20261027-100000-abcd' };
+    const inc = { ...store0(), id: 'fb-20261027-100000-abcd' };
     const { data } = buildStepsData(inc, {
       baseUrl: 'http://127.0.0.1:4000/',
-      storageState: '/home/u/.rewind/state.json',
+      storageState: '/home/u/.flashback/state.json',
       strict: true,
-      screenshotPath: '/home/u/.rewind/repro/x.png',
+      screenshotPath: '/home/u/.flashback/repro/x.png',
       passwordSet: false,
       allowOrigins: ['http://127.0.0.1:5000'],
     });
@@ -206,7 +206,7 @@ describe('FR-MCP-14: get_repro_script portable', () => {
     expect(Object.keys(p).sort()).toEqual(
       ['firstActionIndex', 'format', 'incidentId', 'locale', 'startPath', 'steps', 'stepsSchemaVersion', 'strict', 'target', 'timezone', 'viewport'].sort(),
     );
-    expect(JSON.stringify(p)).not.toMatch(/127\.0\.0\.1|\.rewind|state\.json|x\.png/);
+    expect(JSON.stringify(p)).not.toMatch(/127\.0\.0\.1|\.flashback|state\.json|x\.png/);
     expect(p.strict).toBe(true);
   });
 });

@@ -55,7 +55,7 @@ Bu ürünün en büyük varoluşsal riski: herhangi bir web sitesi `text/plain` 
 **Değişecekler:**
 - FR-RCV-SEC-01…04, -06 ve FR-CFG-SEC-01 **M** (SEC-06 izinleri ucuz, S'den M'ye).
 - FR-RCV-SEC-05: "5 MB / dakikada 30 olay" sayıları keyfi. Gereksinim "gövde ve oran sınırı vardır, varsayılanlar yapılandırılabilir" olsun; değerler ölçümle belirlensin.
-- FR-RCV-SEC-07 (oturum belirteci eşleştirme) **Ertele (v1.1)**. SEC-01/02 tarayıcı kaynaklı saldırıları zaten kapatıyor. Yerel bir süreç ise `.rewind/` klasörünü doğrudan okuyabilir, belirteç bu durumda koruma sağlamaz. Üstelik bundler eklentisi ya da kod girme adımı H6'yı (basit kurulum) zedeler. Tasarım sorusu olarak açık sorulara yazılsın.
+- FR-RCV-SEC-07 (oturum belirteci eşleştirme) **Ertele (v1.1)**. SEC-01/02 tarayıcı kaynaklı saldırıları zaten kapatıyor. Yerel bir süreç ise `.flashback/` klasörünü doğrudan okuyabilir, belirteç bu durumda koruma sağlamaz. Üstelik bundler eklentisi ya da kod girme adımı H6'yı (basit kurulum) zedeler. Tasarım sorusu olarak açık sorulara yazılsın.
 - 421 durum koduna takılmayalım; "4xx, gövdesiz" yeterli.
 - Origin kontrolü yalnızca durum değiştiren uçlara değil, panelin mesaj okuduğu GET uçlarına da uygulanmalı.
 
@@ -75,7 +75,7 @@ Bu ürünün en büyük varoluşsal riski: herhangi bir web sitesi `text/plain` 
 ### ÖN-03 — Prompt injection önlemleri
 **D 8 · R 8 · U 8 · Bileşik 8,0 · Kabul-değiştirilmiş**
 
-Çitli bloklar, "talimat değildir" uyarısı, notun tek "niyet" alanı olarak ayrılması ve MCP `instructions` alanı ucuz ve doğru; M kalsın. Ancak **kabul kriteri ürün kriteri değil**. "Claude Code ve Cursor ile 10'ar koşuda ajan talimatı yürütmez" LLM davranışını ölçer, Rewind'i değil. Ayrıca belirlenimci değil; sürüm kapısı olursa CI rastgele kırılır.
+Çitli bloklar, "talimat değildir" uyarısı, notun tek "niyet" alanı olarak ayrılması ve MCP `instructions` alanı ucuz ve doğru; M kalsın. Ancak **kabul kriteri ürün kriteri değil**. "Claude Code ve Cursor ile 10'ar koşuda ajan talimatı yürütmez" LLM davranışını ölçer, Flashback'i değil. Ayrıca belirlenimci değil; sürüm kapısı olursa CI rastgele kırılır.
 
 **Değişecekler:**
 - Kabul kriteri: rapor şablonu snapshot testi + çit kaçışı birim testi + kırmızı takım fixture'ının **var olması**.
@@ -99,7 +99,7 @@ Bu ürünün en büyük varoluşsal riski: herhangi bir web sitesi `text/plain` 
 En somut sızıntı burada. `maskAllInputs=false` iken giriş değerleri rrweb olay akışında, dolayısıyla `get_incident_events` çıktısında kalıyor. `Cookie`/`Set-Cookie` başlıkları da kapsam dışı. Alan × yöntem matrisi (RED-09), kapalı anahtar listesi (RED-10) ve ekran görüntüsü maskesi (RED-11; Playwright `mask` ile ucuz) **M**.
 
 **Değişecekler:**
-- FR-RED-12 (`data-rewind-mask` / `data-rewind-block`) **S'den M'ye**. rrweb'in `maskTextClass`/`blockClass` seçenekleriyle çok ucuz ve geliştiriciye kontrol vererek güveni doğrudan artırıyor.
+- FR-RED-12 (`data-flashback-mask` / `data-flashback-block`) **S'den M'ye**. rrweb'in `maskTextClass`/`blockClass` seçenekleriyle çok ucuz ve geliştiriciye kontrol vererek güveni doğrudan artırıyor.
 - FR-RED-14'teki "en az 500 örnek, %99 duyarlılık, ≤ %1 yanlış pozitif" **keyfi**. Bunun yerine: her biçim için pozitif ve negatif örnekli, kürate edilmiş bir derlem olsun. Bilinen sır biçimlerinde %100 (belirlenimci, ucuz). Diğerlerinde CI'da **gerileme kapısı** olsun (mevcut skordan düşüş CI'ı kırar); mutlak eşikler ilk ölçümden sonra konsun.
 - ÖN-07'deki RED-15 ve ÖN-04'teki RED-13 bu bölüme taşınsın (birleştirme).
 - Telefon numarası açık sorusu kalsın.
@@ -111,7 +111,7 @@ PM'in en önemli ürün gözlemi bu. Oturumsuz açılan repro giriş sayfasına 
 
 **Değişecekler:**
 - FR-REPRO-09 (başlangıç bağlamı: URL, viewport, locale, saat dilimi, depolama/çerez **adları**) **M**. Ucuz.
-- FR-REPRO-10: v1.0 için **yalnızca (a) `REWIND_STORAGE_STATE`** M. Playwright'ın yerleşik özelliği, en ucuz yol. (b) `rewind.setup.ts` kancası **Ertele**.
+- FR-REPRO-10: v1.0 için **yalnızca (a) `FLASHBACK_STORAGE_STATE`** M. Playwright'ın yerleşik özelliği, en ucuz yol. (b) `flashback.setup.ts` kancası **Ertele**.
 - FR-REPRO-11'deki "pencere öncesi durumu algılama" belirsiz ve pahalı. Şuna daralsın: oturum çerezi veya depolama anahtarı varsa ve storageState verilmemişse rapora ve repro sonucuna uyarı yazılır. Ajan `setup` adımları ÖN-02'nin izin listesi tamamlanana kadar ertelensin.
 - FR-REPRO-12 (`error_precondition`) M, ama sınıflandırma kuralı somut olmalı: ilk adımdan önce URL kayıttaki başlangıç URL'sinden farklıysa ya da adım oynatma sırasında seçici bulunamazsa → `error_precondition`/`error_selector`, kırmızı sayılmaz (ÖN-08 ile birleşik taksonomi).
 
@@ -122,7 +122,7 @@ PM'in en önemli ürün gözlemi bu. Oturumsuz açılan repro giriş sayfasına 
 
 **Değişecekler:**
 - FR-RED-15 ÖN-05'e taşınsın.
-- Sentetik değer `process.env.REWIND_INPUT_<n>` ile her alan için geçersiz kılınabilsin (yalnızca parola için değil). Böylece geliştirici gerçek test hesabını gizli tutarak verebilir.
+- Sentetik değer `process.env.FLASHBACK_INPUT_<n>` ile her alan için geçersiz kılınabilsin (yalnızca parola için değil). Böylece geliştirici gerçek test hesabını gizli tutarak verebilir.
 
 ### ÖN-08 — Kırmızı→yeşil kuralının bağlayıcı hale getirilmesi
 **D 10 · R 10 · U 7 · Bileşik 9,1 · Kabul-değiştirilmiş**
@@ -141,12 +141,12 @@ PM'in en önemli ürün gözlemi bu. Oturumsuz açılan repro giriş sayfasına 
 
 İki parçası çok farklı değerde. **"Hedef" sütunu ve metrik tanımları ucuz ve gerekli (M)**; FRD'nin hedeflerle bağını kurar. "%60" iddiasının n=1 olduğu her yerde açıkça yazılmalı: kanıtı aşan pazarlama iddiası bir güven sorunudur.
 
-Öte yandan 20 tohumlanmış hata × 3 ajan × 3 tekrar × (Rewind'li/Rewind'siz) ≈ 360 koşu, 1–3 kişilik ekip için ayrı bir projedir. ≥%85, ≥%30, ≥%40, ≥%80, ≥%70 hedefleri **keyfi**; PM'in kendisi de "kalibre edilmeli" diyor.
+Öte yandan 20 tohumlanmış hata × 3 ajan × 3 tekrar × (Flashback'li/Flashback'siz) ≈ 360 koşu, 1–3 kişilik ekip için ayrı bir projedir. ≥%85, ≥%30, ≥%40, ≥%80, ≥%70 hedefleri **keyfi**; PM'in kendisi de "kalibre edilmeli" diyor.
 
 **Değişecekler:**
 - Benchmark v1.0 için **8–10 hata, 1–2 ajan** ile S olsun. Mutlak hedef değerler ilk ölçümden sonra konsun.
 - "Başlangıç ölçümü v0.2 onayından önce" şartı **kaldırılsın**. Ölçüm FRD onayını bloke etmemeli, halka açık iddiaları bloke etmeli.
-- `.rewind/stats.json` S; `stats --export` **Ertele**.
+- `.flashback/stats.json` S; `stats --export` **Ertele**.
 
 ### ÖN-10 — Sayısal NFR'ler
 **D 7 · R 7 · U 6 · Bileşik 6,7 · Kabul-değiştirilmiş**
@@ -206,7 +206,7 @@ Bu tür aracın güvenilirliği başarısızlık anında belli olur. Katalog ön
 - Öğe canlı sayfada yok → `resolution: ancestor | unresolved` (yanlış dosya:satır vermek H2'yi öldürür).
 - Source map çözülemedi → `resolved: false`.
 - HMR satır kayması → ±3 satır kod parçası + hash. Ucuz ve ajanın doğru satırı bulmasında çok etkili.
-- Akış/SSE yanıtları **bozulmamalı**. Rewind'in kullanıcının uygulamasını bozması kabul edilemez.
+- Akış/SSE yanıtları **bozulmamalı**. Flashback'in kullanıcının uygulamasını bozması kabul edilemez.
 - CSP engelinde açık mesaj.
 - Eşzamanlı `run_repro` kilidi.
 - `base_url` öncelik sırası.
@@ -236,13 +236,13 @@ Bu madde güvenlik ve kanıt meselesi. B projesinin olaylarını A projesindeki 
 - FR-RCV-07 (`projectId` + `/health` + `WRONG_PROJECT`) **M**. Sessizce okumak yerine **reddet ve açıkla**.
 - FR-CFG-06 (klasör çözümleme, ev/kök dizinine yazmayı reddet) **M**; ucuz.
 - FR-RCV-08 (tarayıcının proje kimliğini göndermesi) tarayıcı proje kökünü bilmediği için bundler entegrasyonu gerektiriyor; **S**. v1.0'da alıcı olayın kökenini (origin) kaydeder ve köken eşleşmezse uyarır.
-- Mimari karar: v1.0 = **proje başına port** (elle `REWIND_PORT` + `endpoint`), hata mesajı boş port önerir. Makine geneli tek alıcı **Ertele**.
+- Mimari karar: v1.0 = **proje başına port** (elle `FLASHBACK_PORT` + `endpoint`), hata mesajı boş port önerir. Makine geneli tek alıcı **Ertele**.
 - ÖN-19'daki "yanlış proje" rozetiyle birleştirilsin.
 
 ### ÖN-17 — Varsayılanlar ve üretim koruması
 **D 9 · R 9 · U 8 · Bileşik 8,7 · Kabul-değiştirilmiş**
 
-`enabled` varsayılanının `true` olması, prop unutulduğunda gerçek kullanıcıların tarayıcısında istek/yanıt gövdelerinin kaydedilmesi ve Rewind düğmesinin son kullanıcıya görünmesi demek. "Yalnızca dev" vaadini ihlal eden, bir kez olsa bile marka güvenini bitirecek bir hata. FR-CFG-07, -08, -09 ve -10 ucuz, **M**.
+`enabled` varsayılanının `true` olması, prop unutulduğunda gerçek kullanıcıların tarayıcısında istek/yanıt gövdelerinin kaydedilmesi ve Flashback düğmesinin son kullanıcıya görünmesi demek. "Yalnızca dev" vaadini ihlal eden, bir kez olsa bile marka güvenini bitirecek bir hata. FR-CFG-07, -08, -09 ve -10 ucuz, **M**.
 
 **Değişecekler:**
 - FR-CFG-10'daki "README bu tablodan üretilmelidir" süreç dayatması gereksiz. "FRD tablosu ile README tutarlıdır; CI'da bir tutarlılık kontrolü olabilir (S)" yeterli.
@@ -260,7 +260,7 @@ Ucuz ve görevin kendisine hizmet ediyor: "Durum" sütunu (Mevcut/Kısmi/Planlı
 Ucuz bir belgeleme işi ve R1 (React iç API'leri) gerçekten H2'nin tek dayanağı. Kayıt kalsın.
 
 **Değişecekler:**
-- R1 azaltımı v1.0 için şu olsun: React canary CI işi + çözümleme başarısızsa `resolved: false` ile **zarif düşüş** (ÖN-14). Babel/SWC eklentisiyle `data-rewind-source` yedeği **Ertele** (ayrı bir ürün parçası, kurulumu da zorlaştırır).
+- R1 azaltımı v1.0 için şu olsun: React canary CI işi + çözümleme başarısızsa `resolved: false` ile **zarif düşüş** (ÖN-14). Babel/SWC eklentisiyle `data-flashback-source` yedeği **Ertele** (ayrı bir ürün parçası, kurulumu da zorlaştırır).
 - R6'daki "hukuk görüşü alınır" 1–3 kişilik açık kaynak ekip için gerçekçi değil. Yerine: README'de ve ilk açılışta açık bir kullanıcı uyarısı ("paket ajanınızın model sağlayıcısına gider; gerçek kişisel veri içeren ortamlarda kullanmayın ya da `maskAllInputs` açın").
 - "Sahip" alanı küçük ekipte formalite; kalsın ama tartışma konusu yapılmasın.
 
@@ -364,11 +364,11 @@ Vaat ile davranış arasındaki fark (60 sn vs 30–60 sn) bir dürüstlük soru
 ### EK-A2 — Yayın bütünlüğü ve tedarik zinciri (v1.0 npm)
 **D 6 · R 7 · U 8 · Bileşik 6,9 · Kabul (M, v1.0 yayın kapısı)**
 
-**Sorun.** v1.0'ın hedefi halka açık npm. `rewind-mcp` geliştiricinin makinesinde ajanın yanında çalışıyor, dosya yazıyor ve Playwright başlatıyor; `npx rewind-mcp` (sabitlenmemiş) her açılışta registry'den çözülüyor. PM bunu yalnızca R8 ve CFG-SEC-01 içinde dolaylı anıyor; yayın sürecinin kendisi tanımlı değil. README'de `GITHUB_KULLANICI` yer tutucusu hâlâ duruyor.
+**Sorun.** v1.0'ın hedefi halka açık npm. `flashback-mcp` geliştiricinin makinesinde ajanın yanında çalışıyor, dosya yazıyor ve Playwright başlatıyor; `npx flashback-mcp` (sabitlenmemiş) her açılışta registry'den çözülüyor. PM bunu yalnızca R8 ve CFG-SEC-01 içinde dolaylı anıyor; yayın sürecinin kendisi tanımlı değil. README'de `GITHUB_KULLANICI` yer tutucusu hâlâ duruyor.
 
 **Öneri.**
 > **NFR-SUP-01 (M):** Paketler yalnızca CI'dan, npm provenance (`--provenance`) ile yayımlanır; npm hesaplarında 2FA zorunludur.
-> **NFR-SUP-02 (M):** `rewind-mcp`'nin çalışma zamanı bağımlılıkları asgari tutulur ve sabitlenir. Sürüm öncesi `npm audit` (yüksek/kritik = 0) kontrol listesindedir. rrweb tam sürümle sabitlenir (R2 ile bağlı).
+> **NFR-SUP-02 (M):** `flashback-mcp`'nin çalışma zamanı bağımlılıkları asgari tutulur ve sabitlenir. Sürüm öncesi `npm audit` (yüksek/kritik = 0) kontrol listesindedir. rrweb tam sürümle sabitlenir (R2 ile bağlı).
 > **NFR-SUP-03 (S):** Paket içeriği `release:check` çıktısında beklenen dosya listesiyle karşılaştırılır (kaynak harita, test, `.env` sızıntısı yok).
 
 **Kabul kriteri.** npm'de iki paketin de provenance rozeti görünür; KK-4 bu kontrolleri içerir.

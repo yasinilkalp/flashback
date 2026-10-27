@@ -12,6 +12,6 @@
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "rewind-devtools": "0.1.0"
+    "flashback-devtools": "0.1.0"
   }
 }

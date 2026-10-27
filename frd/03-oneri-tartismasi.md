@@ -1,4 +1,4 @@
-# Rewind FRD — Öneri Tartışması ve Puanlama
+# Flashback FRD — Öneri Tartışması ve Puanlama
 
 | Alan | Değer |
 |---|---|
@@ -80,8 +80,8 @@
 | # | Konu | Ajan A | Ajan B | **Moderatör kararı** | Gerekçe |
 |---|---|---|---|---|---|
 | K-1 | ÖN-02: assertion giriş biçimi | Yapılandırılmış JSON assertion | Ajanın Playwright metni dar bir dilbilgisiyle ara temsile (IR) ayrıştırılsın, kod yalnızca IR'den yeniden üretilsin; IR doğrudan JSON olarak da kabul edilsin | **B'nin önerisi.** Ajan alışık olduğu `expect(...)` biçiminde yazar. Bu metin hiçbir zaman çalıştırılmaz; yalnızca IR'den yeniden üretilen kod çalışır. | İki ajanın ilkesini de koruyor: kullanılabilirlik ve "veri kod değildir". Ek maliyeti yaklaşık 1 gün. |
-| K-2 | ÖN-01: özel `X-Rewind-Client` başlığı ve oran sınırı | İkisi de çıkarılsın | Başlık zorunlu olsun, oran sınırı yapılandırılabilir olsun | **Origin başlığı varsa izin listesine karşı denetlenir; yoksa `X-Rewind-Client` başlığı zorunludur.** Oran sınırı S. Boyut ve olay sayısı sınırları M. | Tarayıcı dışı istemcileri (ör. ikinci `rewind-mcp` süreci) ayırt etmenin en ucuz yolu bu başlık. Oran sınırının işini büyük ölçüde olay sayısı sınırı görüyor. |
-| K-3 | ÖN-18: `init` mi, `doctor` mı? | `init` S | Kontroller başlangıçta otomatik çalışsın; `rewind-mcp check` S olsun; `init` ertelensin | **B'nin önerisi.** Dokümandaki yapılandırma örnekleri `npx --no-install rewind-mcp` kullanır; böylece sürüm, projenin lock dosyasından gelir. | Sürüm sabitleme ihtiyacını `init` yazmadan karşılıyor. |
+| K-2 | ÖN-01: özel `X-Flashback-Client` başlığı ve oran sınırı | İkisi de çıkarılsın | Başlık zorunlu olsun, oran sınırı yapılandırılabilir olsun | **Origin başlığı varsa izin listesine karşı denetlenir; yoksa `X-Flashback-Client` başlığı zorunludur.** Oran sınırı S. Boyut ve olay sayısı sınırları M. | Tarayıcı dışı istemcileri (ör. ikinci `flashback-mcp` süreci) ayırt etmenin en ucuz yolu bu başlık. Oran sınırının işini büyük ölçüde olay sayısı sınırı görüyor. |
+| K-3 | ÖN-18: `init` mi, `doctor` mı? | `init` S | Kontroller başlangıçta otomatik çalışsın; `flashback-mcp check` S olsun; `init` ertelensin | **B'nin önerisi.** Dokümandaki yapılandırma örnekleri `npx --no-install flashback-mcp` kullanır; böylece sürüm, projenin lock dosyasından gelir. | Sürüm sabitleme ihtiyacını `init` yazmadan karşılıyor. |
 | K-4 | ÖN-15: birincil kanıtın elle seçilmesi | M | S (otomatik sıralama yeterli) | **Otomatik sıralama M, elle seçim S.** | Elle seçim arayüz işi gerektiriyor; otomatik sıralama KIS20 senaryosunu zaten karşılıyor. |
 | K-5 | `needs_info` durumu | Ayrı bir durum olsun | Durum değil, işaret olsun | **`pendingQuestion: true` işareti.** Durum seti 4 değerde kalır. | Ajan aynı bilgiyi alıyor, ama durum geçiş tablosu ve testler büyümüyor. A da Tur 2'de buna yaklaştı. |
 | K-6 | EK-B2: efor tavanını aşınca ne olacak? | Kilitli M'ler takasa girmez; aşım olursa tarih kayar | Tavanı aşan her yeni M bir ertelemeyle dengelenir | **İkisi birden.** Aşımda önce S'ler, sonra kilitsiz M'ler v1.1'e kayar. Tavan yalnızca kilitli M'ler yüzünden aşılırsa tarih kayar. | Güvenlik ve kanıt bütünlüğü takas konusu yapılmaz. |

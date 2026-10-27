@@ -1,4 +1,6 @@
-# Rewind FRD paketi
+# Flashback FRD paketi
+
+> Ürünün adı 27.10.2026'da **Rewind**'den **Flashback**'e değişti (FRD v1.1.1). Bu klasördeki belgeler yeni adı kullanır.
 
 Güncel belge: **`08-FRD-v1.1.md`**. Belge §17'deki kontrol listesi ve imza tablosuyla biter. `04-FRD-v1.0.md` (v1.0.1) onaya sunulan sürüm olarak kalır.
 

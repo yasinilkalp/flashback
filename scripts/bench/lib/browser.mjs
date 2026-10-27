@@ -69,11 +69,11 @@ export async function newPage(browser, { throttle = 1, locale = 'tr-TR' } = {}) 
 export const nextFrames = (page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
 export const pageNow = (page) => page.evaluate(() => performance.now());
 
-/** Uygulama ve (kayıt açıksa) Rewind hazır olana dek bekler. */
+/** Uygulama ve (kayıt açıksa) Flashback hazır olana dek bekler. */
 export async function waitReady(page, { pageName, mode }) {
   if (pageName === 'demo') await page.getByTestId('add-1').waitFor({ timeout: 60_000 });
   else await page.locator('#bump').waitFor({ timeout: 60_000 });
-  if (mode === 'on') await page.locator('[data-rw="launcher"]').waitFor({ state: 'attached', timeout: 60_000 });
+  if (mode === 'on') await page.locator('[data-fb="launcher"]').waitFor({ state: 'attached', timeout: 60_000 });
   if (mode !== 'off') {
     await page.waitForFunction(() => {
       try {

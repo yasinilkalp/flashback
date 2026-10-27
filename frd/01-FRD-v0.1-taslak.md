@@ -1,13 +1,13 @@
-# Rewind — Fonksiyonel Gereksinim Dokümanı (FRD)
+# Flashback — Fonksiyonel Gereksinim Dokümanı (FRD)
 
 | Alan | Değer |
 |---|---|
-| Belge | Rewind FRD |
+| Belge | Flashback FRD |
 | Sürüm | v0.1 (taslak — inceleme öncesi) |
 | Tarih | 26.10.2026 |
 | Hazırlayan | Yasin İlkalp Arabacı (USTA) / Claude |
 | Durum | İncelemeye açık |
-| Kaynaklar | Proje tanımı (Rewind projesi), `README.md`, `package.json`, `vitest*.config.ts` |
+| Kaynaklar | Proje tanımı (Flashback projesi), `README.md`, `package.json`, `vitest*.config.ts` |
 
 > Slogan: **Hatayı anlatma; geri sar, göster.**
 
@@ -15,9 +15,9 @@
 
 ## 1. Amaç
 
-Rewind, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında çalışan web uygulamasının son ~60 saniyesini sürekli kaydeder. Geliştirici bir hata gördüğünde zaman çizelgesinde geri sarar, hatanın başladığı anı bulur, ilgili öğeye tıklar ve kısa bir not yazar. Rewind bu tıklamadan tek bir **olay paketi** üretir ve MCP üzerinden kodlama ajanına iletir. Ajan hatayı bir Playwright testiyle yeniden üretir (kırmızı), düzeltir, aynı testi tekrar çalıştırır (yeşil) ve olayı kapatır.
+Flashback, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında çalışan web uygulamasının son ~60 saniyesini sürekli kaydeder. Geliştirici bir hata gördüğünde zaman çizelgesinde geri sarar, hatanın başladığı anı bulur, ilgili öğeye tıklar ve kısa bir not yazar. Flashback bu tıklamadan tek bir **olay paketi** üretir ve MCP üzerinden kodlama ajanına iletir. Ajan hatayı bir Playwright testiyle yeniden üretir (kırmızı), düzeltir, aynı testi tekrar çalıştırır (yeşil) ve olayı kapatır.
 
-Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gerektiğini** tanımlar. Nasıl yapılacağı (tasarım ayrıntıları) yalnızca gereksinimi anlaşılır kılmak için anılır.
+Bu belge, Flashback'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gerektiğini** tanımlar. Nasıl yapılacağı (tasarım ayrıntıları) yalnızca gereksinimi anlaşılır kılmak için anılır.
 
 ## 2. Ürün hedefleri
 
@@ -34,8 +34,8 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 
 ### 3.1 Kapsam içi
 
-- `rewind-devtools`: uygulamaya eklenen tarayıcı bileşeni (`<Rewind/>`), kaydedici, zaman çizelgesi paneli, işaretleme, gizleme.
-- `rewind-mcp`: stdio MCP sunucusu + yerel HTTP alıcısı + olay deposu (`.rewind/`) + `run_repro` çalıştırıcısı.
+- `flashback-devtools`: uygulamaya eklenen tarayıcı bileşeni (`<Flashback/>`), kaydedici, zaman çizelgesi paneli, işaretleme, gizleme.
+- `flashback-mcp`: stdio MCP sunucusu + yerel HTTP alıcısı + olay deposu (`.flashback/`) + `run_repro` çalıştırıcısı.
 - React (18 ve 19) için bileşen yığını ve kaynak satırı çözümleme.
 - Vite, Next.js ve webpack geliştirme sunucularının source map'leri.
 - Zustand, Redux ve özel store'lar için `trackStore` ile store izleme.
@@ -53,14 +53,14 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 
 | Terim | Tanım |
 |---|---|
-| Olay (incident) | Geliştiricinin işaretleyip kaydettiği tek bir hata raporu; benzersiz kimliği vardır (`rw-YYYYMMDD-HHMMSS-xxxx`) |
+| Olay (incident) | Geliştiricinin işaretleyip kaydettiği tek bir hata raporu; benzersiz kimliği vardır (`fb-YYYYMMDD-HHMMSS-xxxx`) |
 | Olay paketi | Olaya ait tüm kanıtlar: öğe, kaynak satırı, bileşen yığını, adımlar, ağ, konsol, store, DOM |
 | Halka tampon | Son `bufferSeconds` süreyi tutan, eskisini atan kayıt belleği |
 | İşaretlenen an (`marked_at`) | Geliştiricinin zaman çizelgesinde seçtiği zaman noktası |
 | Hedef öğe (`target`) | İşaretlenen anda tıklanan DOM öğesi |
 | Repro | Kaydedilen adımları gerçek tarayıcıda oynatıp beklentiyi doğrulayan Playwright testi |
 | Kırmızı/Yeşil | Repro testinin kalması / geçmesi |
-| Alıcı | `rewind-mcp` içindeki, tarayıcıdan olay alan HTTP sunucusu (`127.0.0.1:4747`) |
+| Alıcı | `flashback-mcp` içindeki, tarayıcıdan olay alan HTTP sunucusu (`127.0.0.1:4747`) |
 
 ## 5. Paydaşlar ve personalar
 
@@ -68,20 +68,20 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 |---|---|---|
 | P1 — Geliştirici (birincil kullanıcı) | Uygulamayı geliştirip AI ajanıyla çalışan frontend/fullstack geliştirici | Hatayı tarif etmeden göstermek, hızlı düzeltme |
 | P2 — Kodlama ajanı (sistem kullanıcısı) | Claude Code, Cursor, Codex vb. | Yapılandırılmış, gürültüsüz, doğrulanabilir kanıt |
-| P3 — Proje sahibi/bakımcı | Rewind'i geliştiren ekip | Bakımı kolay, ajandan bağımsız mimari |
+| P3 — Proje sahibi/bakımcı | Flashback'i geliştiren ekip | Bakımı kolay, ajandan bağımsız mimari |
 
 ## 6. Sistem bağlamı
 
 ```
  Tarayıcı (dev)                                   Ajan
 ┌──────────────────────────────┐           ┌───────────────────┐
-│ <Rewind/>                    │           │ Claude Code /     │
+│ <Flashback/>                    │           │ Claude Code /     │
 │  ├ rrweb DOM kaydı (halka)   │           │ Cursor / Codex    │
 │  ├ fetch/XHR yakalama        │  POST     └─────────▲─────────┘
 │  ├ console + hata yakalama   │ /incidents          │ stdio (MCP)
 │  ├ adım kaydı (tık, giriş…)  │──────────► ┌────────┴──────────┐
-│  ├ store takibi              │ ◄──────────│ rewind-mcp        │
-│  └ React fiber + sourcemap   │  GET       │  └ .rewind/*.json │
+│  ├ store takibi              │ ◄──────────│ flashback-mcp        │
+│  └ React fiber + sourcemap   │  GET       │  └ .flashback/*.json │
 └──────────────────────────────┘ (yanıtlar) └───────────────────┘
 ```
 
@@ -103,13 +103,13 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 | FR-REC-06 | Kullanıcı adımları (tıklama, metin girişi, tuş, sayfa geçişi) seçici ve zaman damgasıyla kaydedilmelidir. | M | Adımlardan üretilen Playwright testi senaryoyu oynatır |
 | FR-REC-07 | Parola alanları her zaman maskelenmeli; `maskAllInputs=true` ise tüm girişler maskelenmelidir. | M | Parola değeri hiçbir kayıtta açık metin olarak bulunmaz |
 | FR-REC-08 | `trackStore(ad, subscribe, getState)` ile kaydedilen store'ların her değişikliği önceki→sonraki değerle kaydedilmelidir. | S | Zustand ve Redux örneklerinde değişiklik farkı olayda görünür |
-| FR-REC-09 | Rewind'in kendi arayüzü ve kendi ağ istekleri kayda girmemelidir. | M | Olay paketinde Rewind paneline ait DOM ya da `:4747` isteği yoktur |
+| FR-REC-09 | Flashback'in kendi arayüzü ve kendi ağ istekleri kayda girmemelidir. | M | Olay paketinde Flashback paneline ait DOM ya da `:4747` isteği yoktur |
 
 ### 7.2 Panel ve zaman çizelgesi (UI)
 
 | Kimlik | Gereksinim | Öncelik | Kabul kriteri |
 |---|---|---|---|
-| FR-UI-01 | Sağ altta (yapılandırılabilir köşe) bir Rewind düğmesi gösterilmelidir. | M | `position` prop'u dört köşeyi destekler |
+| FR-UI-01 | Sağ altta (yapılandırılabilir köşe) bir Flashback düğmesi gösterilmelidir. | M | `position` prop'u dört köşeyi destekler |
 | FR-UI-02 | Panel, `shortcut` (varsayılan `Alt+Shift+R`) ile açılıp kapanmalıdır. | M | Kısayol uygulamanın kendi kısayollarıyla çakışmadığında çalışır |
 | FR-UI-03 | Panel açıldığında tampon dondurulmalı ve zaman çizelgesi üzerinde geri/ileri sarma yapılabilmelidir. | M | Kullanıcı geçmişteki herhangi bir kareye gidebilir |
 | FR-UI-04 | Zaman çizelgesinde ağ hataları, konsol hataları ve kullanıcı adımları işaretçi olarak gösterilmelidir. | S | Hatalı istek kırmızı işaretçiyle görünür |
@@ -136,7 +136,7 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 | FR-PKG-01 | Olay paketi şunları içermelidir: kimlik, oluşturma zamanı, sayfa URL'i, işaretlenen an, not, hedef öğe bilgileri, adımlar, ağ, konsol, store, DOM anlık görüntüsü, gizleme özeti. | M | JSON şemasına uyar |
 | FR-PKG-02 | Paket, ajanın okuyacağı bir Markdown raporuna dönüştürülebilmelidir; rapor en önemli kanıtı (hedef, dosya:satır, ilgili hatalar) en üstte vermelidir. | M | `get_incident` çıktısı ilk ekranda dosya:satırı içerir |
 | FR-PKG-03 | Rapor, işaretlenen anın çevresindeki olayları öne çıkarmalı, ilgisiz gürültüyü kırpmalıdır. | S | Demo hatada ilk tur bağlamı ≥%60 küçük kalır |
-| FR-PKG-04 | Paket, adımlardan üretilmiş çalıştırılabilir bir Playwright testi içermelidir. | M | Test `.rewind/repro/<id>.spec.ts` olarak yazılabilir |
+| FR-PKG-04 | Paket, adımlardan üretilmiş çalıştırılabilir bir Playwright testi içermelidir. | M | Test `.flashback/repro/<id>.spec.ts` olarak yazılabilir |
 
 ### 7.5 Hassas veri gizleme (RED)
 
@@ -155,10 +155,10 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 
 | Kimlik | Gereksinim | Öncelik | Kabul kriteri |
 |---|---|---|---|
-| FR-RCV-01 | `rewind-mcp`, varsayılan `127.0.0.1:4747` üzerinde HTTP alıcısı açmalıdır (`REWIND_HOST`, `REWIND_PORT`). | M | — |
-| FR-RCV-02 | Alıcı yalnızca localhost kökenlerinden gelen isteklere izin vermeli; diğer kökenler `REWIND_ALLOW_ORIGINS` ile açıkça eklenmelidir. | M | Yabancı köken 403 alır |
-| FR-RCV-03 | Olaylar `REWIND_DIR` (varsayılan `<cwd>/.rewind`) altına JSON olarak yazılmalı; klasör kendi `.gitignore` dosyasını oluşturmalıdır. | M | `.rewind/` git'e girmez |
-| FR-RCV-04 | `npx rewind-mcp serve` yalnızca alıcıyı çalıştırmalı; ajan sonradan bağlandığında port doluysa olayları çalışan sunucudan okumalıdır. | S | İki süreç senaryosu e2e testi geçer |
+| FR-RCV-01 | `flashback-mcp`, varsayılan `127.0.0.1:4747` üzerinde HTTP alıcısı açmalıdır (`FLASHBACK_HOST`, `FLASHBACK_PORT`). | M | — |
+| FR-RCV-02 | Alıcı yalnızca localhost kökenlerinden gelen isteklere izin vermeli; diğer kökenler `FLASHBACK_ALLOW_ORIGINS` ile açıkça eklenmelidir. | M | Yabancı köken 403 alır |
+| FR-RCV-03 | Olaylar `FLASHBACK_DIR` (varsayılan `<cwd>/.flashback`) altına JSON olarak yazılmalı; klasör kendi `.gitignore` dosyasını oluşturmalıdır. | M | `.flashback/` git'e girmez |
+| FR-RCV-04 | `npx flashback-mcp serve` yalnızca alıcıyı çalıştırmalı; ajan sonradan bağlandığında port doluysa olayları çalışan sunucudan okumalıdır. | S | İki süreç senaryosu e2e testi geçer |
 | FR-RCV-05 | MCP sunucusu erişilemezse olay Markdown olarak panoya kopyalanmalı ve kullanıcı bilgilendirilmelidir. | M | Alıcı kapalıyken pano içeriği dolu |
 
 ### 7.7 MCP araçları (MCP)
@@ -178,7 +178,7 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 
 | Kimlik | Gereksinim | Öncelik | Kabul kriteri |
 |---|---|---|---|
-| FR-REPRO-01 | `run_repro`, projenin kendi `@playwright/test` paketini kullanmalı (`REWIND_PROJECT_ROOT`), proje `playwright.config` dosyasını kullanmamalı; `.rewind/repro/` altında ayrı çalışmalıdır. | M | Proje ayarları testi etkilemez |
+| FR-REPRO-01 | `run_repro`, projenin kendi `@playwright/test` paketini kullanmalı (`FLASHBACK_PROJECT_ROOT`), proje `playwright.config` dosyasını kullanmamalı; `.flashback/repro/` altında ayrı çalışmalıdır. | M | Proje ayarları testi etkilemez |
 | FR-REPRO-02 | Assertion kodu içinde `target` değişkeni hedef öğeyi temsil etmelidir. | M | `expect(target).toHaveText(...)` çalışır |
 | FR-REPRO-03 | `strict: true` ise konsol hataları ve HTTP ≥400 yanıtlar testi kaldırmalıdır. | S | — |
 | FR-REPRO-04 | `base_url` ve `headed` seçenekleri desteklenmelidir. | S | — |
@@ -199,23 +199,23 @@ Bu belge, Rewind'in MVP ve MVP sonrası ilk sürümleri için **ne yapması gere
 
 | Kimlik | Gereksinim | Öncelik |
 |---|---|---|
-| FR-CFG-01 | Kurulum `npm i -D rewind-devtools rewind-mcp` ile yapılmalıdır. | M |
-| FR-CFG-02 | `<Rewind enabled={import.meta.env.DEV} />` ile üretimde devre dışı bırakılabilmelidir. | M |
+| FR-CFG-01 | Kurulum `npm i -D flashback-devtools flashback-mcp` ile yapılmalıdır. | M |
+| FR-CFG-02 | `<Flashback enabled={import.meta.env.DEV} />` ile üretimde devre dışı bırakılabilmelidir. | M |
 | FR-CFG-03 | Props: `enabled`, `endpoint`, `bufferSeconds`, `ignoreUrls`, `maskAllInputs`, `redact`, `shortcut`, `position`. | M |
 | FR-CFG-04 | Claude Code, Cursor ve Codex için hazır MCP yapılandırma örnekleri sunulmalıdır. | M |
-| FR-CFG-05 | Ortam değişkenleri: `REWIND_PORT`, `REWIND_HOST`, `REWIND_DIR`, `REWIND_PROJECT_ROOT`, `REWIND_ALLOW_ORIGINS`. | M |
+| FR-CFG-05 | Ortam değişkenleri: `FLASHBACK_PORT`, `FLASHBACK_HOST`, `FLASHBACK_DIR`, `FLASHBACK_PROJECT_ROOT`, `FLASHBACK_ALLOW_ORIGINS`. | M |
 
 ---
 
 ## 8. Ana kullanıcı akışı
 
-1. Geliştirici uygulamayı dev modunda çalıştırır; Rewind arka planda kaydeder.
+1. Geliştirici uygulamayı dev modunda çalıştırır; Flashback arka planda kaydeder.
 2. Hata görülür (ör. YAZ10 kuponundan sonra toplam "135030 ₺").
 3. `Alt+Shift+R` → panel açılır, tampon donar.
 4. Zaman çizelgesinde geri sarılır; **S** → "Toplam" öğesine tıklanır.
 5. Not: "Toplam 1380 ₺ olmalı." → **Kaydet ve ajana gönder**.
-6. Gizleme çalışır → olay alıcıya POST edilir → `.rewind/<id>.json`.
-7. Geliştirici ajana: "Rewind olaylarına bak ve düzelt."
+6. Gizleme çalışır → olay alıcıya POST edilir → `.flashback/<id>.json`.
+7. Geliştirici ajana: "Flashback olaylarına bak ve düzelt."
 8. Ajan `list_incidents` → `get_incident` → `run_repro` (❌ kırmızı).
 9. Ajan `Cart.tsx`'i düzeltir → `run_repro` (✅ yeşil) → `mark_fixed`.
 10. Panelde Kayıtlar sekmesinde ❌ → ✅ geçmişi görünür.
@@ -226,7 +226,7 @@ Alternatif akışlar: MCP kapalı → panoya kopyalama; ajan soru sorar → pane
 
 ```jsonc
 Incident {
-  id: string,                 // rw-20261026-150247-x6mn
+  id: string,                 // fb-20261026-150247-x6mn
   status: "open" | "fixed",
   createdAt: ISODate,
   url: string,
@@ -261,7 +261,7 @@ Incident {
 ## 11. Kabul kriterleri (sürüm düzeyi)
 
 - KK-1: Demo uygulamada YAZ10 ve KIS20 hataları için olay oluşturulabilir.
-- KK-2: Claude Code ile "Rewind olaylarına bak ve düzelt" komutu, kırmızı→yeşil akışını tamamlar.
+- KK-2: Claude Code ile "Flashback olaylarına bak ve düzelt" komutu, kırmızı→yeşil akışını tamamlar.
 - KK-3: Gizleme birim testleri ve e2e testleri üç işletim sisteminde geçer.
 - KK-4: `npm run release:check` iki paketi sorunsuz paketler.
 

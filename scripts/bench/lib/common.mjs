@@ -90,7 +90,7 @@ function safe(fn, fallback = null) {
 export function environment(browserVersion) {
   const cpus = os.cpus();
   const pkg = (p) => safe(() => JSON.parse(readFileSync(join(REPO, p), 'utf8')).version);
-  const dist = join(REPO, 'packages/rewind/dist/index.js');
+  const dist = join(REPO, 'packages/flashback/dist/index.js');
   return {
     date: new Date().toISOString(),
     os: `${os.type()} ${os.release()} (${os.platform()}/${os.arch()})`,
@@ -100,16 +100,16 @@ export function environment(browserVersion) {
     chromium: browserVersion,
     playwright: pkg('node_modules/playwright/package.json'),
     rrweb: pkg('node_modules/rrweb/package.json'),
-    rewindDevtools: pkg('packages/rewind/package.json'),
-    rewindDistBuiltAt: existsSync(dist) ? statSync(dist).mtime.toISOString() : null,
+    flashbackDevtools: pkg('packages/flashback/package.json'),
+    flashbackDistBuiltAt: existsSync(dist) ? statSync(dist).mtime.toISOString() : null,
     git: safe(() => execSync('git rev-parse --short HEAD', { cwd: REPO, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()),
   };
 }
 
 export function requireBuild() {
-  for (const f of ['packages/rewind/dist/index.js', 'packages/rewind/dist/noop.js', 'packages/mcp/dist/cli.js']) {
+  for (const f of ['packages/flashback/dist/index.js', 'packages/flashback/dist/noop.js', 'packages/mcp/dist/cli.js']) {
     if (!existsSync(join(REPO, f))) {
-      throw new Error(`${f} yok. Önce: npm run build (ya da npm run build -w @rewind/shared && npm run build -w rewind-devtools && npm run build -w rewind-mcp)`);
+      throw new Error(`${f} yok. Önce: npm run build (ya da npm run build -w @flashback/shared && npm run build -w flashback-devtools && npm run build -w flashback-mcp)`);
     }
   }
 }

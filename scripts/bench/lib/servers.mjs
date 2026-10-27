@@ -1,8 +1,8 @@
 /**
  * Bench sunucuları:
  *  - Vite geliştirme sunucusu: `demo` (examples/demo, değiştirilmeden) ya da `list` (scripts/bench/fixture).
- *    Kayıt KAPALI kipte `rewind-devtools` → `packages/rewind/dist/noop.js` (üretim derlemesiyle aynı: kaydedici yok).
- *    Kayıt AÇIK kipte sayfaya yalnızca ölçüm için `window.__benchRecord = record` (rrweb) eklenir; bu, Rewind'in
+ *    Kayıt KAPALI kipte `flashback-devtools` → `packages/flashback/dist/noop.js` (üretim derlemesiyle aynı: kaydedici yok).
+ *    Kayıt AÇIK kipte sayfaya yalnızca ölçüm için `window.__benchRecord = record` (rrweb) eklenir; bu, Flashback'in
  *    kullandığı rrweb örneğiyle AYNI modüldür (tek optimize edilmiş bağımlılık) ve checkout tespiti/ölçümü içindir.
  *  - Gerçek alıcı: `packages/mcp/dist/cli.js` (stdio MCP + HTTP alıcı), MCP istemcisiyle "ajan" olarak bağlanılır.
  */
@@ -14,10 +14,10 @@ import { pathToFileURL } from 'node:url';
 import { BENCH, REPO, freePort, sleep } from './common.mjs';
 
 const require = createRequire(import.meta.url);
-const NOOP = join(REPO, 'packages/rewind/dist/noop.js');
+const NOOP = join(REPO, 'packages/flashback/dist/noop.js');
 /** Vite `/@fs/` yolu (Windows'ta da ileri eğik çizgi). */
 const PROBE = join(BENCH, 'lib', 'probe.js').replace(/\\/g, '/').replace(/^\//, '');
-/** Ayrıştırma kipi: yalnızca rrweb (Rewind'in seçenekleriyle), bkz. lib/shim-rrweb.js. */
+/** Ayrıştırma kipi: yalnızca rrweb (Flashback'in seçenekleriyle), bkz. lib/shim-rrweb.js. */
 const SHIM = join(BENCH, 'lib', 'shim-rrweb.js');
 
 const PAGES = {
@@ -33,11 +33,11 @@ async function loadVite() {
 
 function benchPlugin(mode) {
   return {
-    name: 'rewind-bench',
+    name: 'flashback-bench',
     enforce: 'pre',
     config() {
       if (mode === 'on') return {};
-      return { resolve: { alias: [{ find: /^rewind-devtools$/, replacement: mode === 'off' ? NOOP : SHIM }] } };
+      return { resolve: { alias: [{ find: /^flashback-devtools$/, replacement: mode === 'off' ? NOOP : SHIM }] } };
     },
     transformIndexHtml() {
       if (mode === 'off') return [];
@@ -48,17 +48,17 @@ function benchPlugin(mode) {
 
 /**
  * @param {{ page: 'demo'|'list', mode: 'on'|'off'|'rrweb', endpoint?: string }} o
- *   on = gerçek rewind-devtools (dist) · off = dist/noop.js (kaydedici yok) · rrweb = yalnızca rrweb (ayrıştırma)
+ *   on = gerçek flashback-devtools (dist) · off = dist/noop.js (kaydedici yok) · rrweb = yalnızca rrweb (ayrıştırma)
  * @returns {Promise<{ url: string, query: string, close(): Promise<void> }>}
  */
 export async function startVite({ page, mode, endpoint }) {
   const spec = PAGES[page];
   if (!spec) throw new Error(`bilinmeyen sayfa: ${page}`);
   const { createServer } = await loadVite();
-  // Demo, alıcı adresini VITE_REWIND_ENDPOINT'ten okur (e2e testindeki gibi).
-  if (endpoint) process.env.VITE_REWIND_ENDPOINT = endpoint;
+  // Demo, alıcı adresini VITE_FLASHBACK_ENDPOINT'ten okur (e2e testindeki gibi).
+  if (endpoint) process.env.VITE_FLASHBACK_ENDPOINT = endpoint;
   const port = await freePort();
-  const cacheDir = join(os.tmpdir(), `rewind-bench-vite-${page}-${mode}`);
+  const cacheDir = join(os.tmpdir(), `flashback-bench-vite-${page}-${mode}`);
   const server = await createServer({
     root: spec.root,
     configFile: spec.configFile,
@@ -81,12 +81,12 @@ export async function startVite({ page, mode, endpoint }) {
   };
 }
 
-/** Gerçek rewind-mcp (stdio MCP + HTTP alıcı). `call(name, args)` ajanın araç çağrısıdır. */
+/** Gerçek flashback-mcp (stdio MCP + HTTP alıcı). `call(name, args)` ajanın araç çağrısıdır. */
 export async function startReceiver() {
   const { Client } = await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/index.js')).href);
   const { StdioClientTransport } = await import(pathToFileURL(require.resolve('@modelcontextprotocol/sdk/client/stdio.js')).href);
-  const root = mkdtempSync(join(os.tmpdir(), 'rewind-bench-project-'));
-  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'rewind-bench-project', private: true }));
+  const root = mkdtempSync(join(os.tmpdir(), 'flashback-bench-project-'));
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'flashback-bench-project', private: true }));
   const port = await freePort();
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -94,19 +94,19 @@ export async function startReceiver() {
     cwd: root,
     env: {
       ...process.env,
-      REWIND_PORT: String(port),
-      REWIND_PROJECT_ROOT: root,
-      REWIND_RATE_LIMIT_PER_MIN: '0',
-      REWIND_NO_IMAGES: '1',
+      FLASHBACK_PORT: String(port),
+      FLASHBACK_PROJECT_ROOT: root,
+      FLASHBACK_RATE_LIMIT_PER_MIN: '0',
+      FLASHBACK_NO_IMAGES: '1',
     },
     stderr: 'pipe',
   });
-  const client = new Client({ name: 'rewind-bench-agent', version: '1.0.0' });
+  const client = new Client({ name: 'flashback-bench-agent', version: '1.0.0' });
   await client.connect(transport);
   const endpoint = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 100; i++) {
     try {
-      const r = await fetch(`${endpoint}/health`, { headers: { 'x-rewind-client': 'bench' } });
+      const r = await fetch(`${endpoint}/health`, { headers: { 'x-flashback-client': 'bench' } });
       if (r.ok) break;
     } catch {
       /* henüz değil */

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { IncidentStore, createMcpServer, generateReproScript, loadConfig, resolvePlaywright, type RewindConfig } from '../src/index.js';
+import { IncidentStore, createMcpServer, generateReproScript, loadConfig, resolvePlaywright, type FlashbackConfig } from '../src/index.js';
 import { startFixtureApp, type FixtureApp } from './fixtures/app.js';
 import { codeOutsideData, draft, tmpDir } from './helpers.js';
 
@@ -13,12 +13,12 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
 /**
  * FR-MCP-14 kabul kriteri: "Taşınan dosya projenin Playwright'ı ile geçer."
- * Rewind'den bağımsız bir fixture proje kurulur: kendi package.json'ı, kendi node_modules'ü (depo
+ * Flashback'ten bağımsız bir fixture proje kurulur: kendi package.json'ı, kendi node_modules'ü (depo
  * node_modules'üne bağlantı) ve kendi playwright.config dosyası (baseURL = fixture uygulama). Portable spec
  * projenin test klasörüne kopyalanır ve projenin Playwright CLI'ıyla, projenin yapılandırmasıyla çalıştırılır.
  */
 function createProject(baseURL: string): string {
-  const root = tmpDir('rewind-portable-project-');
+  const root = tmpDir('flashback-portable-project-');
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'fixture-project', private: true }, null, 2));
   fs.symlinkSync(path.join(REPO_ROOT, 'node_modules'), path.join(root, 'node_modules'), 'dir');
   fs.mkdirSync(path.join(root, 'tests'));
@@ -39,14 +39,14 @@ function createProject(baseURL: string): string {
 }
 
 /**
- * Projenin kendi Playwright'ı ile, projenin yapılandırmasıyla (cwd'de bulunur) çalıştırır. Rewind ortam değişkenleri verilmez.
+ * Projenin kendi Playwright'ı ile, projenin yapılandırmasıyla (cwd'de bulunur) çalıştırır. Flashback ortam değişkenleri verilmez.
  * Eşzamansızdır: fixture uygulama bu süreçte çalışır, spawnSync olay döngüsünü kilitlerdi.
  */
 function runProject(root: string, extraEnv: Record<string, string> = {}): Promise<{ status: number | null; out: string }> {
   const pw = resolvePlaywright(root);
   if (!pw) throw new Error('fixture projede @playwright/test çözülemedi');
   const env: NodeJS.ProcessEnv = { FORCE_COLOR: '0' };
-  for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('REWIND_') && k !== 'NODE_PATH') env[k] = v;
+  for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('FLASHBACK_') && k !== 'NODE_PATH') env[k] = v;
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [pw.cliPath, 'test'], { cwd: root, env: { ...env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
@@ -63,12 +63,12 @@ function runProject(root: string, extraEnv: Record<string, string> = {}): Promis
 describe('get_repro_script portable: projenin kendi Playwright yapılandırmasıyla (FR-MCP-14)', () => {
   let app: FixtureApp;
   let store: IncidentStore;
-  let config: RewindConfig;
+  let config: FlashbackConfig;
 
   beforeAll(async () => {
     app = await startFixtureApp();
-    const dir = tmpDir('rewind-portable-e2e-');
-    config = loadConfig({ REWIND_DIR: dir, REWIND_PROJECT_ROOT: REPO_ROOT }, { cwd: REPO_ROOT, homedir: '/nonexistent' });
+    const dir = tmpDir('flashback-portable-e2e-');
+    config = loadConfig({ FLASHBACK_DIR: dir, FLASHBACK_PROJECT_ROOT: REPO_ROOT }, { cwd: REPO_ROOT, homedir: '/nonexistent' });
     store = new IncidentStore(dir, { log: () => {} });
     store.init();
   });
@@ -95,7 +95,7 @@ describe('get_repro_script portable: projenin kendi Playwright yapılandırması
 
     const project = createProject(app.origin);
     fs.copyFileSync(sc.specPath, path.join(project, 'tests', path.basename(sc.specPath)));
-    // Kaynak .rewind klasörü olmadan da çalışmalı.
+    // Kaynak .flashback klasörü olmadan da çalışmalı.
     fs.rmSync(store.dir, { recursive: true, force: true });
     store.init();
 
@@ -111,14 +111,14 @@ describe('get_repro_script portable: projenin kendi Playwright yapılandırması
     expect(green.status, green.out).toBe(0);
     expect(green.out).toContain('1 passed');
 
-    // Sentetik giriş ortam değişkeninden okunur (REWIND_INPUT_EMAIL): geçersiz e-posta uygulamada hata metni üretir.
-    const overridden = await runProject(project, { REWIND_INPUT_EMAIL: 'gecersiz' });
+    // Sentetik giriş ortam değişkeninden okunur (FLASHBACK_INPUT_EMAIL): geçersiz e-posta uygulamada hata metni üretir.
+    const overridden = await runProject(project, { FLASHBACK_INPUT_EMAIL: 'gecersiz' });
     expect(overridden.status, overridden.out).toBe(1);
     expect(overridden.out).toContain('e-posta geçersiz');
   });
 
   it('EK-B1: kod kaçışı içeren olay verisi taşınabilir spec çalışırken yan etki üretmez (FR-REPRO-SEC-05)', async () => {
-    const marker = path.join(tmpDir('rewind-portable-marker-'), 'pwned');
+    const marker = path.join(tmpDir('flashback-portable-marker-'), 'pwned');
     const m = JSON.stringify(marker);
     const payloads = [
       `'); require('fs').writeFileSync(${m}, 'x'); ('`,
@@ -127,7 +127,7 @@ describe('get_repro_script portable: projenin kendi Playwright yapılandırması
       `\`; require('fs').writeFileSync(${m}, 'x'); \``,
       `*/ require('fs').writeFileSync(${m}, 'x'); /*`,
       `\n};\nrequire('fs').writeFileSync(${m}, 'x');\nconst Y = {`,
-      `/*__REWIND_ASSERTIONS__*/ require('fs').writeFileSync(${m}, 'x');`,
+      `/*__FLASHBACK_ASSERTIONS__*/ require('fs').writeFileSync(${m}, 'x');`,
     ];
     const origin = app.origin;
     const d = draft(origin, {

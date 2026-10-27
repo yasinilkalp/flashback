@@ -1,10 +1,10 @@
-# Rewind
+# Flashback
 
 **Hatayı anlatma; geri sar, göster.**
 
-🌐 [yasinilkalp.github.io/rewind](https://yasinilkalp.github.io/rewind/)
+🌐 [yasinilkalp.github.io/flashback](https://yasinilkalp.github.io/flashback/)
 
-Rewind, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında uygulamanın en az son 60 saniyesini arka planda kaydeder. Bir şey bozulduğunda geri sararsınız, sorunun başladığı anı bulursunuz, ekrandaki öğeye tıklarsınız (ya da öğesi olmayan bir hata için sayfa düzeyinde olay açarsınız) ve "ne olmalıydı?" sorusunu yanıtlarsınız. Ajana gidecek içeriği gizlenmiş hâliyle önizleyip gönderirsiniz.
+Flashback, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında uygulamanın en az son 60 saniyesini arka planda kaydeder. Bir şey bozulduğunda geri sararsınız, sorunun başladığı anı bulursunuz, ekrandaki öğeye tıklarsınız (ya da öğesi olmayan bir hata için sayfa düzeyinde olay açarsınız) ve "ne olmalıydı?" sorusunu yanıtlarsınız. Ajana gidecek içeriği gizlenmiş hâliyle önizleyip gönderirsiniz.
 
 Ajanınız (Claude Code, Cursor, Codex…) MCP üzerinden şu bilgileri içeren bir **olay paketi** alır:
 
@@ -27,19 +27,19 @@ Gereken: Node.js 22 veya üstü.
 
 ```bash
 npm install
-npm run build              # @rewind/shared, rewind-devtools ve rewind-mcp
+npm run build              # @flashback/shared, flashback-devtools ve flashback-mcp
 npm run setup:browsers     # run_repro için Playwright Chromium (bir kez)
 npm run dev                # demo: http://localhost:5173
 ```
 
 1. Ajanınıza MCP sunucusunu tanıtın. Claude Code için bu klasörde:
    ```bash
-   claude mcp add rewind --scope project -- node packages/mcp/dist/cli.js
+   claude mcp add flashback --scope project -- node packages/mcp/dist/cli.js
    ```
    Ya da `mcp.example.json` dosyasını `.mcp.json` olarak kopyalayın.
 2. Demoda üç ürünü sepete ekleyin ve **YAZ10** kuponunu girin. Toplam `135030 ₺` gösterir, çünkü kargo ücreti API'den metin olarak geliyor. **KIS20** kuponunda sunucu 500 döner ve kullanıcıya hiçbir şey gösterilmez. Ayrıntılar: [`examples/demo/BUGS.md`](examples/demo/BUGS.md).
-3. Sağ alttaki **Rewind** düğmesine basın ya da `Alt+Shift+R` kısayolunu kullanın. Zaman çizelgesinde geri gidin, **S** tuşuna basın, "Toplam" değerine tıklayın, "Ne olmalıydı?" alanını doldurun, önizlemeye bakıp gönderin. KIS20 için **Sayfa düzeyi olay** düğmesini kullanın.
-4. Ajanınıza şunu yazın: *"Rewind olaylarına bak ve düzelt."*
+3. Sağ alttaki **Flashback** düğmesine basın ya da `Alt+Shift+R` kısayolunu kullanın. Zaman çizelgesinde geri gidin, **S** tuşuna basın, "Toplam" değerine tıklayın, "Ne olmalıydı?" alanını doldurun, önizlemeye bakıp gönderin. KIS20 için **Sayfa düzeyi olay** düğmesini kullanın.
+4. Ajanınıza şunu yazın: *"Flashback olaylarına bak ve düzelt."*
 
 > Alıcıya ulaşılamazsa olay gizlenmiş Markdown olarak panoya kopyalanır; pano kullanılamıyorsa `.md` dosyası olarak iner.
 
@@ -48,28 +48,28 @@ npm run dev                # demo: http://localhost:5173
 ## Kendi projenize ekleme
 
 ```bash
-npm i -D rewind-devtools rewind-mcp @playwright/test
+npm i -D flashback-devtools flashback-mcp @playwright/test
 npx playwright install chromium
 ```
 
 ```tsx
 // main.tsx
-import { Rewind } from 'rewind-devtools';
+import { Flashback } from 'flashback-devtools';
 
 root.render(
   <>
     <App />
-    <Rewind />
+    <Flashback />
   </>,
 );
 ```
 
-`enabled` varsayılan olarak `process.env.NODE_ENV !== 'production'` değerini alır. Üretim build'inde kaydedici koda hiç girmez: paket `production` export koşulunda boş bir sürüme çözülür, koşulu desteklemeyen bundler'larda da `NODE_ENV` dalı sayesinde kaydedici elenir. Next.js App Router kurulumu için [`packages/rewind/README.md`](packages/rewind/README.md).
+`enabled` varsayılan olarak `process.env.NODE_ENV !== 'production'` değerini alır. Üretim build'inde kaydedici koda hiç girmez: paket `production` export koşulunda boş bir sürüme çözülür, koşulu desteklemeyen bundler'larda da `NODE_ENV` dalı sayesinde kaydedici elenir. Next.js App Router kurulumu için [`packages/flashback/README.md`](packages/flashback/README.md).
 
 ### Store takibi (isteğe bağlı)
 
 ```ts
-import { trackStore } from 'rewind-devtools';
+import { trackStore } from 'flashback-devtools';
 
 trackStore('cart', useCartStore.subscribe, useCartStore.getState); // Zustand
 trackStore('redux', store.subscribe, store.getState);              // Redux
@@ -80,7 +80,7 @@ trackStore('redux', store.subscribe, store.getState);              // Redux
 | prop | varsayılan | açıklama |
 |---|---|---|
 | `enabled` | `NODE_ENV !== 'production'` | Kaydı açar/kapatır |
-| `endpoint` | `http://127.0.0.1:4747` | `rewind-mcp` alıcısının adresi |
+| `endpoint` | `http://127.0.0.1:4747` | `flashback-mcp` alıcısının adresi |
 | `bufferSeconds` | `60` | En az bu kadar geçmiş tutulur |
 | `ignoreUrls` | `[]` | Kaydedilmeyecek istekler (metin öneki veya RegExp) |
 | `maskAllInputs` | `false` | Tüm girişleri maskeler. Parolalar her durumda maskelenir |
@@ -100,7 +100,7 @@ Olay ajana gönderilmeden ya da panoya kopyalanmadan önce **tarayıcıda** temi
 | JWT, `Bearer …`, bilinen anahtar biçimleri | Desenle (`sk-…`, `ghp_…`, `AKIA…`, `xox…-`, `AIza…`) |
 | Kart numarası, IBAN, T.C. Kimlik No | Desen + sağlama (Luhn, mod-97, TCKN algoritması); sıradan sayılar etkilenmez |
 | E-posta / telefon | E-posta varsayılan açık, telefon varsayılan kapalı |
-| İşaretli bölgeler | `data-rewind-mask` (metni maskele), `data-rewind-block` (hiç kaydetme) |
+| İşaretli bölgeler | `data-flashback-mask` (metni maskele), `data-flashback-block` (hiç kaydetme) |
 
 Hata ayıklamaya yarayan değerler (kupon kodu, tutar, şehir, tarih, durum kodu) olduğu gibi kalır. Doğruluk, 150'den fazla örnekli bir fixture setiyle CI'da denetlenir. **Gizleme bir güvenlik garantisi değildir.** Ajana giden paket, ajanın kullandığı model sağlayıcısına gidebilir; gönderimden önce önizlemeye bakın.
 
@@ -108,24 +108,24 @@ Hata ayıklamaya yarayan değerler (kupon kodu, tutar, şehir, tarih, durum kodu
 
 ## MCP kurulumu
 
-`rewind-mcp` iki işi tek süreçte yapar: ajanla **stdio** üzerinden MCP konuşur, tarayıcıdan gelen olayları **HTTP** üzerinden (`127.0.0.1:4747`, yalnızca loopback) alır. Olaylar proje kökündeki `.rewind/` klasörüne yazılır; klasör kendi `.gitignore` dosyasını oluşturur.
+`flashback-mcp` iki işi tek süreçte yapar: ajanla **stdio** üzerinden MCP konuşur, tarayıcıdan gelen olayları **HTTP** üzerinden (`127.0.0.1:4747`, yalnızca loopback) alır. Olaylar proje kökündeki `.flashback/` klasörüne yazılır; klasör kendi `.gitignore` dosyasını oluşturur.
 
 `npx --no-install` kullanın; böylece sürüm projenizin lock dosyasından gelir.
 
 **Claude Code** (`.mcp.json`) / **Cursor** (`.cursor/mcp.json`)
 ```json
-{ "mcpServers": { "rewind": { "command": "npx", "args": ["--no-install", "rewind-mcp"] } } }
+{ "mcpServers": { "flashback": { "command": "npx", "args": ["--no-install", "flashback-mcp"] } } }
 ```
 
 **Codex** (`~/.codex/config.toml`) global yapılandırma kullandığı için proje kökünü verin:
 ```toml
-[mcp_servers.rewind]
+[mcp_servers.flashback]
 command = "npx"
-args = ["--no-install", "rewind-mcp"]
-env = { REWIND_PROJECT_ROOT = "/yol/projeniz" }
+args = ["--no-install", "flashback-mcp"]
+env = { FLASHBACK_PROJECT_ROOT = "/yol/projeniz" }
 ```
 
-Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mcp/README.md`](packages/mcp/README.md). Oturum gerektiren uygulamalar için `REWIND_STORAGE_STATE` ile bir Playwright `storageState` dosyası verin; verilmezse oturum eksikliği **kırmızı sayılmaz**, `precondition` hatası olarak bildirilir.
+Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mcp/README.md`](packages/mcp/README.md). Oturum gerektiren uygulamalar için `FLASHBACK_STORAGE_STATE` ile bir Playwright `storageState` dosyası verin; verilmezse oturum eksikliği **kırmızı sayılmaz**, `precondition` hatası olarak bildirilir.
 
 ### Ajanın araçları
 
@@ -144,13 +144,13 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 
 ```jsonc
 // run_repro
-{ "id": "rw-20261026-150247-x6mn", "assertions": "await expect(target).toHaveText('1380 ₺');" }
+{ "id": "fb-20261026-150247-x6mn", "assertions": "await expect(target).toHaveText('1380 ₺');" }
 ```
 
 - **Assertion metni hiçbir zaman çalıştırılmaz.** Dar bir dilbilgisiyle (yalnızca `expect(<target|page.getByRole|getByText|getByTestId|getByLabel|locator>)` + izinli matcher'lar + sabitler) ara temsile ayrıştırılır; test kodu yalnızca bu temsilden üretilir.
 - **Olay verisi koda gömülmez.** Seçiciler, değerler ve URL'ler testin yanındaki `<id>.steps.json` dosyasından okunur.
-- Repro yalnızca loopback ya da `REWIND_ALLOW_ORIGINS` içindeki kökenlere gider; başka bir kökene yönlenirse durur.
-- Gizlenmiş girişler türüne uygun sentetik değerlerle doldurulur (parola için `REWIND_PASSWORD`). Bu değerler hiçbir çıktıda görünmez.
+- Repro yalnızca loopback ya da `FLASHBACK_ALLOW_ORIGINS` içindeki kökenlere gider; başka bir kökene yönlenirse durur.
+- Gizlenmiş girişler türüne uygun sentetik değerlerle doldurulur (parola için `FLASHBACK_PASSWORD`). Bu değerler hiçbir çıktıda görünmez.
 - Kayıtta yan etkili istekler (POST/PUT/PATCH/DELETE) varsa ilk koşuda uyarı verilir.
 - `strict: true`: konsol hataları ve HTTP ≥ 400 yanıtlar da testi kaldırır. `repeat`: aynı koşuyu en fazla 5 kez tekrarlar.
 
@@ -161,14 +161,14 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 ```
  Tarayıcı (dev)                                   Ajan
 ┌──────────────────────────────┐           ┌───────────────────┐
-│ <Rewind/>                    │           │ Claude Code /     │
+│ <Flashback/>                    │           │ Claude Code /     │
 │  ├ rrweb DOM kaydı (3 dilim) │           │ Cursor / Codex    │
 │  ├ fetch/XHR yakalama        │  POST     └─────────▲─────────┘
 │  ├ console + hata yakalama   │ /incidents          │ stdio (MCP)
 │  ├ adım kaydı                │──────────► ┌────────┴──────────┐
-│  ├ store takibi              │ ◄──────────│ rewind-mcp        │
+│  ├ store takibi              │ ◄──────────│ flashback-mcp        │
 │  ├ gizleme + önizleme        │  GET       │  ├ alıcı (loopback)│
-│  └ React fiber + sourcemap   │ (kayıtlar) │  ├ .rewind/*.json  │
+│  └ React fiber + sourcemap   │ (kayıtlar) │  ├ .flashback/*.json  │
 └──────────────────────────────┘            │  └ run_repro       │
                                             └────────────────────┘
 ```
@@ -182,7 +182,7 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 
 - Props/state değerleri işaretleme anında canlı uygulamadan okunur; geçmişteki ana ait değildir. Rapor bunu açıkça belirtir.
 - Bileşen bilgisi yalnızca React için çıkarılır; React dışı öğelerde (Vue smoke testi) bileşen yığını boş kalır ve paket bunu belirtir. Kaynak satırı çözümlemesi Vite (React 18.3 ve 19) ile Next.js App Router'da (Turbopack ve webpack) doğrulandı ([EK-B3](spikes/ek-b3/README.md)). Sunucu bileşenlerinin (RSC) satırı en iyi çaba ile çözülür.
-- React 19'da, HMR ile değiştirilen bir bileşenin değişiklikten önce oluşmuş öğelerinin satırı doğrulanamaz. Rewind bu satırı `resolved: false` olarak işaretler ve dosya adını yine verir. Doğru satır için sayfayı yenileyip hatayı tekrarlayın.
+- React 19'da, HMR ile değiştirilen bir bileşenin değişiklikten önce oluşmuş öğelerinin satırı doğrulanamaz. Flashback bu satırı `resolved: false` olarak işaretler ve dosya adını yine verir. Doğru satır için sayfayı yenileyip hatayı tekrarlayın.
 - Canvas, video ve çapraz kökenli iframe içerikleri tekrar oynatılmaz. WebSocket mesaj içerikleri kaydedilmez.
 - WSL2, Docker ve uzaktan geliştirme ortamları v1.0'da desteklenmez.
 - Yalnızca geliştirme ortamı içindir.
@@ -191,7 +191,7 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 
 ```bash
 npm test             # birim testleri (gizleme fixture seti, alıcı güvenliği, rapor, parser, yaşam döngüsü, panel)
-npm run test:e2e     # uçtan uca: demo + panel + rewind-mcp + Playwright (önce: npm run build && npm run setup:browsers)
+npm run test:e2e     # uçtan uca: demo + panel + flashback-mcp + Playwright (önce: npm run build && npm run setup:browsers)
 ```
 
 `tests/e2e/full-flow.e2e.test.ts`, ürünün tamamını tek akışta dener: panelde olay işaretlenir → ajan MCP üzerinden raporu okur → `run_repro` kırmızı → demo kaynağı düzeltilir → iki yeşil → `mark_fixed` → `fixed`; ayrıca öğesiz olay (KIS20) ve oturum gerektiren olay (`precondition` → `storageState` ile kırmızı → yeşil).
@@ -201,9 +201,9 @@ GitHub Actions her push ve PR'da Linux, Windows ve macOS'ta derleme, tip denetim
 ## Depo yapısı
 
 ```
-packages/shared   → @rewind/shared (yayımlanmaz): olay şeması, gizleme, sınırlar, assertion üretimi
-packages/rewind   → rewind-devtools: <Rewind/> bileşeni, kaydedici, panel
-packages/mcp      → rewind-mcp: MCP sunucusu, HTTP alıcı, run_repro
+packages/shared   → @flashback/shared (yayımlanmaz): olay şeması, gizleme, sınırlar, assertion üretimi
+packages/flashback   → flashback-devtools: <Flashback/> bileşeni, kaydedici, panel
+packages/mcp      → flashback-mcp: MCP sunucusu, HTTP alıcı, run_repro
 examples/demo     → kasıtlı hatalar içeren Vite + React sepet demosu
 examples/next-app → Next.js App Router kurulum örneği ('use client' sarmalayıcısı; Turbopack ve webpack)
 examples/react18  → React 18.3 + Vite örneği · examples/vue → Vue 3 + Vite smoke örneği (panel ayrı React kökünde)

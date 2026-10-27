@@ -1,10 +1,10 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { IncidentDraftSchema, type IncidentDraft, type IncidentDraftInput, type ReproRun } from '@rewind/shared';
+import { IncidentDraftSchema, type IncidentDraft, type IncidentDraftInput, type ReproRun } from '@flashback/shared';
 
 /** Test başına boş geçici klasör. */
-export function tmpDir(prefix = 'rewind-mcp-'): string {
+export function tmpDir(prefix = 'flashback-mcp-'): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
@@ -12,7 +12,7 @@ export function tmpDir(prefix = 'rewind-mcp-'): string {
 export function draftInput(origin = 'http://localhost:5173', over: Partial<IncidentDraftInput> = {}): IncidentDraftInput {
   return {
     schemaVersion: 1,
-    source: { origin, rewindVersion: '0.1.0', framework: 'react', userAgent: 'Mozilla/5.0 Test', tabId: 'tab-1' },
+    source: { origin, flashbackVersion: '0.1.0', framework: 'react', userAgent: 'Mozilla/5.0 Test', tabId: 'tab-1' },
     recordingStartedAt: '2026-10-27T10:00:00.000Z',
     markedAtMs: 5200,
     context: {

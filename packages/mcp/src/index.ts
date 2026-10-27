@@ -1,7 +1,7 @@
-/** rewind-mcp programatik API'si (testler ve gömülü kullanım için). */
+/** flashback-mcp programatik API'si (testler ve gömülü kullanım için). */
 export { ConfigError, checkTargetUrl, computeProjectId, findPackageRoot, isLoopbackHost, loadConfig } from './config.js';
-export type { LoadConfigOptions, RewindConfig } from './config.js';
-export { ERROR_SUGGESTIONS, RewindError, formatError } from './errors.js';
+export type { LoadConfigOptions, FlashbackConfig } from './config.js';
+export { ERROR_SUGGESTIONS, FlashbackError, formatError } from './errors.js';
 export type { ErrorCode } from './errors.js';
 export { IncidentStore, QuotaError, isClosed } from './store.js';
 export type { StoreOptions } from './store.js';

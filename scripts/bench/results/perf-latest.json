@@ -9,8 +9,8 @@
     "chromium": "153.0.8010.12",
     "playwright": "1.63.0",
     "rrweb": "2.2.0",
-    "rewindDevtools": "0.1.0",
-    "rewindDistBuiltAt": "2026-10-27T12:24:43.344Z",
+    "flashbackDevtools": "0.1.0",
+    "flashbackDistBuiltAt": "2026-10-27T12:24:43.344Z",
     "git": "05218f8"
   },
   "params": {
@@ -6483,7 +6483,7 @@
     {
       "page": "list",
       "throttle": 1,
-      "rewindOptions": {
+      "flashbackOptions": {
         "median": 40.9,
         "samples": [
           56.4,
@@ -6535,7 +6535,7 @@
     {
       "page": "list",
       "throttle": 4,
-      "rewindOptions": {
+      "flashbackOptions": {
         "median": 207.7,
         "samples": [
           262.9,

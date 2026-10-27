@@ -1,4 +1,4 @@
-# Rewind FRD v0.1 — Öneri değerlendirmesi, Tur 1
+# Flashback FRD v0.1 — Öneri değerlendirmesi, Tur 1
 
 | Alan | Değer |
 |---|---|
@@ -69,8 +69,8 @@
 **D 8 · R 9 · U 6 · Bileşik 7,7 · Kabul-değiştirilmiş**
 
 Tehdit gerçek, maliyet bahanesiyle geçiştirilemez. Kullanıcının açtığı herhangi bir sekme `127.0.0.1:4747`'ye `text/plain` POST gönderip sahte olay yazabilir. Bu olay ÖN-03 ve EK-B1 ile birleşince kod çalıştırmaya giden bir zincir oluşur. Host başlığı doğrulaması, zorunlu Origin, kimlik regex'i ve boyut sınırı toplamda birkaç düzine satır kod; bunlar M (Must) olmalı. Öte yandan önerinin bazı parçaları gereksiz ya da pahalı:
-- **Origin kontrolü tarayıcı saldırganı için tek başına yeterli.** Tarayıcı Origin başlığını sahteleyemez ve çapraz kökenli POST'larda (form, `no-cors` fetch dahil) bu başlığı gönderir. `X-Rewind-Client` başlığı ile preflight zorlaması gereksiz bir katman. `Content-Type: application/json` kontrolü ucuz bir derinlemesine savunma olarak kalabilir.
-- **SEC-07 oturum belirteci eşleştirmesi** bundler eklentisi ya da kod girme gibi bir kullanıcı deneyimi gerektiriyor ve tarayıcı saldırganına karşı Host+Origin'in üstüne anlamlı bir katkısı yok. Aynı kullanıcıyla çalışan yerel süreçler `.rewind/` dosyalarını zaten okuyabilir; bu tehdit kapsam dışıdır ve öyle yazılmalıdır.
+- **Origin kontrolü tarayıcı saldırganı için tek başına yeterli.** Tarayıcı Origin başlığını sahteleyemez ve çapraz kökenli POST'larda (form, `no-cors` fetch dahil) bu başlığı gönderir. `X-Flashback-Client` başlığı ile preflight zorlaması gereksiz bir katman. `Content-Type: application/json` kontrolü ucuz bir derinlemesine savunma olarak kalabilir.
+- **SEC-07 oturum belirteci eşleştirmesi** bundler eklentisi ya da kod girme gibi bir kullanıcı deneyimi gerektiriyor ve tarayıcı saldırganına karşı Host+Origin'in üstüne anlamlı bir katkısı yok. Aynı kullanıcıyla çalışan yerel süreçler `.flashback/` dosyalarını zaten okuyabilir; bu tehdit kapsam dışıdır ve öyle yazılmalıdır.
 - **Dakikada 30 olay oran sınırı** yerine ÖN-23'teki disk/olay sayısı üst sınırı aynı işi görür (diski doldurma saldırısı).
 
 **Değişiklik:**
@@ -90,23 +90,23 @@ Sorun gerçek, ama risk PM'in anlattığından biraz düşük. Dosya düzenleme 
 
 Sağlam bir AST allowlist'i bunların hepsini kapatmalı, sürekli bakım ister ve kenar durumlarda kırılır.
 
-**Daha basit alternatif:** Assertion'ı kod olarak değil, **yapılandırılmış veri** olarak almak. Örnek: `assertions: [{ on: "target" | {role,name} | {text} | {css}, matcher: "toHaveText", expected: "1380 ₺", not?: false }]`. Matcher'lar kapalı bir listeden seçilir: `toHaveText`, `toContainText`, `toBeVisible`, `toBeHidden`, `toHaveValue`, `toHaveCount`, `toHaveAttribute`, `toHaveClass`, `toHaveURL`. Kod `JSON.stringify` ile üretilir. Bu yaklaşım tasarım gereği güvenli, AST ayrıştırıcısı gerektirmiyor ve ajanlar JSON'u kodla aynı kolaylıkla yazıyor. Kısıtsız kod dizesi, geliştiricinin açıkça verdiği `REWIND_ALLOW_UNSAFE_ASSERTIONS=1` arkasında kalır.
+**Daha basit alternatif:** Assertion'ı kod olarak değil, **yapılandırılmış veri** olarak almak. Örnek: `assertions: [{ on: "target" | {role,name} | {text} | {css}, matcher: "toHaveText", expected: "1380 ₺", not?: false }]`. Matcher'lar kapalı bir listeden seçilir: `toHaveText`, `toContainText`, `toBeVisible`, `toBeHidden`, `toHaveValue`, `toHaveCount`, `toHaveAttribute`, `toHaveClass`, `toHaveURL`. Kod `JSON.stringify` ile üretilir. Bu yaklaşım tasarım gereği güvenli, AST ayrıştırıcısı gerektirmiyor ve ajanlar JSON'u kodla aynı kolaylıkla yazıyor. Kısıtsız kod dizesi, geliştiricinin açıkça verdiği `FLASHBACK_ALLOW_UNSAFE_ASSERTIONS=1` arkasında kalır.
 
 **Değişiklik:**
 - SEC-01 → yapılandırılmış assertion DSL'i (M). README'deki örnek, v1.0 öncesi kırıcı değişiklik olarak güncellenir.
 - SEC-02 → S olarak kalır (kaçış kapısı).
 - SEC-03 (`base_url` için loopback/izin listesi; `file:`, `data:`, `javascript:` reddi), SEC-04 (annotation'lar ve açıklama metni) ve SEC-05 (zaman aşımı) M olarak kalır.
-- "Çalışma dizini `.rewind/repro/` ile sınırlıdır" ifadesi bir sandbox değil; bir güvence gibi yazılmasın.
+- "Çalışma dizini `.flashback/repro/` ile sınırlıdır" ifadesi bir sandbox değil; bir güvence gibi yazılmasın.
 
 ### ÖN-03 — Prompt injection önlemleri
 **D 6 · R 7 · U 5 · Bileşik 6,0 · Kabul-değiştirilmiş**
 
-Tehdit gerçek, ama dürüst olmak gerekirse Rewind tarafında **güvenilir bir azaltım yok**. Elimizdeki araçlar sınırlayıcılar ve etiketleme; bunlar olasılığı azaltır ama garanti vermez. Asıl kontrol ÖN-01 (sahte olayı engellemek) ve ÖN-02/EK-B1 (enjeksiyon başarılı olsa bile `run_repro` üzerinden kod çalışmaması). Bu yüzden ucuz kısımlar M olarak alınmalı, pahalı ve belirsiz kısımlar çıkarılmalı:
+Tehdit gerçek, ama dürüst olmak gerekirse Flashback tarafında **güvenilir bir azaltım yok**. Elimizdeki araçlar sınırlayıcılar ve etiketleme; bunlar olasılığı azaltır ama garanti vermez. Asıl kontrol ÖN-01 (sahte olayı engellemek) ve ÖN-02/EK-B1 (enjeksiyon başarılı olsa bile `run_repro` üzerinden kod çalışmaması). Bu yüzden ucuz kısımlar M olarak alınmalı, pahalı ve belirsiz kısımlar çıkarılmalı:
 - **SEC-04 sezgisel tespit** ("ignore previous instructions" kalıpları) hem kolayca atlatılır hem de yanlış bir güven duygusu yaratır. Ret.
 - **Kabul kriterindeki kırmızı takım** (2 ajan × 10 koşu) bir ürün kabul kriteri değil, model davranışı ölçümü. Belirlenimci değil, Cursor'da otomatikleştirilemez ve her model sürümünde sonuç değişir.
 
 **Değişiklik:**
-- M: SEC-01 (çitli bloklar ve çit uzatma; kaçış için birim testi), SEC-03 (not ayrı başlıkta), SEC-02 sadeleştirilmiş hâliyle (köken ve Rewind sürümü; "eşleştirme durumu" SEC-07 ertelendiği için çıkar).
+- M: SEC-01 (çitli bloklar ve çit uzatma; kaçış için birim testi), SEC-03 (not ayrı başlıkta), SEC-02 sadeleştirilmiş hâliyle (köken ve Flashback sürümü; "eşleştirme durumu" SEC-07 ertelendiği için çıkar).
 - FR-MCP-SEC-01 → G7 sunucu `instructions` alanı.
 - Ret: SEC-04.
 - Kabul kriteri: rapor şablonu snapshot testi ve çit kaçışı birim testi. Kırmızı takım denemesi yalnızca sürüm öncesi elle yapılan bir kontrol olarak bilgi amaçlı kalır.
@@ -132,7 +132,7 @@ Burada **gerçek bir boşluk var**. `maskAllInputs=false` (varsayılan) iken gir
 **500 örneklik derlem:** Kim hazırlayacak? Luhn/IBAN/TCKN pozitifleri ve sır biçimleri birkaç satırla üretilebilir. Ancak kendi ürettiğimiz sentetik veride "%99 duyarlılık" ölçmek döngüsel; yeni bir bilgi vermez. Değerli olan, gerçekçi negatifler (tutar, sipariş no, tarih, kupon) ve gerçek dünyadan gelen hata örnekleri.
 
 **Değişiklik:**
-- M: FR-RED-09 yukarıdaki iki kuralla (matris kısa bir istisna tablosuna iner: ör. ekran görüntüsü piksel düzeyinde gizlenmez, yalnızca maskelenir). FR-RED-10 (kapalı ve sürümlü liste, büyük/küçük harf ve ayraç normalizasyonu; kullanıcı eklemesi açık kalır). FR-RED-11 (Playwright `mask`, ucuz). FR-RED-12 (`data-rewind-mask/block`; rrweb'in `blockClass`/`maskTextClass` seçenekleriyle neredeyse bedava, S yerine M yapılabilir).
+- M: FR-RED-09 yukarıdaki iki kuralla (matris kısa bir istisna tablosuna iner: ör. ekran görüntüsü piksel düzeyinde gizlenmez, yalnızca maskelenir). FR-RED-10 (kapalı ve sürümlü liste, büyük/küçük harf ve ayraç normalizasyonu; kullanıcı eklemesi açık kalır). FR-RED-11 (Playwright `mask`, ucuz). FR-RED-12 (`data-flashback-mask/block`; rrweb'in `blockClass`/`maskTextClass` seçenekleriyle neredeyse bedava, S yerine M yapılabilir).
 - FR-RED-14 → tablo güdümlü fixture testi, yaklaşık 150 örnek: üretilmiş pozitifler, elle seçilmiş negatifler ve demo değerleri. Kriter "tüm fixture'lar geçer" ve "korunan değerlerde sıfır yanlış pozitif" olsun. Yüzde eşikleri çıkarılsın. Derlem yeni hata bildirimleriyle büyür.
 - Açık soru (telefon numarası) kalsın. Benim önerim: varsayılan **kapalı**, çünkü sipariş/telefon karışıklığı yüksek yanlış pozitif üretir.
 
@@ -140,8 +140,8 @@ Burada **gerçek bir boşluk var**. `maskAllInputs=false` (varsayılan) iken gir
 **D 9 · R 8 · U 4 · Bileşik 7,2 · Kabul-değiştirilmiş**
 
 PM'in en önemli tespiti bu. Giriş gerektiren her gerçek uygulamada `run_repro` giriş sayfasına düşer ve "kırmızı" aslında yanlış bir kanıt olur. H3, demo dışında çalışmaz. Kapsam dışı bırakılırsa ana vaat bozulur; ertelenemez. Ama L efor gerekmez:
-- **`storageState`** Playwright'ın yerel özelliği. `npx playwright codegen --save-storage=.rewind/auth.json` ile tek komutta üretilir ve `REWIND_STORAGE_STATE` ile verilir. Bu yaklaşık S eforunda.
-- `rewind.setup.ts` kancası projeye kod yürütme yolu açar ve bakım yükü getirir. Ertele.
+- **`storageState`** Playwright'ın yerel özelliği. `npx playwright codegen --save-storage=.flashback/auth.json` ile tek komutta üretilir ve `FLASHBACK_STORAGE_STATE` ile verilir. Bu yaklaşık S eforunda.
+- `flashback.setup.ts` kancası projeye kod yürütme yolu açar ve bakım yükü getirir. Ertele.
 - FR-REPRO-11'deki "pencereden önce oluşmuş durumu algılama" sezgisel ve tanımsız. Yerine basit ve belirlenimci bir kural: başlangıç URL'sine gidildikten sonra son URL farklıysa (yönlendirme) ya da ilk adımın seçicisi zaman aşımına düşerse koşu `error` olur ve `kind: "precondition"` alır.
 - Ajanın `setup` adımları geçmesi de ertelensin. Eklenirse ÖN-02'deki yapılandırılmış DSL ile sınırlanmalı, yoksa kod çalıştırma kapısı yeniden açılır.
 
@@ -149,7 +149,7 @@ PM'in en önemli tespiti bu. Giriş gerektiren her gerçek uygulamada `run_repro
 - M: FR-REPRO-09 (başlangıç URL'si, viewport, `locale`, saat dilimi; storage ve çerez **adları**), FR-REPRO-10 yalnızca (a) `storageState`, FR-REPRO-12 yukarıdaki belirlenimci kuralla.
 - Ertele: (b) setup kancası, FR-REPRO-11 sezgisel algılama.
 - Fixture: Ayrı bir uygulama yerine **mevcut demoya basit bir giriş rotası** eklensin. Kabul kriteri PM'deki gibi kalır.
-- Not: `storageState` dosyası gerçek oturum belirteci içerir. `.rewind/` altında ve gitignore'lu olmalı; dokümanda belirtilmeli.
+- Not: `storageState` dosyası gerçek oturum belirteci içerir. `.flashback/` altında ve gitignore'lu olmalı; dokümanda belirtilmeli.
 
 ### ÖN-07 — Gizlenmiş girişler için sentetik değer
 **D 6 · R 5 · U 6 · Bileşik 5,7 · Kabul-değiştirilmiş**
@@ -157,7 +157,7 @@ PM'in en önemli tespiti bu. Giriş gerektiren her gerçek uygulamada `run_repro
 Gerçek bir etkileşim hatası: `[REDACTED:email]` metni forma yazılırsa doğrulama kalır ve yanlış bir kırmızı oluşur. Ancak bu durumun en sık örneği giriş formu, o da ÖN-06'daki `storageState` ile büyük ölçüde ortadan kalkıyor. Kalan durumlar için tür bazlı küçük bir tablo yeterli.
 
 **Değişiklik:**
-- M, efor M yerine S: e-posta → `rewind+n@example.test`, kart → Luhn'a uygun test kartı, TCKN ve IBAN → algoritmaya uygun sahte numara, parola → `process.env.REWIND_PASSWORD` (tek değişken; `REWIND_INPUT_<n>` numaralandırması kırılgan), diğer → `"rewind-placeholder"`.
+- M, efor M yerine S: e-posta → `flashback+n@example.test`, kart → Luhn'a uygun test kartı, TCKN ve IBAN → algoritmaya uygun sahte numara, parola → `process.env.FLASHBACK_PASSWORD` (tek değişken; `FLASHBACK_INPUT_<n>` numaralandırması kırılgan), diğer → `"flashback-placeholder"`.
 - FR-REPRO-14 (sentetik değer kullanan adımların listesi) ucuz; kalır.
 - FR-RED-15, tarayıcıda gizlemenin doğal bir değişmezi. `grep` testi iyi ve ucuz; kalır.
 
@@ -177,10 +177,10 @@ Gerçek bir etkileşim hatası: `[REDACTED:email]` metni forma yazılırsa doğr
 **D 6 · R 5 · U 2 · Bileşik 4,5 · Kabul-değiştirilmiş (benchmark Ertele)**
 
 İzlenebilirlik sütunu ve metrik tanımları ucuz ve gerekli. Asıl sorun benchmark'ın maliyeti, ki PM bunu "L" diye geçiyor:
-- 20 hata × 3 ajan × 3 tekrar × 2 koşul (Rewind'li/Rewind'siz) = **360 ajan koşusu**.
+- 20 hata × 3 ajan × 3 tekrar × 2 koşul (Flashback'li/Flashback'siz) = **360 ajan koşusu**.
 - Koşu başına 50–200 bin token ile kabaca **20–70 milyon token**. API maliyeti yüzlerce dolar; abonelik kotasıyla günler sürer.
 - Cursor ve Codex'i başsız ve tekrarlanabilir koşturmak ayrı bir altyapı işi.
-- "Rewind'li" koşuların her biri için birinin olayı işaretlemesi gerekiyor; ya bir insan yapacak ya da programatik olay üretimi yazılacak.
+- "Flashback'li" koşuların her biri için birinin olayı işaretlemesi gerekiyor; ya bir insan yapacak ya da programatik olay üretimi yazılacak.
 - 20 gerçekçi tohumlanmış hata hazırlamak tek başına 2–3 hafta.
 
 Bunun v0.2 onayının ön koşulu yapılması sırayı tersine çeviriyor: FRD onayı ölçüme bağlanmamalı, ölçüm v1.0 öncesine bağlanmalı.
@@ -189,7 +189,7 @@ Bunun v0.2 onayının ön koşulu yapılması sırayı tersine çeviriyor: FRD o
 - M (S efor): Her FR'ye "Hedef" sütunu. M1–M8 tanımları hedef değerleriyle birlikte "kalibre edilecek" notuyla yazılır.
 - v1.0 öncesi **mini benchmark**: 8–10 hata, yalnızca Claude Code (`claude -p` ile başsız), 2 koşul × 3 tekrar ≈ 60 koşu. Yalnızca M1 (ilk turda doğru dosya) ve M3 (ilk tur token'ı) ölçülür.
 - "%60" iddiası mini benchmark sonucu gelene kadar pazarlama metninden çıkarılır ya da "tek demo hatasında" diye nitelenir. Bu bedava ve dürüst.
-- Ertele: Tam benchmark (3 ajan, 20 hata), `.rewind/stats.json` (telemetri olmadan kimse görmeyecek; yerel istatistiğin kime faydası olduğu belirsiz), M7 için resmî kullanılabilirlik testi (3–5 kişilik gayriresmî oturum yeterli).
+- Ertele: Tam benchmark (3 ajan, 20 hata), `.flashback/stats.json` (telemetri olmadan kimse görmeyecek; yerel istatistiğin kime faydası olduğu belirsiz), M7 için resmî kullanılabilirlik testi (3–5 kişilik gayriresmî oturum yeterli).
 
 ### ÖN-10 — Sayısal NFR'ler
 **D 6 · R 5 · U 5 · Bileşik 5,4 · Kabul-değiştirilmiş**
@@ -258,7 +258,7 @@ Tablo bir FRD için değerli, ama "her satır bir FR ve otomatik test" kuralı 1
 - Eşzamanlı `run_repro` → olay bazında kilit ve `BUSY` hatası.
 - `base_url` öncelik sırası.
 - Birden çok sekme → olaya `tabId` eklenmesi.
-- **Akış yanıtları (SSE/ReadableStream) bozulmamalı.** Bu bir kenar durum değil, doğruluk hatası: Rewind uygulamanın kendi davranışını bozarsa güven sıfırlanır. Kesinlikle M.
+- **Akış yanıtları (SSE/ReadableStream) bozulmamalı.** Bu bir kenar durum değil, doğruluk hatası: Flashback uygulamanın kendi davranışını bozarsa güven sıfırlanır. Kesinlikle M.
 
 **S:**
 - HMR satır kayması için ±3 satırlık kod parçası. H2'ye doğrudan katkısı var ve ucuz.
@@ -285,13 +285,13 @@ Doğru tespit. KK-1 KIS20'yi istiyor ama model bunu ifade edemiyor. "Bir şeyin 
 ### ÖN-16 — Çoklu proje, port çakışması, olay klasörü
 **D 6 · R 6 · U 5 · Bileşik 5,7 · Kabul-değiştirilmiş**
 
-Risk gerçek. FR-RCV-04 port doluysa "çalışan sunucudan okur" diyor; bu, ajanın sessizce başka projenin olaylarını okuması demek. Codex'in global yapılandırması da `.rewind/`'ı ev dizinine yazdırabilir. Ancak FR-RCV-08 teknik olarak belirsiz: tarayıcı "proje adını" nereden bilecek? Bunun için bir bundler eklentisi gerekir.
+Risk gerçek. FR-RCV-04 port doluysa "çalışan sunucudan okur" diyor; bu, ajanın sessizce başka projenin olaylarını okuması demek. Codex'in global yapılandırması da `.flashback/`'ı ev dizinine yazdırabilir. Ancak FR-RCV-08 teknik olarak belirsiz: tarayıcı "proje adını" nereden bilecek? Bunun için bir bundler eklentisi gerekir.
 
-**Daha basit alternatif:** Alıcı `/health` ucunda `projectId` ve proje adını döndürür. Panel bağlandığı projeyi gösterir (ÖN-19 FR-UI-10) ve geliştirici uyuşmazlığı görür. `rewind-mcp` port doluysa ve kimlik farklıysa **sessizce okumak yerine** `WRONG_PROJECT` hatasıyla başarısız olur.
+**Daha basit alternatif:** Alıcı `/health` ucunda `projectId` ve proje adını döndürür. Panel bağlandığı projeyi gösterir (ÖN-19 FR-UI-10) ve geliştirici uyuşmazlığı görür. `flashback-mcp` port doluysa ve kimlik farklıysa **sessizce okumak yerine** `WRONG_PROJECT` hatasıyla başarısız olur.
 
 **Değişiklik:**
 - M: FR-RCV-07, FR-CFG-06 (yukarı doğru `package.json` arama; ev ve kök dizine yazma reddi).
-- Mimari karar: **(a) proje başına port** ve `REWIND_PORT` + `endpoint` ile açık yapılandırma. (b) makine genelinde yönlendirici Ertele.
+- Mimari karar: **(a) proje başına port** ve `FLASHBACK_PORT` + `endpoint` ile açık yapılandırma. (b) makine genelinde yönlendirici Ertele.
 - Ret/Ertele: FR-RCV-08 (bundler eklentisi gerekir).
 - Kabul kriteri PM'deki gibi, iki demo örneğiyle.
 
@@ -312,11 +312,11 @@ Kapsam şişmesine karşı en güçlü araç bu: "destekliyoruz" ile "test ediyo
 ### ÖN-22 — Risk kaydı ve bağımlılık yönetimi
 **D 5 · R 5 · U 8 · Bileşik 5,9 · Kabul-değiştirilmiş**
 
-Risk kaydı ucuz ve faydalı. R1 (React iç API'leri) H2'nin tek dayanağı olduğu için en kritik risk; bunu EK-B3 ile somut bir doğrulamaya bağlıyorum. Azaltımdaki "Babel/SWC eklentisiyle `data-rewind-source`" kendi başına L bir özellik; yalnızca B planı olarak yazılmalı, v1.0 taahhüdü olarak değil.
+Risk kaydı ucuz ve faydalı. R1 (React iç API'leri) H2'nin tek dayanağı olduğu için en kritik risk; bunu EK-B3 ile somut bir doğrulamaya bağlıyorum. Azaltımdaki "Babel/SWC eklentisiyle `data-flashback-source`" kendi başına L bir özellik; yalnızca B planı olarak yazılmalı, v1.0 taahhüdü olarak değil.
 
 **Değişiklik:**
 - **R6:** MIT lisanslı, yerel çalışan bir geliştirici aracı için "hukuk görüşü" fazla. Yerine açık bir dokümantasyon uyarısı yazılsın ve ÖN-04'teki önizleme yeterli kabul edilsin.
-- **R8 hemen yapılmalı:** `rewind-devtools` ve `rewind-mcp` npm adlarının uygunluğu bugün kontrol edilip adlar rezerve edilmeli (5 dakikalık iş, ama sürümü bloklayabilir). Yayında npm provenance ve 2FA zorunlu olsun.
+- **R8 hemen yapılmalı:** `flashback-devtools` ve `flashback-mcp` npm adlarının uygunluğu bugün kontrol edilip adlar rezerve edilmeli (5 dakikalık iş, ama sürümü bloklayabilir). Yayında npm provenance ve 2FA zorunlu olsun.
 - Risk tablosu 10 satırda kalsın. Her riske tek kişilik bir sahip atanır; bu ekip boyutunda zaten 1–3 kişi var.
 
 ### ÖN-18 — Gerçekçi kurulum, `init` ve `doctor`
@@ -373,7 +373,7 @@ Disk birikimi ve diskte uzun süre kalan veri gerçek ama düşük bir risk. Üs
 
 - **Pencere garantisi:** En ucuz düzeltme, son 3 dilimi tutmak. Bu bir yapılandırma değişikliği; bellek yaklaşık 1,5 katına çıkar ve NFR-MEM ile ölçülür. Alternatif olarak metin "30–60 sn" diye düzeltilebilir. Ben 3 dilimi öneriyorum, çünkü vaat zaten "60 saniye" diye yayılmış durumda. M, efor S.
 - **Yenilemede kalıcılık (FR-REC-11):** sessionStorage sınırı yaklaşık 5 MB ve 60 saniyelik rrweb akışı bunu kolayca aşar. IndexedDB'ye sürekli yazmak ise performans maliyeti getirir ve NFR-PERF ile çatışır. Ertele (v1.1).
-- **Erken yakalama (FR-REC-12):** Eklenti veya ayrı bir script gerekmez. `fetch`/XHR yamalaması bileşen montajında değil modül değerlendirmesinde yapılırsa ve dokümantasyon "`rewind-devtools`'u giriş dosyasında ilk import yapın" derse, ilk istekler de yakalanır. FR-REC-01 metni ve kabul kriteri buna göre hizalanır. M, efor S.
+- **Erken yakalama (FR-REC-12):** Eklenti veya ayrı bir script gerekmez. `fetch`/XHR yamalaması bileşen montajında değil modül değerlendirmesinde yapılırsa ve dokümantasyon "`flashback-devtools`'u giriş dosyasında ilk import yapın" derse, ilk istekler de yakalanır. FR-REC-01 metni ve kabul kriteri buna göre hizalanır. M, efor S.
 
 ---
 
@@ -384,7 +384,7 @@ Disk birikimi ve diskte uzun süre kalan veri gerçek ama düşük bir risk. Üs
 
 ÖN-02 yalnızca `assertions` alanına bakıyor. Oysa `run_repro`, **olayın kendisinden gelen** adımları (seçiciler, giriş değerleri, URL'ler, tuşlar) bir `.spec.ts` dosyasına yazıp Node'da çalıştırıyor. ÖN-01'in tarif ettiği sahte olay, bu alanlara `'); require('child_process').execSync('…'); ('` gibi bir değer koyabilir. Üretici değerleri elle tırnaklıyorsa, assertion ne kadar kısıtlanırsa kısıtlansın kod çalışır. Ajan bu durumda zararsız görünen bir `run_repro` çağrısı yapmış olur. Bu, zincirin assertion'dan bağımsız ikinci bir halkası ve muhtemelen bugünkü kodda en ucuz kapatılacak açık.
 
-> **FR-REPRO-SEC-06 (M):** Üretilen spec, olay verisini kod metnine gömmez. Adımlar ayrı bir JSON dosyasından (`.rewind/repro/<id>.steps.json`) okunur ya da her değer `JSON.stringify` ile serileştirilir. Seçiciler yalnızca `page.locator(<string>)` argümanı olarak kullanılır.
+> **FR-REPRO-SEC-06 (M):** Üretilen spec, olay verisini kod metnine gömmez. Adımlar ayrı bir JSON dosyasından (`.flashback/repro/<id>.steps.json`) okunur ya da her değer `JSON.stringify` ile serileştirilir. Seçiciler yalnızca `page.locator(<string>)` argümanı olarak kullanılır.
 > **Kabul kriteri:** Seçici, giriş değeri ve URL alanlarına kod kaçışı denemeleri içeren bir fixture olay, `run_repro` ile çalıştırıldığında yan etki üretmez (işaret dosyası oluşmaz). `get_repro_script` çıktısı için de aynı test uygulanır.
 
 Efor: S (1–2 gün). ÖN-01 ve ÖN-02 ile birlikte G1'e girer.
@@ -415,7 +415,7 @@ v1.1 / yol haritası: eşleştirme belirteci, setup kancası, `recorded` ağ mod
 
 H2 ("doğru dosya:satır ilk turda") tamamen FR-MARK-04'e dayanıyor. Bu gereksinim de belgelenmemiş `_debugStack` alanına ve tarayıcıda source map çözümlemesine bağlı. Bugün yalnızca Vite + React demosunda doğrulanmış. Next.js App Router (özellikle Turbopack dev sunucusu, `'use client'` sınırları ve RSC) kapsamda ilan edildi, ama orada `_debugStack` çerçevelerinin ve source map URL'lerinin aynı şekilde çözüleceği kanıtlanmadı. Çözülmüyorsa v1.0'ın en büyük vaadi en yaygın React kurulumunda çalışmıyor demektir. Bunu ÖN-25'teki matrisi doldurmadan önce öğrenmemiz gerekiyor.
 
-> **Öneri:** v0.2 onayından önce 3 günlük zaman kutulu bir spike yapılsın. Kapsam: React 19.x güncel sürüm ve canary; Next 15/16 App Router + Turbopack; Next + webpack; Vite. Ölçüt: her kurulumda 20 rastgele öğe seçiminde doğru `dosya:satır` oranı. Sonuç destek matrisine ("Doğrulandı" ya da "Desteklenmiyor") ve R1'in olasılık değerine doğrudan yazılsın. Oran düşükse `data-rewind-source` eklentisi B planı olarak v1.1'e alınsın.
+> **Öneri:** v0.2 onayından önce 3 günlük zaman kutulu bir spike yapılsın. Kapsam: React 19.x güncel sürüm ve canary; Next 15/16 App Router + Turbopack; Next + webpack; Vite. Ölçüt: her kurulumda 20 rastgele öğe seçiminde doğru `dosya:satır` oranı. Sonuç destek matrisine ("Doğrulandı" ya da "Desteklenmiyor") ve R1'in olasılık değerine doğrudan yazılsın. Oran düşükse `data-flashback-source` eklentisi B planı olarak v1.1'e alınsın.
 
 ---
 

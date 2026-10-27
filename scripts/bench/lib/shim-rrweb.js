@@ -1,9 +1,9 @@
 /**
- * Ayrıştırma (ablation) kipi: `rewind-devtools` yerine yalnızca rrweb kaydı.
- * rrweb, Rewind'in `Recorder.start()` içindeki seçenekleriyle birebir başlatılır (packages/rewind/src/recorder/recorder.ts);
+ * Ayrıştırma (ablation) kipi: `flashback-devtools` yerine yalnızca rrweb kaydı.
+ * rrweb, Flashback'in `Recorder.start()` içindeki seçenekleriyle birebir başlatılır (packages/flashback/src/recorder/recorder.ts);
  * panel, adım/ağ/konsol yakalama, alıcı yoklaması ve halka tampon YOKTUR. `?ablate=rrweb-size` verilirse her olay
- * Rewind'in `estimateEventBytes`'ı gibi JSON.stringify ile boyutlandırılır.
- * Böylece "kayıt açık" ek yükü rrweb çekirdeği ile Rewind eklentileri arasında ayrıştırılabilir.
+ * Flashback'in `estimateEventBytes`'ı gibi JSON.stringify ile boyutlandırılır.
+ * Böylece "kayıt açık" ek yükü rrweb çekirdeği ile Flashback eklentileri arasında ayrıştırılabilir.
  */
 import { useEffect } from 'react';
 import { record } from 'rrweb';
@@ -15,7 +15,7 @@ const ALL_INPUTS = {
 
 const sizeEvents = new URLSearchParams(location.search).get('ablate') === 'rrweb-size';
 
-export function Rewind() {
+export function Flashback() {
   useEffect(() => {
     let events = [];
     let bytes = 0;
@@ -26,8 +26,8 @@ export function Rewind() {
         if (sizeEvents) bytes += JSON.stringify(e).length * 2;
       },
       checkoutEveryNms: 30_000,
-      blockSelector: '[data-rewind-block], [data-rewind-ui]',
-      maskTextSelector: '[data-rewind-mask]',
+      blockSelector: '[data-flashback-block], [data-flashback-ui]',
+      maskTextSelector: '[data-flashback-mask]',
       maskInputOptions: ALL_INPUTS,
       maskInputFn: (text) => text,
       recordAfter: 'DOMContentLoaded',

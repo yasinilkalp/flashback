@@ -2,10 +2,10 @@
  * Sayfaya enjekte edilen ölçüm betiği. Panelin kullandığı kodu (fiber okuma + `locateSource` + `SourceResolver`)
  * aynen çalıştırır ve her etiketli öğe için sonucu döndürür. `measure.mjs` bunu esbuild ile IIFE olarak paketler.
  */
-import { getFiber, sourceHint, type Fiber } from '../../packages/rewind/src/dom/fiber.js';
-import { pageResolverOptions } from '../../packages/rewind/src/source/environment.js';
-import { locateSource } from '../../packages/rewind/src/source/locate.js';
-import { isLocalSource, SourceResolver } from '../../packages/rewind/src/source/sourcemap.js';
+import { getFiber, sourceHint, type Fiber } from '../../packages/flashback/src/dom/fiber.js';
+import { pageResolverOptions } from '../../packages/flashback/src/source/environment.js';
+import { locateSource } from '../../packages/flashback/src/source/locate.js';
+import { isLocalSource, SourceResolver } from '../../packages/flashback/src/source/sourcemap.js';
 
 const resolver = new SourceResolver(
   async (url) => {

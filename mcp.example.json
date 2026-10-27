@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "rewind": {
+    "flashback": {
       "command": "node",
       "args": ["packages/mcp/dist/cli.js"]
     }

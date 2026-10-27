@@ -1,12 +1,12 @@
 import type { IncidentStatus, Message, ReproRun } from './schema.js';
 
 /** Tarayıcı dışı istemcilerin göndermesi gereken başlık (FR-RCV-SEC-02). */
-export const CLIENT_HEADER = 'x-rewind-client';
+export const CLIENT_HEADER = 'x-flashback-client';
 /**
  * Tarayıcının hangi proje için gönderdiğini bildiren isteğe bağlı başlık (FR-RCV-06). Değer, projenin `package.json`
  * `name` alanıdır; alıcının projesiyle uyuşmazsa olay 409 ile reddedilir.
  */
-export const PROJECT_HEADER = 'x-rewind-project';
+export const PROJECT_HEADER = 'x-flashback-project';
 export const DEFAULT_PORT = 4747;
 export const DEFAULT_ENDPOINT = `http://127.0.0.1:${DEFAULT_PORT}`;
 
@@ -20,7 +20,7 @@ export const ROUTES = {
 } as const;
 
 export interface HealthResponse {
-  name: 'rewind-mcp';
+  name: 'flashback-mcp';
   version: string;
   schemaVersion: number;
   projectId: string;

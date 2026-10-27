@@ -1,7 +1,7 @@
 /**
  * Uçtan uca ürün akışı (FRD §12 KK-1, KK-2, KK-3):
  *
- *   gerçek demo (Vite) + gerçek <Rewind/> paneli + gerçek `rewind-mcp` (stdio MCP + HTTP alıcı, tek süreç)
+ *   gerçek demo (Vite) + gerçek <Flashback/> paneli + gerçek `flashback-mcp` (stdio MCP + HTTP alıcı, tek süreç)
  *   → geliştirici panelde olayı işaretleyip gönderir
  *   → "ajan" MCP istemcisi olayı okur, run_repro ile KIRMIZI üretir
  *   → demo kaynağındaki BUG satırı düzeltilir (BUGS.md)
@@ -9,7 +9,7 @@
  *   → panelin Kayıtlar sekmesi not ile assertion'ı yan yana ve "doğrulandı" durumunu gösterir.
  *
  * Demo, her koşuda depo içinde geçici bir kopyaya (`examples/e2e-tmp-*`) alınır; asıl kaynak değişmez.
- * Önkoşul: `npm run build` (rewind-devtools ve rewind-mcp dist'ten kullanılır).
+ * Önkoşul: `npm run build` (flashback-devtools ve flashback-mcp dist'ten kullanılır).
  */
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { Incident } from '@rewind/shared';
+import type { Incident } from '@flashback/shared';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -58,7 +58,7 @@ function applyFix(file: string, bug: string, replacement: string) {
   writeFileSync(file, lines.join('\n'));
 }
 
-describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kırmızı → düzelt → yeşil → fixed', () => {
+describe.runIf(process.env.FLASHBACK_E2E)('Flashback uçtan uca: panel → MCP → kırmızı → düzelt → yeşil → fixed', () => {
   let work: string;
   let vite: ViteServer;
   let browser: Browser;
@@ -75,9 +75,9 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
       cwd: work,
       env: {
         ...(process.env as Record<string, string>),
-        REWIND_PORT: String(receiverPort),
-        REWIND_PROJECT_ROOT: work,
-        REWIND_NO_IMAGES: '1',
+        FLASHBACK_PORT: String(receiverPort),
+        FLASHBACK_PROJECT_ROOT: work,
+        FLASHBACK_NO_IMAGES: '1',
         ...env,
       },
       stderr: 'pipe',
@@ -87,34 +87,34 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
     // Alıcı hazır olana dek bekle.
     for (let i = 0; i < 50; i++) {
       try {
-        const r = await fetch(`http://127.0.0.1:${receiverPort}/health`, { headers: { 'x-rewind-client': 'e2e' } });
+        const r = await fetch(`http://127.0.0.1:${receiverPort}/health`, { headers: { 'x-flashback-client': 'e2e' } });
         if (r.ok) return;
       } catch {
         /* henüz değil */
       }
       await new Promise((r) => setTimeout(r, 100));
     }
-    throw new Error('rewind-mcp alıcısı başlamadı');
+    throw new Error('flashback-mcp alıcısı başlamadı');
   }
 
   const call = async (name: string, args: Record<string, unknown>) => (await mcp!.callTool({ name, arguments: args })) as ToolResult;
 
-  const readIncident = (id: string) => JSON.parse(readFileSync(join(work, '.rewind', `${id}.json`), 'utf8')) as Incident;
+  const readIncident = (id: string) => JSON.parse(readFileSync(join(work, '.flashback', `${id}.json`), 'utf8')) as Incident;
 
   beforeAll(async () => {
-    for (const f of ['packages/rewind/dist/index.js', 'packages/mcp/dist/cli.js']) {
+    for (const f of ['packages/flashback/dist/index.js', 'packages/mcp/dist/cli.js']) {
       if (!existsSync(join(repo, f))) throw new Error(`${f} yok: önce \`npm run build\``);
     }
     // Demo'nun geçici kopyası (düzeltmeler buraya uygulanır). node_modules demo'nunkine bağlanır.
     work = mkdtempSync(join(repo, 'examples', 'e2e-tmp-'));
-    cpSync(demoSrc, work, { recursive: true, filter: (p) => !p.includes('node_modules') && !p.includes('.rewind') });
+    cpSync(demoSrc, work, { recursive: true, filter: (p) => !p.includes('node_modules') && !p.includes('.flashback') });
     if (existsSync(join(demoSrc, 'node_modules'))) symlinkSync(join(demoSrc, 'node_modules'), join(work, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
 
     receiverPort = await freePort();
     await startMcp();
 
-    process.env.VITE_REWIND_ENDPOINT = `http://127.0.0.1:${receiverPort}`;
-    process.env.REWIND_DEMO_DETERMINISTIC = '1';
+    process.env.VITE_FLASHBACK_ENDPOINT = `http://127.0.0.1:${receiverPort}`;
+    process.env.FLASHBACK_DEMO_DETERMINISTIC = '1';
     const viteEntry = createRequire(join(demoSrc, 'package.json')).resolve('vite');
     const { createServer } = (await import(pathToFileURL(viteEntry).href)) as { createServer: (c: object) => Promise<ViteServer> };
     const port = await freePort();
@@ -140,7 +140,7 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
   async function openApp(path = '/'): Promise<Page> {
     const page = await context.newPage();
     await page.goto(base + path);
-    await page.locator('[data-rw="launcher"]').waitFor();
+    await page.locator('[data-fb="launcher"]').waitFor();
     return page;
   }
 
@@ -154,30 +154,30 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
   }
 
   async function openPanel(page: Page) {
-    await page.locator('[data-rw="launcher"][data-receiver="connected"]').waitFor({ timeout: 10_000 });
+    await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 10_000 });
     await page.keyboard.press('Alt+Shift+KeyR');
-    await page.locator('[data-rw="panel"]').waitFor();
+    await page.locator('[data-fb="panel"]').waitFor();
   }
 
   async function send(page: Page): Promise<string> {
-    await page.locator('[data-rw="save"]').click();
-    const preview = page.locator('[data-rw="preview-view"]');
-    if (await preview.isVisible().catch(() => false)) await page.locator('[data-rw="send"]').click();
+    await page.locator('[data-fb="save"]').click();
+    const preview = page.locator('[data-fb="preview-view"]');
+    if (await preview.isVisible().catch(() => false)) await page.locator('[data-fb="send"]').click();
     else {
       await preview.waitFor({ timeout: 2000 }).catch(() => undefined);
-      if (await preview.isVisible()) await page.locator('[data-rw="send"]').click();
+      if (await preview.isVisible()) await page.locator('[data-fb="send"]').click();
     }
-    const idEl = page.locator('[data-rw="incident-id"]');
+    const idEl = page.locator('[data-fb="incident-id"]');
     await idEl.waitFor();
-    const id = (await idEl.textContent())!.match(/rw-\d{8}-\d{6}-[a-z0-9]{4}/)![0];
+    const id = (await idEl.textContent())!.match(/fb-\d{8}-\d{6}-[a-z0-9]{4}/)![0];
     return id;
   }
 
   async function pickInReplay(page: Page, testId: string) {
     await page.keyboard.press('s');
-    await page.locator('[data-rw="pick-overlay"]').waitFor();
+    await page.locator('[data-fb="pick-overlay"]').waitFor();
     const point = await page.evaluate((tid) => {
-      const iframe = document.querySelector('rewind-devtools')!.shadowRoot!.querySelector('iframe')!;
+      const iframe = document.querySelector('flashback-devtools')!.shadowRoot!.querySelector('iframe')!;
       const el = iframe.contentDocument!.querySelector(`[data-testid="${tid}"]`)!;
       const f = iframe.getBoundingClientRect();
       const e = el.getBoundingClientRect();
@@ -219,10 +219,10 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
     await expect.poll(() => page.getByTestId('total').textContent()).toBe('135030 ₺');
     await page.waitForTimeout(1200);
     await openPanel(page);
-    await page.locator('[data-rw="back"]').click();
+    await page.locator('[data-fb="back"]').click();
     await pickInReplay(page, 'total');
-    await expect.poll(() => page.locator('[data-rw="selected-source"]').textContent(), { timeout: 10_000 }).toContain('Cart.tsx');
-    await page.locator('[data-rw="expected"]').fill('Toplam 1380 ₺ olmalı.');
+    await expect.poll(() => page.locator('[data-fb="selected-source"]').textContent(), { timeout: 10_000 }).toContain('Cart.tsx');
+    await page.locator('[data-fb="expected"]').fill('Toplam 1380 ₺ olmalı.');
     const id = await send(page);
 
     // Ajan: listele → oku.
@@ -246,11 +246,11 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
     await page.reload();
     await openPanel(page);
     await page.getByRole('tab', { name: /Kayıtlar/ }).click();
-    const card = page.locator(`[data-rw="incident"][data-id="${id}"]`);
+    const card = page.locator(`[data-fb="incident"][data-id="${id}"]`);
     await card.waitFor({ timeout: 10_000 });
-    await expect.poll(() => card.locator('[data-rw="status"]').textContent(), { timeout: 10_000 }).toMatch(/doğrulandı/i);
-    expect(await card.locator('[data-rw="note"]').textContent()).toContain('Toplam 1380 ₺ olmalı.');
-    expect(await card.locator('[data-rw="assertion"]').textContent()).toContain("toHaveText(\"1380 ₺\")");
+    await expect.poll(() => card.locator('[data-fb="status"]').textContent(), { timeout: 10_000 }).toMatch(/doğrulandı/i);
+    expect(await card.locator('[data-fb="note"]').textContent()).toContain('Toplam 1380 ₺ olmalı.');
+    expect(await card.locator('[data-fb="assertion"]').textContent()).toContain("toHaveText(\"1380 ₺\")");
     await page.close();
   });
 
@@ -259,8 +259,8 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
     await fillCart(page, 'KIS20');
     await page.waitForTimeout(1200);
     await openPanel(page);
-    await page.locator('[data-rw="page-level"]').click();
-    await page.locator('[data-rw="expected"]').fill('"Kupon uygulanamadı" uyarısı gösterilmeli.');
+    await page.locator('[data-fb="page-level"]').click();
+    await page.locator('[data-fb="expected"]').fill('"Kupon uygulanamadı" uyarısı gösterilmeli.');
     const id = await send(page);
 
     const report = textOf(await call('get_incident', { id }));
@@ -287,8 +287,8 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
     await page.waitForTimeout(800);
     await openPanel(page);
     await pickInReplay(page, 'order-count');
-    await expect.poll(() => page.locator('[data-rw="selected-source"]').textContent(), { timeout: 10_000 }).toContain('Account.tsx');
-    await page.locator('[data-rw="expected"]').fill('Sipariş sayısı 4 olmalı.');
+    await expect.poll(() => page.locator('[data-fb="selected-source"]').textContent(), { timeout: 10_000 }).toContain('Account.tsx');
+    await page.locator('[data-fb="expected"]').fill('Sipariş sayısı 4 olmalı.');
     const id = await send(page);
     const assertion = "await expect(target).toHaveText('Sipariş sayısı: 4');";
 
@@ -298,10 +298,10 @@ describe.runIf(process.env.REWIND_E2E)('Rewind uçtan uca: panel → MCP → kı
     expect(textOf(pre)).toContain('precondition');
     expect(readIncident(id).repros.at(-1)).toMatchObject({ status: 'error', errorKind: 'precondition' });
 
-    // Geliştirici storageState dosyası hazırlar; rewind-mcp bu ayarla yeniden başlar.
+    // Geliştirici storageState dosyası hazırlar; flashback-mcp bu ayarla yeniden başlar.
     const stateFile = join(work, 'auth.json');
     await context.storageState({ path: stateFile });
-    await startMcp({ REWIND_STORAGE_STATE: stateFile });
+    await startMcp({ FLASHBACK_STORAGE_STATE: stateFile });
 
     await agentLoop2(id, assertion);
     await page.close();

@@ -2,7 +2,7 @@
  * Hassas veri gizleme (FR-RED-01…15).
  *
  * Tarayıcıda, olay gönderilmeden ÖNCE çalışır. Saf TypeScript'tir; hem tarayıcıda hem Node'da
- * (rewind-mcp'nin savunma amaçlı ikinci geçişi ve testler) kullanılır.
+ * (flashback-mcp'nin savunma amaçlı ikinci geçişi ve testler) kullanılır.
  */
 
 /** FR-RED-10: kapalı, sürümlü anahtar listesi. Eşleşme büyük/küçük harfe duyarsızdır, `-` ve `_` yok sayılır. */
