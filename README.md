@@ -2,6 +2,8 @@
 
 **Hatayı anlatma; geri sar, göster.**
 
+🌐 [yasinilkalp.github.io/rewind](https://yasinilkalp.github.io/rewind/)
+
 Rewind, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında uygulamanın en az son 60 saniyesini arka planda kaydeder. Bir şey bozulduğunda geri sararsınız, sorunun başladığı anı bulursunuz, ekrandaki öğeye tıklarsınız (ya da öğesi olmayan bir hata için sayfa düzeyinde olay açarsınız) ve "ne olmalıydı?" sorusunu yanıtlarsınız. Ajana gidecek içeriği gizlenmiş hâliyle önizleyip gönderirsiniz.
 
 Ajanınız (Claude Code, Cursor, Codex…) MCP üzerinden şu bilgileri içeren bir **olay paketi** alır:
