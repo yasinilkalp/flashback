@@ -5,7 +5,7 @@ export { ERROR_SUGGESTIONS, RewindError, formatError } from './errors.js';
 export type { ErrorCode } from './errors.js';
 export { IncidentStore, QuotaError, isClosed } from './store.js';
 export type { StoreOptions } from './store.js';
-export { createReceiver, isAllowedHost, isAllowedOrigin, relativizeSourcePath } from './http.js';
+export { createReceiver, isAllowedHost, isAllowedOrigin } from './http.js';
 export type { Receiver, ReceiverOptions } from './http.js';
 export { DATA_INTRO, buildReport, confidenceItems, fence, primarySummary, resolvePrimary, sessionHints } from './report.js';
 export type { ReportOptions } from './report.js';

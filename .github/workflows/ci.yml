@@ -45,7 +45,7 @@ jobs:
 
   firefox-source:
     # EK-B3: Firefox yığın biçimi (fn@url:satır:sütun) ile JSX kaynak çözümleme ölçümü. Firefox "En iyi çaba"
-    # sütunundan "Doğrulandı"ya bu iş birkaç hafta yeşil kalırsa çıkar (frd/06-ek-b3-spike.md). Build'i kırmaz.
+    # sütunundan "Doğrulandı"ya bu iş birkaç hafta yeşil kalırsa çıkar (spikes/ek-b3/README.md). Build'i kırmaz.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: true

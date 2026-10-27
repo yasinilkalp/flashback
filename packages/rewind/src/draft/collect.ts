@@ -8,7 +8,7 @@ import { buildSelectors } from '../dom/selector.js';
 import type { ConsoleRecord } from '../recorder/console.js';
 import { locateSource } from '../source/locate.js';
 import type { SourceResolver } from '../source/sourcemap.js';
-import { isInternalSource, parseStack, userFrames } from '../source/stack.js';
+import { isDependencyPath, parseStack, userFrames } from '../source/stack.js';
 import type { DraftEnv, TargetCapture } from './build.js';
 
 const STYLE_PROPS = [
@@ -112,8 +112,14 @@ export async function captureTarget(replayNode: Element, replayMirror: ReplayMir
   const component = nearestComponent(fiber);
   const { props, state } = propsAndState(component);
   const framework = fiber ? 'react' : (detectFramework(fiberNode) ?? (fiberNode ? detectPageFramework(fiberNode.ownerDocument) : undefined));
-  const located = fiber ? await locateSource(fiber, resolver) : {};
-  const notes = [resolutionReason, located.note];
+  const location = fiberNode ? await locateSource(fiberNode, resolver) : undefined;
+  const notes = [resolutionReason];
+  if (location?.fromAncestor) {
+    notes.push("öğenin kendi JSX konumu yok (bağımlılık kodunda ya da React'in sahip yığını sınırı aşılınca oluşturulmuş); kaynak satırı en yakın atanın JSX'i");
+  }
+  if (location?.serverComponent) {
+    notes.push('React Server Component öğesi (sunucuda oluşturuldu); bileşen yığını yalnızca istemci bileşenlerini içerir');
+  }
   // FR-MARK-06: React dışı öğe — bileşen yığını boş, kaynak satırı yok; diğer veriler eksiksiz.
   if (fiberNode && !fiber) {
     notes.push(
@@ -128,7 +134,7 @@ export async function captureTarget(replayNode: Element, replayMirror: ReplayMir
     resolution,
     ...(reason ? { resolutionReason: reason } : {}),
     ...(framework ? { framework } : {}),
-    location: located.location,
+    location,
     componentStack: componentStack(fiber),
     props,
     state,
@@ -149,11 +155,11 @@ export async function resolveConsoleSources(entries: ConsoleRecord[], resolver: 
       // Karma adlı paket parçaları (Turbopack) ya da konsolu saran çerçeve kodu bağımlılığa çözülebilir; yığındaki
       // sonraki kullanıcı çerçevesi denenir. Hiçbiri kullanıcı koduna çözülmezse ilk çözüm kalır.
       let best = loc;
-      if (isInternalSource(loc.file)) {
+      if (isDependencyPath(loc.file)) {
         for (const next of userFrames(c.stack).filter((f) => f.url !== frame.url || f.line !== frame.line).slice(0, 8)) {
           const l = await resolver.resolve(next);
           if (!l.resolved) break;
-          if (!isInternalSource(l.file)) {
+          if (!isDependencyPath(l.file)) {
             best = l;
             break;
           }

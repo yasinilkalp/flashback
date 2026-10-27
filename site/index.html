@@ -961,7 +961,8 @@ root.<span class="f">render</span>(
       <li>Yalnızca geliştirme ortamı içindir.</li>
       <li>Bileşen bilgisi yalnızca React için çıkarılır.</li>
       <li>Props/state değerleri işaretleme anında canlı uygulamadan okunur; rapor bunu belirtir.</li>
-      <li>Next.js ve React 18 kaynak çözümlemesi henüz gerçek kurulumlarda doğrulanmadı.</li>
+      <li>React 19'da HMR ile değişen bir bileşenin eski öğelerinin satırı, sayfa yenilenene kadar doğrulanamaz; Rewind bunu açıkça işaretler.</li>
+      <li>Sunucu bileşenlerinin (RSC) satırı yalnızca Next.js'te ve en iyi çaba ile çözülür.</li>
       <li>Canvas, video ve çapraz kökenli iframe içerikleri oynatılmaz; WebSocket mesajları kaydedilmez.</li>
       <li>WSL2, Docker ve uzaktan geliştirme ortamları v1.0'da desteklenmez.</li>
     </ul>

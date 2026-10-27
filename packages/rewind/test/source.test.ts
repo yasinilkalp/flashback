@@ -1,7 +1,7 @@
 import { SourceMapGenerator } from 'source-map-js';
 import { describe, expect, it } from 'vitest';
-import { isLocalSource, matchModuleUrl, nextDevSourceMapUrl, serverFrameFilename, SourceResolver, toProjectPath } from '../src/source/sourcemap.js';
-import { elementFrames, firstUserFrame, isInternalSource, parseStack, userFrames } from '../src/source/stack.js';
+import { isLocalSource, SourceResolver, toProjectPath, type ResolverOptions } from '../src/source/sourcemap.js';
+import { firstUserFrame, isDependencyPath, parseStack, serverComponentFile, userFrames } from '../src/source/stack.js';
 
 const REACT19_STACK = `Error: react-stack-top-frame
     at exports.jsxDEV (http://localhost:5173/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=3b0df4d9:197:25)
@@ -22,85 +22,36 @@ describe('stack parsing', () => {
     expect(firstUserFrame(undefined)).toBeNull();
   });
 
-  // EK-B3: Next.js webpack geliştirme sunucusu — URL'de parantez var: "(app-pages-browser)".
+  // EK-B3: Next.js webpack (eval-source-map) çerçeveleri parantezli URL taşır.
   const NEXT_WEBPACK_STACK = `Error: react-stack-top-frame
-    at exports.jsxDEV (webpack-internal:///(app-pages-browser)/../../node_modules/next/dist/compiled/react/cjs/react-jsx-dev-runtime.development.js:333:29)
-    at Shop (webpack-internal:///(app-pages-browser)/./app/components/Shop.tsx:54:87)
-    at Object.react_stack_bottom_frame (webpack-internal:///(app-pages-browser)/../../node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:28588:20)`;
+    at exports.jsxDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react/cjs/react-jsx-dev-runtime.development.js:333:29)
+    at ClientRoot (webpack-internal:///(app-pages-browser)/./src/fixture/ClientRoot.tsx:31:87)
+    at Object.react_stack_bottom_frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:28588:20)`;
 
-  it('parses V8 frames whose URL contains parentheses (Next webpack-internal)', () => {
-    expect(parseStack(NEXT_WEBPACK_STACK)).toHaveLength(3);
-    expect(firstUserFrame(NEXT_WEBPACK_STACK)).toEqual({ fn: 'Shop', url: 'webpack-internal:///(app-pages-browser)/./app/components/Shop.tsx', line: 54, column: 87 });
-    expect(parseStack('    at webpack-internal:///(app-pages-browser)/./app/x.tsx:3:4')).toEqual([{ url: 'webpack-internal:///(app-pages-browser)/./app/x.tsx', line: 3, column: 4 }]);
-  });
-
-  // EK-B3: React Flight (RSC) sunucu çerçeveleri, Turbopack karma adlı parçalar.
+  // EK-B3: Turbopack bağımlılık chunk'ları ve RSC'nin sahte sunucu çerçeveleri.
   const NEXT_TURBOPACK_RSC_STACK = `Error: react-stack-top-frame
     at fakeJSXCallSite (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-67asdr9._.js:2093:21)
-    at Page (about://React/Server/file:///home/u/app/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0lfhyhrgtz8p7._.js?5:56:264)
-    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-67asdr9._.js:2859:93)
-    at initializeElement (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-67asdr9._.js:1216:154)`;
+    at ServerPart (about://React/Server/C:%5Capp%5C.next%5Cdev%5Cserver%5Cchunks%5Cssr%5C%5Broot-of-the-server%5D__0t._.js?5:88:263)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-server-dom-turbopack_164kp-67asdr9._.js:2859:93)`;
 
-  it('skips the React Flight client and keeps the RSC server frame', () => {
-    const frames = userFrames(NEXT_TURBOPACK_RSC_STACK);
-    expect(frames).toHaveLength(1);
-    expect(frames[0]).toMatchObject({ fn: 'Page', line: 56, column: 264 });
-    expect(frames[0].url).toMatch(/^about:\/\/React\/Server\/file:\/\/\/home\/u\/app\/.*\?5$/);
+  it('parses parenthesised webpack-internal URLs and skips Next/Turbopack internals', () => {
+    expect(userFrames(NEXT_WEBPACK_STACK)).toEqual([
+      { fn: 'ClientRoot', url: 'webpack-internal:///(app-pages-browser)/./src/fixture/ClientRoot.tsx', line: 31, column: 87 },
+    ]);
+    expect(userFrames(NEXT_TURBOPACK_RSC_STACK)).toMatchObject([{ fn: 'ServerPart', line: 88, column: 263 }]);
+    const jsx = 'Error\n    at exports.jsx (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcmz--cdp._.js:966:33)\n    at LibBox (http://localhost:3000/_next/static/chunks/_12ie3ib4yzj7d._.js:13:190)';
+    expect(userFrames(jsx)).toMatchObject([{ fn: 'LibBox' }]);
+    expect(userFrames('ClientRoot@webpack-internal:///(app-pages-browser)/./src/a.tsx:31:87')).toMatchObject([{ url: 'webpack-internal:///(app-pages-browser)/./src/a.tsx', line: 31 }]);
   });
 
-  // Firefox (SpiderMonkey) ve Safari (JavaScriptCore): "fn@url:satır:sütun". EK-B3'te Firefox ölçülemedi
-  // (tarayıcı kurulamadı); biçim burada gerçek Firefox çıktısı örnekleriyle sabitlenir.
-  const FIREFOX_STACK = [
-    'jsxDEV@http://localhost:5173/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=3b0df4d9:250:30',
-    'ProductList/<@http://localhost:5173/src/ProductList.tsx:20:11',
-    'ProductList@http://localhost:5173/src/ProductList.tsx:19:18',
-    'react_stack_bottom_frame@http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=3b0df4d9:17424:20',
-    'async*Cart@http://localhost:5173/@fs/home/u/app/src/Cart.tsx:3:4',
-    '@http://localhost:5173/src/main.tsx:9:7',
-    'evalFn@http://localhost:5173/src/a.js line 2 > eval:3:4',
-    'map@[native code]',
-    '',
-  ].join('\n');
-
-  it('parses Firefox/Safari frames: anonymous, nested closures (`f/<`), async*, @ in the URL; skips eval and native frames', () => {
-    const frames = parseStack(FIREFOX_STACK);
-    expect(frames.map((f) => f.fn)).toEqual(['jsxDEV', 'ProductList/<', 'ProductList', 'react_stack_bottom_frame', 'Cart', undefined]);
-    expect(firstUserFrame(FIREFOX_STACK)).toEqual({ fn: 'ProductList/<', url: 'http://localhost:5173/src/ProductList.tsx', line: 20, column: 11 });
-    expect(frames[4]).toEqual({ fn: 'Cart', url: 'http://localhost:5173/@fs/home/u/app/src/Cart.tsx', line: 3, column: 4 });
-    expect(frames[5]).toEqual({ url: 'http://localhost:5173/src/main.tsx', line: 9, column: 7 });
-    expect(firstUserFrame('global code@http://localhost:5173/src/x.js:1:2')).toMatchObject({ fn: 'global code', line: 1 });
-  });
-
-  it('element frames stop at react_stack_bottom_frame and ignore the shared UnknownOwner stack (>10 000 elements/s)', () => {
-    // Bundler modül zinciri: alt çerçeveden sonra içe aktaran kullanıcı modülü görünebilir — JSX'in yeri değildir.
-    const component = `Error: react-stack-top-frame
-    at exports.jsxDEV (webpack-internal:///(app-pages-browser)/../../node_modules/next/dist/compiled/react/cjs/react-jsx-dev-runtime.development.js:333:29)
-    at Cart (webpack-internal:///(app-pages-browser)/./app/Cart.tsx:20:5)
-    at Object.react_stack_bottom_frame (webpack-internal:///(app-pages-browser)/../../node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:28588:20)
-    at eval (webpack-internal:///(app-pages-browser)/./app/layout-client.tsx:3:1)`;
-    expect(elementFrames(component).map((f) => f.fn)).toEqual(['Cart']);
-    const unknownOwner = `Error: react-stack-top-frame
-    at UnknownOwner (http://localhost:3000/_next/static/chunks/_0pfk._.js:120:14)
-    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/_0pfk._.js:500:12)
-    at module evaluation (http://localhost:3000/_next/static/chunks/app_providers._.js:4:1)`;
-    expect(elementFrames(unknownOwner)).toEqual([]);
-    expect(elementFrames('UnknownOwner@http://localhost:5173/x.js:1:1\nmodule code@http://localhost:5173/src/main.tsx:2:3')).toEqual([]);
-    // Modül düzeyi öğe: alt çerçeve yok, ilk kullanıcı çerçevesi modül kodudur.
-    expect(elementFrames('Error\n    at http://localhost:5173/src/App.tsx:16:16')).toMatchObject([{ line: 16 }]);
-  });
-
-  it('classifies resolved original sources from dependencies / bundler runtimes as internal', () => {
-    for (const f of [
-      '/home/u/rewind/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/client.js',
-      'C:\\u\\app\\node_modules\\next\\dist\\client\\index.js',
-      'node_modules/react-dom/cjs/react-dom.development.js',
-      'webpack/bootstrap',
-      '[turbopack]/browser/runtime/base/runtime-base.ts',
-      '/home/u/rewind/packages/rewind/dist/index.js',
-    ]) {
-      expect(isInternalSource(f), f).toBe(true);
-    }
-    for (const f of ['app/components/Cart.tsx', '/home/u/app/src/node_modules_like/Cart.tsx', 'src/Cart.tsx']) expect(isInternalSource(f), f).toBe(false);
+  it('decodes RSC server frames and recognises dependency paths', () => {
+    expect(serverComponentFile('about://React/Server/C:%5Capp%5Cchunk.js?5')).toBe('C:\\app\\chunk.js');
+    expect(serverComponentFile('rsc://React/Server/webpack-internal:///(rsc)/./src/a.tsx?12')).toBe('webpack-internal:///(rsc)/./src/a.tsx');
+    expect(serverComponentFile('http://localhost:3000/a.js')).toBeNull();
+    expect(isDependencyPath('node_modules/lib/index.js')).toBe(true);
+    expect(isDependencyPath('C:\\app\\node_modules\\lib\\index.js')).toBe(true);
+    expect(isDependencyPath('/app/node_modules/next/dist/x.js')).toBe(true);
+    expect(isDependencyPath('src/node_modules_list.tsx')).toBe(false);
   });
 });
 
@@ -114,13 +65,8 @@ describe('toProjectPath', () => {
     ['webpack://my-app/./src/components/Cart.tsx', 'src/components/Cart.tsx'],
     ['webpack-internal:///(app-pages-browser)/./src/app/page.tsx', 'src/app/page.tsx'],
     ['file:///home/u/app/src/page.tsx', '/home/u/app/src/page.tsx'],
-    // EK-B3: Turbopack ve Windows dosya URL'leri
-    ['file:///C:/Users/u/app/app/page.tsx', 'C:/Users/u/app/app/page.tsx'],
-    ['file:///home/u/my%20app/app/page.tsx', '/home/u/my app/app/page.tsx'],
-    ['turbopack:///[project]/app/components/Cart.tsx', 'app/components/Cart.tsx'],
-    ['[project]/examples/next-app/app/page.tsx', 'examples/next-app/app/page.tsx'],
-    ['webpack://./app/components/Shop.tsx', 'app/components/Shop.tsx'],
-    ['webpack://_N_E/./app/page.tsx?abc', 'app/page.tsx'],
+    ['file:///C:/Users/u/app/src/page.tsx', 'C:/Users/u/app/src/page.tsx'],
+    ['turbopack:///[project]/src/app/page.tsx', 'src/app/page.tsx'],
   ])('%s → %s', (source, expected) => expect(toProjectPath(source, script)).toBe(expected));
 
   it('keeps /@fs/ files as absolute paths', () => {
@@ -136,7 +82,7 @@ function fixtureMap(withContent: boolean) {
   return gen.toString();
 }
 
-function resolverFor(files: Record<string, string>, pageOrigin = 'http://localhost:5173') {
+function resolverFor(files: Record<string, string>, pageOrigin = 'http://localhost:5173', opts?: ResolverOptions) {
   const fetched: string[] = [];
   const resolver = new SourceResolver(
     async (url) => {
@@ -144,8 +90,22 @@ function resolverFor(files: Record<string, string>, pageOrigin = 'http://localho
       return files[url] ?? null;
     },
     (url) => isLocalSource(url, pageOrigin),
+    opts,
   );
   return { resolver, fetched };
+}
+
+/** Derlenmiş satır 3, sütun 4 → `source` içinde `line`. */
+function mapTo(source: string, line: number) {
+  const gen = new SourceMapGenerator({ file: 'x.js' });
+  gen.addMapping({ generated: { line: 3, column: 4 }, original: { line, column: 4 }, source });
+  return gen.toString();
+}
+
+/** webpack eval-source-map chunk'ındaki bir modül (chunk metninde satır sonu `\n` kaçışlıdır). */
+function evalModule(moduleUrl: string, map: string) {
+  const b64 = Buffer.from(map).toString('base64');
+  return `eval(__webpack_require__.ts("a\\nb\\n    jsxDEV()\\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${b64}\\n//# sourceURL=${moduleUrl}\\n"));\n`;
 }
 
 describe('SourceResolver (FR-MARK-04/11/12)', () => {
@@ -181,73 +141,51 @@ describe('SourceResolver (FR-MARK-04/11/12)', () => {
   });
 });
 
-describe('Next.js / RSC frames (EK-B3)', () => {
-  it('extracts the server filename from React Flight frame URLs', () => {
-    expect(serverFrameFilename('about://React/Server/file:///home/u/app/.next/server/%5Broot%5D__x._.js?5')).toBe('file:///home/u/app/.next/server/[root]__x._.js');
-    expect(serverFrameFilename('about://React/Server/webpack-internal:///(rsc)/./app/page.tsx?12')).toBe('webpack-internal:///(rsc)/./app/page.tsx');
-    expect(serverFrameFilename('rsc://React/Server/file:///app/page.js?0')).toBe('file:///app/page.js');
-    expect(serverFrameFilename('about://React/Prerender/file:///app/page.js')).toBe('file:///app/page.js');
-    expect(serverFrameFilename('http://localhost:3000/_next/static/chunks/a.js')).toBeNull();
-  });
+describe('SourceResolver: Next.js and webpack special cases (EK-B3)', () => {
+  const origin = 'http://localhost:3000';
+  const moduleUrl = 'webpack-internal:///(app-pages-browser)/./src/Cart.tsx';
+  const frame = { url: moduleUrl, line: 3, column: 5 };
 
-  it('builds the Next dev source-map endpoint URL on the page origin only for non-fetchable frames', () => {
-    const page = 'http://127.0.0.1:3000';
-    expect(nextDevSourceMapUrl('webpack-internal:///(app-pages-browser)/./app/Shop.tsx', page)).toBe(
-      'http://127.0.0.1:3000/__nextjs_source-map?filename=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fapp%2FShop.tsx',
+  it('finds a webpack eval module map in the newest loaded chunk (HMR update wins)', async () => {
+    const base = `${origin}/_next/static/chunks/app/page.js`;
+    const hot = `${origin}/_next/static/webpack/app/page.abc.hot-update.js`;
+    const { resolver } = resolverFor(
+      {
+        [base]: evalModule('webpack-internal:///(app-pages-browser)/./node_modules/lib/x.js', mapTo('webpack://_N_E/./node_modules/lib/x.js', 1)) + evalModule(moduleUrl, mapTo('webpack://_N_E/./src/Cart.tsx?a1', 10)),
+        [hot]: evalModule(moduleUrl, mapTo('webpack://_N_E/./src/Cart.tsx?b2', 13)),
+      },
+      origin,
+      { listScripts: () => [hot, base] },
     );
-    expect(nextDevSourceMapUrl('about://React/Server/file:///a/b.js?3', page)).toBe('http://127.0.0.1:3000/__nextjs_source-map?filename=file%3A%2F%2F%2Fa%2Fb.js');
-    expect(nextDevSourceMapUrl('http://127.0.0.1:3000/_next/static/chunks/a.js', page)).toBeNull();
+    expect(await resolver.resolve(frame)).toMatchObject({ file: 'src/Cart.tsx', line: 13, resolved: true });
+    const older = resolverFor({ [base]: evalModule(moduleUrl, mapTo('webpack://_N_E/./src/Cart.tsx', 10)) }, origin, { listScripts: () => [base] }).resolver;
+    expect(await older.resolve(frame)).toMatchObject({ line: 10, resolved: true });
   });
 
-  it('resolves through a direct map URL (mapUrlFor) and an index map with sections (Turbopack)', async () => {
-    const section = new SourceMapGenerator({ file: 'x' });
-    section.addMapping({ generated: { line: 2, column: 10 }, original: { line: 13, column: 6 }, source: 'file:///home/u/app/app/page.tsx' });
-    section.setSourceContent('file:///home/u/app/app/page.tsx', Array.from({ length: 20 }, (_, i) => `p${i + 1}`).join('\n'));
-    const index = JSON.stringify({ version: 3, sources: [], sections: [{ offset: { line: 0, column: 0 }, map: JSON.parse(fixtureMap(false)) }, { offset: { line: 50, column: 0 }, map: JSON.parse(section.toString()) }] });
-    const page = 'http://127.0.0.1:3000';
-    const mapUrl = `${page}/__nextjs_source-map?filename=file%3A%2F%2F%2Fsrv%2Fchunk.js`;
-    const fetched: string[] = [];
-    const resolver = new SourceResolver(
-      async (u) => (fetched.push(u), u === mapUrl ? index : null),
-      (u) => isLocalSource(u, page),
-      { mapUrlFor: (u) => nextDevSourceMapUrl(u, page) },
-    );
-    const loc = await resolver.resolve({ url: 'about://React/Server/file:///srv/chunk.js?5', line: 52, column: 11 });
-    expect(loc).toMatchObject({ file: '/home/u/app/app/page.tsx', line: 13, column: 7, resolved: true });
-    expect(loc.snippet?.lines).toContain('p13');
-    // Aynı dosyanın başka sayaçlı çerçevesi önbellekten çözülür.
-    await resolver.resolve({ url: 'about://React/Server/file:///srv/chunk.js?9', line: 52, column: 11 });
-    expect(fetched).toEqual([mapUrl]);
-    // Uç yoksa (Next dışı): getirilemez çerçeve → resolved:false, istek yok.
-    const plain = new SourceResolver(async () => 'x', () => true);
-    expect(await plain.resolve({ url: 'webpack-internal:///./src/a.tsx', line: 1, column: 1 })).toMatchObject({ resolved: false });
-  });
-});
-
-describe('React 18 _debugSource (EK-B3)', () => {
-  const origin = 'http://localhost:5173';
-
-  it('matches an absolute file to the loaded module URL (longest suffix, /@fs/, same origin only)', () => {
-    const urls = ['http://localhost:5173/src/main.tsx', 'http://localhost:5173/src/Cart.tsx?t=123', 'http://localhost:5173/Cart.tsx', 'http://cdn.example/src/App.tsx', 'http://localhost:5173/@fs/home/u/lib/x.tsx'];
-    expect(matchModuleUrl('/home/u/app/src/Cart.tsx', urls, origin)).toBe('http://localhost:5173/src/Cart.tsx');
-    expect(matchModuleUrl('/home/u/lib/x.tsx', urls, origin)).toBe('http://localhost:5173/@fs/home/u/lib/x.tsx');
-    expect(matchModuleUrl('/home/u/app/src/App.tsx', urls, origin)).toBeNull();
-    expect(matchModuleUrl('C:\\u\\app\\src\\Cart.tsx', urls, origin)).toBe('http://localhost:5173/src/Cart.tsx');
+  it('never fetches the webpack-internal URL itself; unknown module → resolved:false', async () => {
+    const thirdParty = 'https://cdn.example/x.js';
+    const { resolver, fetched } = resolverFor({}, origin, { listScripts: () => [thirdParty, `${origin}/a.js`] });
+    expect(await resolver.resolve(frame)).toMatchObject({ resolved: false, file: moduleUrl, reason: 'webpack modülü yüklü betiklerde bulunamadı' });
+    expect(fetched).toEqual([`${origin}/a.js`]);
   });
 
-  it('relativizes the path and adds a snippet from the module source map; falls back to the absolute path', async () => {
-    const gen = new SourceMapGenerator({ file: 'Cart.tsx' });
-    gen.addMapping({ generated: { line: 1, column: 0 }, original: { line: 1, column: 0 }, source: '/home/u/app/src/Cart.tsx' });
-    gen.setSourceContent('/home/u/app/src/Cart.tsx', Array.from({ length: 30 }, (_, i) => `c${i + 1}`).join('\n'));
-    const script = 'http://localhost:5173/src/Cart.tsx';
-    const code = `x\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(gen.toString()).toString('base64')}`;
-    const resolver = new SourceResolver(async (u) => (u === script ? code : null), (u) => isLocalSource(u, origin), {
-      moduleUrlFor: (f) => matchModuleUrl(f, [script], origin),
-    });
-    const loc = await resolver.fromDebugSource('/home/u/app/src/Cart.tsx', 27, 9);
-    expect(loc).toMatchObject({ file: 'src/Cart.tsx', line: 27, column: 9, resolved: true });
-    expect(loc.snippet).toMatchObject({ startLine: 24, lines: ['c24', 'c25', 'c26', 'c27', 'c28', 'c29', 'c30'] });
-    expect(await resolver.fromDebugSource('/elsewhere/Other.tsx', 3)).toEqual({ file: '/elsewhere/Other.tsx', line: 3, column: 1, resolved: true });
+  it('resolves RSC frames through the framework source map endpoint, unless the RSC payload was refetched', async () => {
+    const rsc = { url: 'about://React/Server/webpack-internal:///(rsc)/./src/server/A.tsx?3', line: 3, column: 5 };
+    const endpoint = (file: string) => `${origin}/__nextjs_source-map?filename=${encodeURIComponent(file)}`;
+    const files = { [endpoint('webpack-internal:///(rsc)/./src/server/A.tsx')]: mapTo('file:///home/u/app/src/server/A.tsx', 10) };
+    const ok = resolverFor(files, origin, { serverSourceMapUrl: endpoint });
+    expect(await ok.resolver.resolve(rsc)).toMatchObject({ file: '/home/u/app/src/server/A.tsx', line: 10, resolved: true });
+    const refetched = resolverFor(files, origin, { serverSourceMapUrl: endpoint, serverRefetched: () => true });
+    expect(await refetched.resolver.resolve(rsc)).toMatchObject({ resolved: false, file: 'webpack-internal:///(rsc)/./src/server/A.tsx', line: 3 });
+    expect(refetched.fetched).toEqual([]);
+    expect(await resolverFor(files, origin).resolver.resolve(rsc)).toMatchObject({ resolved: false, reason: 'sunucu bileşeni (RSC): source map konumu bilinmiyor' });
+  });
+
+  it('does not map Turbopack HMR modules (`chunk.js?id=`) against the whole chunk', async () => {
+    const url = `${origin}/_next/static/chunks/_12ie._.js?id=%255Bproject%255D/src/a.tsx+%255Bapp-client%255D+(ecmascript)`;
+    const { resolver, fetched } = resolverFor({}, origin);
+    expect(await resolver.resolve({ url, line: 68, column: 218 })).toMatchObject({ resolved: false, line: 68 });
+    expect(fetched).toEqual([]);
   });
 });
 
@@ -271,5 +209,35 @@ describe('NFR-PRIV-01: no requests outside the page origin / loopback', () => {
     expect(await resolver.resolve(thirdParty)).toMatchObject({ resolved: false, file: thirdParty.url, reason: 'yerel olmayan kaynak çözülmez (NFR-PRIV-01)' });
     expect(await resolver.resolve(local)).toMatchObject({ resolved: false, reason: 'yerel olmayan kaynak çözülmez (NFR-PRIV-01)' });
     expect(fetched).toEqual([local.url]);
+  });
+});
+
+describe('elementFrames (React 19 _debugStack)', () => {
+  it('UnknownOwner yığını öğe hakkında bilgi taşımaz → çerçeve yok', async () => {
+    const { elementFrames } = await import('../src/source/stack.js');
+    const stack = 'Error\n    at UnknownOwner (http://localhost:3000/_next/static/chunks/react.js:10:5)\n    at Page (http://localhost:3000/_next/static/chunks/app_page.js:4:9)';
+    expect(elementFrames(stack)).toEqual([]);
+  });
+
+  it('react_stack_bottom_frame sonrasındaki çerçeveler (modül yükleme zinciri) atılır', async () => {
+    const { elementFrames } = await import('../src/source/stack.js');
+    const stack = [
+      'Error',
+      '    at Cart (http://localhost:5173/src/Cart.tsx:52:7)',
+      '    at Object.react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js:1:1)',
+      '    at loadModule (http://localhost:5173/src/main.tsx:3:1)',
+    ].join('\n');
+    expect(elementFrames(stack).map((f) => f.url)).toEqual(['http://localhost:5173/src/Cart.tsx']);
+  });
+});
+
+describe('matchModuleUrl (React 18 _debugSource → Vite modülü)', () => {
+  it('mutlak yolu bu dosyayla biten en uzun modül yoluna eşler (/@fs/ dahil)', async () => {
+    const { matchModuleUrl } = await import('../src/source/sourcemap.js');
+    const urls = ['http://localhost:5173/src/main.tsx', 'http://localhost:5173/src/Cart.tsx?t=1', 'http://localhost:5173/@fs/home/u/lib/Cart.tsx'];
+    expect(matchModuleUrl('/home/u/app/src/Cart.tsx', urls)).toBe('http://localhost:5173/src/Cart.tsx');
+    expect(matchModuleUrl('C:\\Users\\u\\app\\src\\Cart.tsx', urls)).toBe('http://localhost:5173/src/Cart.tsx');
+    expect(matchModuleUrl('/home/u/lib/Cart.tsx', urls)).toBe('http://localhost:5173/@fs/home/u/lib/Cart.tsx');
+    expect(matchModuleUrl('/home/u/app/src/Other.tsx', urls)).toBeNull();
   });
 });

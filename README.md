@@ -175,13 +175,14 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 
 - **Halka tampon:** rrweb her `bufferSeconds/2` saniyede bir tam anlık görüntü alır ve son üç dilimi tutar; böylece her an en az `bufferSeconds` geçmiş vardır.
 - **Replay ile canlı öğe eşlemesi:** Tekrar oynatmada seçtiğiniz öğe, rrweb düğüm kimliği üzerinden canlı sayfadaki aynı öğeye bağlanır ve React fiber'ı buradan okunur. Öğe artık yoksa en yakın canlı ata kullanılır ve bu kanıt güveninde belirtilir.
-- **Kaynak satırları:** React 19'da `_debugStack`, React 18'de `_debugSource`; source map'ler tarayıcıda çözülür. Çözülemezse yanlış satır verilmez, `resolved: false` işaretlenir. Yalnızca sayfanın kendi kökeni ve loopback kaynakları çözülür.
+- **Kaynak satırları:** React 19'da `_debugStack`, React 18'de `_debugSource`; source map'ler tarayıcıda çözülür. webpack'in `eval` modüllerinin haritası yüklenen chunk'lardan, Next.js sunucu bileşenlerininki dev sunucusundan okunur. Çözülemezse ya da konum HMR yüzünden bayat olabilirse yanlış satır verilmez, `resolved: false` işaretlenir. Yalnızca sayfanın kendi kökeni ve loopback kaynakları çözülür. Mutlak dosya yollarını alıcı proje köküne göre kısaltır.
 - **Alıcı güvenliği:** `Host` başlığı doğrulanır (DNS rebinding), `Origin` izin listesine bakılır, POST'ta `application/json` zorunludur, gövde boyutu ve olay sayısı sınırlıdır.
 
 ## Bilinen sınırlar
 
 - Props/state değerleri işaretleme anında canlı uygulamadan okunur; geçmişteki ana ait değildir. Rapor bunu açıkça belirtir.
-- Bileşen bilgisi yalnızca React için çıkarılır; React dışı öğelerde (Vue smoke testi) bileşen yığını boş kalır ve paket bunu belirtir. JSX kaynak satırı Chromium'da React 19 + Vite, React 18.3 + Vite ve Next.js 16 App Router (Turbopack ve webpack) kurulumlarında ölçüldü (EK-B3: [`frd/06-ek-b3-spike.md`](frd/06-ek-b3-spike.md)). Firefox ve Safari'de ölçülmedi (en iyi çaba). React Server Component öğelerinin satırı yalnızca Next.js geliştirme sunucusunda çözülür (en iyi çaba); çözülemezse `resolved: false` verilir.
+- Bileşen bilgisi yalnızca React için çıkarılır; React dışı öğelerde (Vue smoke testi) bileşen yığını boş kalır ve paket bunu belirtir. Kaynak satırı çözümlemesi Vite (React 18.3 ve 19) ile Next.js App Router'da (Turbopack ve webpack) doğrulandı ([EK-B3](spikes/ek-b3/README.md)). Sunucu bileşenlerinin (RSC) satırı en iyi çaba ile çözülür.
+- React 19'da, HMR ile değiştirilen bir bileşenin değişiklikten önce oluşmuş öğelerinin satırı doğrulanamaz. Rewind bu satırı `resolved: false` olarak işaretler ve dosya adını yine verir. Doğru satır için sayfayı yenileyip hatayı tekrarlayın.
 - Canvas, video ve çapraz kökenli iframe içerikleri tekrar oynatılmaz. WebSocket mesaj içerikleri kaydedilmez.
 - WSL2, Docker ve uzaktan geliştirme ortamları v1.0'da desteklenmez.
 - Yalnızca geliştirme ortamı içindir.

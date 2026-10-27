@@ -1,0 +1,18 @@
+{
+  "name": "ekb3-next16",
+  "private": true,
+  "scripts": { "dev": "next dev" },
+  "dependencies": {
+    "ekb3-lib": "file:../../.packs/ekb3-lib-1.0.0.tgz",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "rewind-devtools": "file:../../.packs/rewind-devtools-0.1.0.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "5.9.3"
+  }
+}

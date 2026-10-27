@@ -9,7 +9,8 @@ import { collectEnv, getTabId, resolveConsoleSources } from './draft/collect.js'
 import { prepareSubmission, type Submission } from './draft/report.js';
 import { network } from './recorder/early.js';
 import { Recorder, type FrozenSnapshot } from './recorder/recorder.js';
-import { isLocalSource, matchModuleUrl, nextDevSourceMapUrl, SourceResolver } from './source/sourcemap.js';
+import { pageResolverOptions } from './source/environment.js';
+import { isLocalSource, SourceResolver } from './source/sourcemap.js';
 import { deliverFallback, PendingQueue, ReceiverClient, type ReceiverStatus } from './transport.js';
 
 const HEALTH_INTERVAL_MS = 3000;
@@ -61,18 +62,6 @@ export function unreadCount(incidents: IncidentSummary[], seen: Record<string, s
   return n;
 }
 
-/** Sayfanın yüklediği betik/modül URL'leri (kaynak zamanlaması + `<script src>`). */
-function loadedScriptUrls(): string[] {
-  const urls: string[] = [];
-  try {
-    for (const e of performance.getEntriesByType('resource')) urls.push(e.name);
-  } catch {
-    /* kaynak zamanlaması yok */
-  }
-  for (const s of Array.from(document.scripts)) if (s.src) urls.push(s.src);
-  return urls;
-}
-
 export class RewindController {
   readonly recorder: Recorder;
   readonly client: ReceiverClient;
@@ -99,12 +88,7 @@ export class RewindController {
         return res.ok ? res.text() : null;
       },
       (url) => isLocalSource(url, location.origin),
-      {
-        // Next.js geliştirme sunucusu: webpack-internal ve RSC sunucu çerçeveleri için source map ucu.
-        mapUrlFor: (url) => ((window as { next?: { version?: string } }).next?.version ? nextDevSourceMapUrl(url, location.origin) : null),
-        // React 18 `_debugSource` mutlak yolu → sayfanın yüklediği modül (Vite).
-        moduleUrlFor: (file) => matchModuleUrl(file, loadedScriptUrls(), location.origin),
-      },
+      pageResolverOptions(),
     );
     this.state = { open: false, receiver: 'disconnected', bufferMs: 0, memoryWarning: false, incidents: null, unread: 0, queued: this.queue.size, queueDelivered: 0 };
   }

@@ -12,7 +12,7 @@
 | Hazırlayan | Claude (Yasin İlkalp Arabacı adına) |
 | Onaylayıcı | Yasin İlkalp Arabacı (USTA) — ürün sahibi |
 | Durum | Onay bekliyor (bkz. §17) |
-| Girdiler | `01-FRD-v0.1-taslak.md`, `02-PM-inceleme.md` (39/100), `03-oneri-tartismasi.md`, `05-uygulama-durumu.md`, `06-ek-b3-spike.md`, `07-nfr-olcumleri.md` |
+| Girdiler | `01-FRD-v0.1-taslak.md`, `02-PM-inceleme.md` (39/100), `03-oneri-tartismasi.md`, `05-uygulama-durumu.md`, `spikes/ek-b3/README.md`, `07-nfr-olcumleri.md` |
 | Tek doğruluk kaynağı | Davranış, varsayılan değerler ve sözleşmeler için bağlayıcı kaynak bu belgedir. README buradaki tablolarla tutarlı tutulur (§9.4, FR-CFG-10). |
 
 ### Değişiklik geçmişi
@@ -21,7 +21,8 @@
 |---|---|---|
 | v0.1 | 26.10.2026 | İlk taslak. README ve proje tanımından türetildi. |
 | v1.0 | 27.10.2026 | PM incelemesindeki 25 önerinin tamamı daraltılarak işlendi. İki ajanın tartışmasından 6 ek öneri ve 11 moderatör kararı eklendi. Belgeye tehdit modeli, sürüm kesimi, destek matrisi, sözleşmeler, sayısal NFR'ler, risk kaydı ve izlenebilirlik bölümleri girdi. |
-| v1.1 | 27.10.2026 | Uygulamadan gelen sapmalar işlendi (D-1…D-10). EK-B3 spike'ının sonucuyla destek matrisi güncellendi (§3.3). NFR-PERF-01'e ölçüm profili eklendi. FR-RCV-06 `project` başlığıyla somutlaştı. Güvenlik incelemesinden gelen kurallar FR-PKG-08, FR-REPRO-SEC-01 ve FR-REPRO-SEC-03'e yazıldı. AS-2, AS-7 ve AS-9 kapandı; AS-10 eklendi. Uygulama durumu `05-uygulama-durumu.md` belgesinde izlenir; bu belgedeki "Durum" sütunu v1.0'daki hâliyle bırakıldı. |
+| v1.0.1 | 27.10.2026 | EK-B3 spike'ının sonuçları işlendi (§3.5'in öngördüğü çıktı): destek matrisi (§3.3), RSC satırı (§3.2), FR-MARK-04 durumu, R1 ve yeni HMR riski (v1.1'de R13), AS-7. Ölçüm ve yöntem: `spikes/ek-b3/README.md`. |
+| v1.1 | 27.10.2026 | Uygulamadan gelen sapmalar işlendi (D-1…D-14). v1.0.1'deki EK-B3 sonuçları korundu; HMR riski R13 olarak numaralandı. NFR-PERF-01'e ölçüm profili eklendi. FR-RCV-06 `project` başlığıyla somutlaştı. Güvenlik incelemesinden gelen kurallar FR-PKG-08, FR-REPRO-SEC-01 ve FR-REPRO-SEC-03'e yazıldı. AS-2, AS-7 ve AS-9 kapandı; AS-10 eklendi. Uygulama durumu `05-uygulama-durumu.md` belgesinde izlenir; bu belgedeki "Durum" sütunu v1.0'daki hâliyle bırakıldı. |
 
 ### Bu belgede kullanılan etiketler
 
@@ -127,7 +128,7 @@ Bu belge v1.0 sürümünün **ne yapması gerektiğini** tanımlar. Uygulamaya a
 | Sunucu tarafı log ve istisna toplama (API route hataları, backend logları) | Yalnızca ağ yanıtı görülür. |
 | WebSocket ve EventSource mesaj içeriği | — |
 | Canvas, video ve çapraz kökenli iframe içeriklerinin tekrar oynatılması | — |
-| React Server Components için kaynak çözümleme (Next.js dışı) | Yalnızca Next.js 16 geliştirme sunucusunda "En iyi çaba" (§3.3). |
+| Next.js dışındaki RSC çerçeveleri (ör. Waku, React Router RSC) için kaynak çözümleme | Sunucu bileşeninin source map'i çerçeveye özgü bir uçtan gelir. Next.js'te "en iyi çaba" olarak desteklenir (§3.3, EK-B3). Diğer çerçevelerde konum `resolved:false` olur. |
 | CI ortamında kayıt, mobil ve yerel uygulamalar (React Native) | — |
 | WSL2, Docker, devcontainer ve Codespaces | Tarayıcı ile alıcı farklı ağ ad alanlarında olduğu için **v1.0'da desteklenmez**. Port yönlendirme ile çalıştırma yöntemi belgelenir (AS-8). |
 | Vue ve Svelte için bileşen yığını | Diğer veriler toplanır. |
@@ -136,10 +137,10 @@ Bu belge v1.0 sürümünün **ne yapması gerektiğini** tanımlar. Uygulamaya a
 
 | Boyut | Doğrulandı (v1.0) | En iyi çaba | Desteklenmiyor |
 |---|---|---|---|
-| React | 18.3 (Vite), 19.x (Vite; Next 16'nın paketlediği 19.3 canary). Canary CI'da izlenir. | React 18.3 + Next Pages Router | < 18.3 |
-| Geliştirme sunucusu | Vite 8, Next.js 16 App Router (Turbopack ve webpack) | webpack-dev-server, Next Pages Router, Next ≤ 15 | — |
-| RSC kaynak satırı | — | Next.js 16 geliştirme sunucusu (çözülemezse `resolved:false`) | Next dışı RSC çerçeveleri |
-| Kayıt tarayıcısı | Chrome, Edge (Chromium) | Firefox, Safari¹ | — |
+| React | 18.3, 19.x (canary CI'da izlenir)³ | — | < 18.3 |
+| Geliştirme sunucusu | Vite, Next.js App Router (Turbopack ve webpack)¹ | webpack-dev-server, Next Pages Router | — |
+| Kaynak satırı: sunucu bileşenleri (RSC) | — | Next.js App Router (Turbopack ve webpack)¹ | Next.js dışındaki RSC çerçeveleri (`resolved:false`) |
+| Kayıt tarayıcısı | Chrome, Edge (Chromium) | Firefox², Safari | — |
 | Repro tarayıcısı | Chromium (Playwright) | — | Firefox/WebKit ile repro (YH) |
 | Ajan | Claude Code (otomatik e2e), Cursor, Codex (sürüm öncesi elle smoke test) | MCP stdio destekleyen diğer ajanlar | — |
 | İşletim sistemi | Linux, Windows, macOS (CI) | — | — |
@@ -147,9 +148,11 @@ Bu belge v1.0 sürümünün **ne yapması gerektiğini** tanımlar. Uygulamaya a
 | Çerçeve (bileşen bilgisi) | React | Vue (smoke testi CI'da; bileşen yığını boş, diğer veriler tam) | Svelte |
 | Node.js | ≥ 22 (desteklenen LTS sürümleri) | — | ≤ 20 |
 
-EK-B3 sonucu (`06-ek-b3-spike.md`): React 19 + Vite, React 18.3 + Vite, Next 16 Turbopack ve Next 16 webpack kurulumlarında 24–28 öğenin %100'ü doğru çözüldü, **yanlış satır 0**. Ölçüt (≥ %90, yanlış 0) sağlandı.
+¹ **EK-B3 sonucu (27.10.2026, Next.js 16.4.3, React 19.3.1):** Turbopack'te ve webpack'te istemci bileşenlerinin 66 öğesinin tamamı ilk yüklemede doğru `dosya:satır`'a çözüldü (Chromium ve Firefox). Panelden yapılan gerçek seçimlerde de sonuç aynı. Ölçüt (≥ %90, sessizce yanlış satır yok) sağlandı; Next.js App Router "Doğrulandı" sütununda kalır. Sunucu bileşenleri (RSC) de 6/6 çözüldü. Ancak çözümleme Next.js dev sunucusunun belgelenmemiş `/__nextjs_source-map` ucuna dayandığı için "En iyi çaba" sayılır. Ayrıntı: `spikes/ek-b3/README.md`.
 
-¹ Firefox ölçülemedi (tarayıcı indirmesi ağ politikasıyla engellendi). CI'daki `firefox-source` işi yeşil kalırsa Firefox "Doğrulandı" sütununa çıkar.
+² Firefox'ta yığın ayrıştırma dört kurulumda da Chromium ile aynı sonucu verdi (EK-B3). Firefox, kayıt tarafının uçtan uca testi CI'a eklenince "Doğrulandı" sütununa çıkar.
+
+³ **HMR (EK-B3):** React 19, bir öğenin konumunu (`_debugStack`) yalnızca fiber oluşturulurken yazar; güncellemelerde yenilemez. Fast Refresh ile değişen bir bileşende, değişiklikten önce mount edilmiş öğelerin satırı bu yüzden doğrulanamaz. Rewind bu öğeleri `resolved:false` olarak işaretler ve dosya adını verir. Sayfa yenilenince konum yine doğru çözülür. React 18'de `_debugSource` her uzlaştırmada yenilendiği için HMR sonrası da doğru çözülür; yalnızca iki fiber kopyası çeliştiğinde `resolved:false` döner. Kalıcı çözüm `data-rewind-source` (R1, R13).
 
 ### 3.4 Sürüm kesimi ve efor bütçesi
 
@@ -179,7 +182,7 @@ EK-B3 sonucu (`06-ek-b3-spike.md`): React 19 + Vite, React 18.3 + Vite, Next 16 
   - Chromium ve Firefox'ta yığın biçimleri.
 - **Ölçüt:** Her kurulumda 20 rastgele öğe seçiminde dosya:satırın doğru çözülme oranı **≥ %90**. Ayrıca çözülemeyen her durumun `resolved:false` olarak işaretlenmesi, yani **sessizce yanlış satır verilmemesi**.
 - **Çıktı:** Sonuçlar destek matrisine (§3.3) ve risk kaydına (R1) işlenir. Oran düşük çıkarsa Babel/SWC tabanlı `data-rewind-source` yedek planı v1.1'e alınır.
-- **Sonuç (v1.1):** Spike yapıldı; ölçüt sağlandı. `data-rewind-source` yedeği v1.0 için gerekmiyor, React canary ya da kaynak çözümleme e2e testleri kırmızıya düşerse devreye alınır.
+- **Sonuç (27.10.2026):** Ölçüt dört kurulumda da sağlandı: Vite + React 18.3, Vite + React 19, Next.js App Router + Turbopack, Next.js App Router + webpack. İlk yüklemede %100 doğru çözüldü, sessizce yanlış satır yok. Spike sırasında bulunup düzeltilen hatalar ve HMR bulgusu `spikes/ek-b3/README.md` dosyasında. HMR bulgusu yüzünden `data-rewind-source` v1.1'de önerilir (R13).
 
 ## 4. Tanımlar
 
@@ -324,14 +327,14 @@ EK-B3 sonucu (`06-ek-b3-spike.md`): React 19 + Vite, React 18.3 + Vite, Next 16 
 | FR-MARK-01 | Tekrar oynatmada seçilen öğe, düğüm kimliği üzerinden canlı sayfadaki aynı öğeye eşlenir. | M | ✅ | H2 | Fixture derleminde (demo ve Next App Router fixture'ı, en az 30 seçim) seçimlerin ≥ %95'i doğru eşlenir. Eşlenemeyenlerde FR-MARK-10 uygulanır. |
 | FR-MARK-02 | Hedef öğe için benzersiz bir CSS seçici üretilir. | M | ✅ | H2 | Üretilen seçici canlı sayfada tek bir öğe döndürür. |
 | FR-MARK-03 | Bileşen yığını fiber hiyerarşisinden (en yakından köke) çıkarılır. Portallar da doğru yığına bağlanır. | M | ✅ | H2 | Demodaki "Toplam" öğesinin yığınında `Cart` görünür. Portal fixture'ında doğru üst bileşen görünür. |
-| FR-MARK-04 | JSX'in yazıldığı dosya:satır bilgisi alınır (React 19'da `_debugStack`, React 18'de `_debugSource`) ve source map ile orijinal dosyaya çözülür. | M | ✅ / doğrulanacak | H2 | EK-B3 ölçütü (§3.5): ≥ %90 doğru. Çözülemeyen durumda yanlış satır verilmez (FR-MARK-11). |
-| FR-MARK-05 | Hedef öğenin props, state, hesaplanan stilleri ve o andaki HTML'i pakete eklenir. Props ve state'in işaretleme anında canlı uygulamadan okunduğu, Kanıt güveni bloğunda belirtilir. | M | ✅ | H2 | Alanlar pakette bulunur. Kanıt güveni bloğunda "props/state: canlı (geçmiş değil)" satırı görünür. |
+| FR-MARK-04 | JSX'in yazıldığı dosya:satır bilgisi alınır (React 19'da `_debugStack`, React 18'de `_debugSource`) ve source map ile orijinal dosyaya çözülür. | M | ✅ (EK-B3) | H2 | EK-B3 ölçütü (§3.5): ≥ %90 doğru. Çözülemeyen durumda yanlış satır verilmez (FR-MARK-11). |
+| FR-MARK-05 | Hedef öğenin props, state, hesaplanan stilleri ve o andaki HTML'i pakete eklenir. Props ve state'in işaretleme anında canlı uygulamadan okunduğu, Kanıt güveni bloğunda belirtilir. "Canlı" iddiası için güncel fiber kopyası okunur: DOM düğümündeki fiber çift tampon yüzünden eski olabileceğinden React'in `findCurrentFiberUsingSlowPath` algoritması kullanılır, atalar da güncel kopyadan yürünür. | M | ✅ | H2 | Alanlar pakette bulunur. Kanıt güveni bloğunda "props/state: canlı (geçmiş değil)" satırı görünür. |
 | FR-MARK-06 | React dışı çerçevelerde bileşen yığını boş bırakılır; diğer veriler eksiksiz toplanır. | S | ◐ | H6 | Vue smoke testi. Test yapılmazsa README'deki ifade "doğrulanmadı" olarak değiştirilir. |
 | FR-MARK-07 | **Sayfa düzeyi olay.** Geliştirici öğe seçmeden olay oluşturabilir (`target = null`). Bu durumda assertion'lar `page` nesnesi üzerinden yazılır. | M | ○ | H1, H3 | KIS20 olayı öğe seçilmeden oluşturulur. Ajan `page.getByRole('alert')` ile kırmızı→yeşil akışını tamamlar (KK-1). |
 | FR-MARK-08 | **Birincil kanıtın otomatik sıralanması.** Öğe seçilmemişse rapor, işaretlenen ana en yakın ağ hatasını (durum ≥ 400) ya da konsol hatasını en üstte gösterir. | M | ○ | H2, H4 | KIS20 raporunda ilk kanıt `POST /api/coupon → 500` olur. |
 | FR-MARK-09 | Geliştirici zaman çizelgesindeki bir işaretçiyi elle "birincil kanıt" olarak seçebilir. | S | ○ | H2 | Seçilen işaretçi raporda en üstte görünür. |
 | FR-MARK-10 | **Öğe canlı sayfada yoksa** (unmount, navigasyon): seçici ve HTML anlık görüntüden alınır. Bileşen ve kaynak çözümlemesi, canlı DOM'da hâlâ bulunan en yakın atadan denenir. Raporda `resolution: "exact" \| "ancestor" \| "unresolved"` ve nedeni yazılır. | M | ○ | H2 | Unmount fixture'ında `resolution` değeri `ancestor` olur ve Kanıt güveni bloğunda uyarı çıkar. |
-| FR-MARK-11 | **Source map yoksa veya çözülemiyorsa** derlenmiş kodun konumu verilir, `resolved: false` işaretlenir ve uyarı gösterilir. | M | ○ | H2 | Source map'i kapalı fixture'da `resolved: false` ve uyarı görünür. |
+| FR-MARK-11 | **Source map yoksa, çözülemiyorsa veya konum HMR yüzünden doğrulanamıyorsa** derlenmiş kodun konumu (HMR durumunda dosya adı, kod parçası olmadan) verilir, `resolved: false` işaretlenir ve gerekçe panelde ve raporda gösterilir (R13). | M | ○ | H2 | Source map'i kapalı fixture'da `resolved: false` ve uyarı görünür. |
 | FR-MARK-12 | **Satır kayması (HMR).** Source map `sourcesContent` içeriyorsa dosya:satır ile birlikte ±3 satırlık kod parçası ve dosya içeriğinin özeti (hash) saklanır. İçermiyorsa parça atlanır ve Kanıt güveni bloğunda uyarı çıkar. *(Zaman kutusu 1 gün; aşılırsa S'ye iner.)* | M | ○ | H2 | Vite fixture'ında parça doğru satırları içerir. |
 | FR-MARK-13 | Birden fazla "ilgili öğe" seçimi. | YH | ○ | H2 | — |
 
@@ -598,7 +601,7 @@ ConfidenceItem { key, level: "ok"|"warn", message, hint? }
 | Uç | Yöntem | Açıklama | Başarılı yanıt | Hata kodları |
 |---|---|---|---|---|
 | `/health` | GET | `{ name, version, schemaVersion, projectId, projectName }` | 200 | 403, 421 |
-| `/incidents` | POST | Olay oluşturur (şema doğrulaması yapılır). İsteğe bağlı `x-rewind-project` başlığı alıcının proje adıyla uyuşmazsa 409. Mutlak kaynak yolları proje köküne göreli kaydedilir. | 201 `{ id }` | 400, 403, 409, 413, 415, 421, 429, 507 |
+| `/incidents` | POST | Olay oluşturur (şema doğrulaması yapılır). İsteğe bağlı `x-rewind-project` başlığı alıcının proje adıyla uyuşmazsa 409. Hedef dosyasındaki ve konsol kaynaklarındaki mutlak yollar proje köküne göreli kaydedilir; kullanıcı adı pakete girmez. | 201 `{ id }` | 400, 403, 409, 413, 415, 421, 429, 507 |
 | `/incidents` | GET | Olay özetleri (panelin Kayıtlar sekmesi) | 200 `IncidentSummary[]` | 403, 421 |
 | `/incidents/:id` | GET | Tek olay özeti | 200 `IncidentSummary` | 400, 403, 404, 421 |
 | `/incidents/:id/messages?since=` | GET | Mesajları listeler | 200 | 400, 403, 404, 421 |
@@ -760,7 +763,7 @@ Aşağıdaki gereksinimlerin kabul kriterleri otomatik testlerle doğrulanır:
 
 | # | Risk | Olasılık / Etki | Azaltım | Sahip |
 |---|---|---|---|---|
-| R1 | React'in belgelenmemiş iç API'leri (`_debugStack`, `_debugSource`) değişebilir. H2 bu API'lere dayanıyor. | Orta / Yüksek | Canary CI işi; çözümleme başarısız olursa `resolved:false` ile zarif düşüş (FR-MARK-11); EK-B3; `data-rewind-source` yedeği (v1.1) | Teknik lider |
+| R1 | React'in belgelenmemiş iç API'leri (`_debugStack`, `_debugSource`, fiber çift tamponu) değişebilir. H2 bu API'lere dayanıyor. EK-B3'te dört kurulumda ilk yüklemede %100 doğru çözüldü. Next.js RSC çözümlemesi ayrıca belgelenmemiş `/__nextjs_source-map` ucuna dayanıyor. | Orta / Yüksek | Canary CI işi; çözümleme başarısız olursa `resolved:false` ile zarif düşüş (FR-MARK-11); `spikes/ek-b3` ölçümünün sürüm öncesi tekrarı; `data-rewind-source` yedeği (v1.1) | Teknik lider |
 | R2 | rrweb'in bakım ve sürüm durumu | Orta / Orta | Tam sürüm sabitleme; kayıt katmanının soyutlanması | Teknik lider |
 | R3 | Projedeki `@playwright/test` sürümüyle uyumsuzluk | Orta / Orta | Desteklenen sürüm aralığı; başlangıç kontrolü (FR-CFG-11); açık hata kodu | Teknik lider |
 | R4 | MCP istemcileri arasındaki farklar (görüntü desteği, çıktı sınırı) | Yüksek / Orta | Kırpma ve görüntü yedeği (FR-MCP-12); destek matrisi | Ürün sahibi |
@@ -772,6 +775,7 @@ Aşağıdaki gereksinimlerin kabul kriterleri otomatik testlerle doğrulanır:
 | R10 | Uzaktan geliştirme ortamları loopback'e erişemiyor | Yüksek / Orta | Kapsam dışı olarak belgelenmesi; AS-8 | Ürün sahibi |
 | R11 | Ajanın assertion'ı zayıf yazması (kırmızı→yeşil sahte güvence üretir) | Orta / Yüksek | FR-UI-16, FR-MCP-SEC-01, FR-UI-18 | Ürün sahibi |
 | R12 | Efor tahmininin (~12 kişi-hafta) aşılması | Orta / Orta | Takas kuralı (§3.4) | Ürün sahibi |
+| R13 | React 19'da HMR'den önce mount edilmiş öğelerin konumu bayattır (`_debugStack` güncellemede yenilenmez). "Kodu düzenle → hatayı gör → raporla" akışında, düzenlenen dosyadaki öğeler `resolved:false` olur (EK-B3). | Yüksek / Orta | Bayatlık sinyali (`type ≠ elementType`) ile sessizce yanlış satır yerine `resolved:false` ve "sayfayı yenileyin" önerisi; dosya adı yine verilir; kalıcı çözüm olarak `data-rewind-source` (v1.1) | Teknik lider |
 
 ## 14. Bilinen sınırlar
 
@@ -798,7 +802,7 @@ Aşağıdaki gereksinimlerin kabul kriterleri otomatik testlerle doğrulanır:
 | AS-4 | Telefon numarası (TR ve E.164 biçimi) varsayılan olarak gizlenmeli mi? (Şu anki karar: hayır) | Ürün sahibi | v1.0 kod dondurma |
 | AS-5 | Arayüz dilinin varsayılanı: tarayıcı dili mi, yoksa sabit EN mi? | Ürün sahibi | v1.0 kod dondurma |
 | AS-6 | Eşleştirme belirtecinin tasarımı: panele kod girişi mi, bundler enjeksiyonu mu? | Teknik lider | v1.1 planlaması |
-| AS-7 | ~~Next.js (Turbopack ve webpack) ve RSC desteği~~ **Kapandı:** Next 16 App Router (Turbopack ve webpack) "Doğrulandı", RSC "En iyi çaba" (§3.3). | Teknik lider | EK-B3 sonu (≈ 03.11.2026) |
+| AS-7 | ~~Next.js (Turbopack ve webpack) ve RSC desteği~~ **Kapandı (EK-B3):** Next.js App Router doğrulandı; RSC en iyi çaba (§3.3). | Teknik lider | 27.10.2026 |
 | AS-8 | WSL2 ve devcontainer için port yönlendirme rehberi yeterli mi, yoksa v1.1 kapsamına mı girmeli? | Ürün sahibi | v1.1 planlaması |
 | AS-9 | ~~"Durum" sütununun kodla doğrulanması~~ **Kapandı:** kod sıfırdan yazıldı; durum `05-uygulama-durumu.md`'de izlenir. | Teknik lider | Geliştirme başlangıcı |
 | AS-10 | Gönderim önizlemesi her olayın ilk gönderiminde mi, yoksa her tarayıcı oturumunun ilk gönderiminde mi zorunlu olmalı? (Uygulama: oturum başına; FR-UI-08'in kabul kriteri: olay başına.) | Ürün sahibi | v1.0 kod dondurma |

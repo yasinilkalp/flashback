@@ -15,6 +15,7 @@ import {
 import type { RewindConfig } from './config.js';
 import { RewindError } from './errors.js';
 import { applyReopen, toSummary } from './lifecycle.js';
+import { projectRoots, relativizeDraft } from './paths.js';
 import { QuotaError, type IncidentStore } from './store.js';
 import { VERSION } from './version.js';
 
@@ -68,24 +69,7 @@ export function isAllowedHost(hostHeader: string | undefined, port: number, extr
 }
 
 /** Kaydedilen alanları LIMITS'e göre kırpar (NFR-SIZE-01). */
-/**
- * Kaynak dosya yolunu proje köküne göreli yazar (EK-B3 önerisi). Turbopack gibi bazı kurulumlar mutlak yol verir
- * (`/home/u/app/src/Cart.tsx`, `C:/Users/u/app/src/Cart.tsx`); ajan için `src/Cart.tsx` hem kısa hem taşınabilirdir.
- * Proje dışındaki mutlak yollar olduğu gibi kalır.
- */
-export function relativizeSourcePath(file: string | undefined, projectRoot: string | undefined): string | undefined {
-  if (!file || !projectRoot) return file;
-  const norm = (s: string) => s.replace(/\\/g, '/').replace(/^file:\/\/\/?/, '/').replace(/^\/([A-Za-z]:\/)/, '$1');
-  const f = norm(file);
-  const isAbs = f.startsWith('/') || /^[A-Za-z]:\//.test(f);
-  if (!isAbs) return file;
-  const root = norm(projectRoot).replace(/\/+$/, '') + '/';
-  const windowsLike = /^[A-Za-z]:\//.test(root);
-  const matches = windowsLike ? f.toLowerCase().startsWith(root.toLowerCase()) : f.startsWith(root);
-  return matches ? f.slice(root.length) : file;
-}
-
-function clampDraft(d: IncidentDraft, projectRoot?: string): IncidentDraft {
+function clampDraft(d: IncidentDraft): IncidentDraft {
   const cap = (s: string | undefined) => (s === undefined ? s : truncateText(s, LIMITS.bodyBytes).text);
   return {
     ...d,
@@ -102,9 +86,7 @@ function clampDraft(d: IncidentDraft, projectRoot?: string): IncidentDraft {
       };
     }),
     console: d.console.map((c) => ({ ...c, message: cap(c.message)!, stack: cap(c.stack) })),
-    target: d.target
-      ? { ...d.target, file: relativizeSourcePath(d.target.file, projectRoot), html: cap(d.target.html), text: cap(d.target.text) }
-      : null,
+    target: d.target ? { ...d.target, html: cap(d.target.html), text: cap(d.target.text) } : null,
     domSnapshot: truncateText(d.domSnapshot, LIMITS.domBytes).text,
   };
 }
@@ -118,6 +100,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
   const log = opts.log ?? ((m: string) => process.stderr.write(`[rewind-mcp] ${m}\n`));
   const now = opts.now ?? (() => new Date());
   let boundPort = config.port;
+  const roots = config.projectRoot ? projectRoots(config.projectRoot) : [];
   const extraHost = config.host === '127.0.0.1' || config.host === 'localhost' || config.host === '::1' ? undefined : config.host;
   const recent: number[] = [];
 
@@ -214,7 +197,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
         const parsed = IncidentDraftSchema.safeParse(body);
         if (!parsed.success) throw new HttpError(400, `Olay şemaya uymuyor:\n${z.prettifyError(parsed.error)}`);
         try {
-          const inc = store.create(clampDraft(parsed.data, config.projectRoot), config.projectId);
+          const inc = store.create(relativizeDraft(clampDraft(parsed.data), roots), config.projectId);
           log(`Yeni olay: ${inc.id}`);
           return send(res, 201, { id: inc.id });
         } catch (e) {

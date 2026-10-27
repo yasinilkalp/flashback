@@ -3,10 +3,17 @@
  *
  * Betik URL'si getirilir, son `//# sourceMappingURL=` yorumu bulunur (satır içi `data:` ya da URL), tüketici
  * önbelleğe alınır. Çözülemeyen her durumda derlenmiş konum `resolved:false` ile döner — tahmin YAPILMAZ.
+ *
+ * Özel durumlar (EK-B3):
+ * - webpack `eval-source-map` (Next.js webpack, webpack-dev-server): çerçeve URL'si `webpack-internal:///…` olur ve
+ *   getirilemez. Modülün satır içi haritası, sayfanın yüklediği chunk'larda `//# sourceURL=` işaretiyle bulunur
+ *   (en yeni chunk önce; HMR güncellemesi eski kopyanın önüne geçer).
+ * - React Server Components: çerçeve `about://React/Server/<dosya>` olur. Harita yalnızca çerçeve bir uç
+ *   sağlıyorsa (`serverSourceMapUrl`, ör. Next.js dev sunucusu) getirilir; yoksa `resolved:false`.
  */
 import { SourceMapConsumer, type RawSourceMap } from 'source-map-js';
 import { hashContent } from '../hash.js';
-import type { StackFrame } from './stack.js';
+import { serverComponentFile, type StackFrame } from './stack.js';
 
 export interface Snippet {
   startLine: number;
@@ -21,11 +28,10 @@ export interface ResolvedLocation {
   resolved: boolean;
   reason?: string;
   snippet?: Snippet;
-  /**
-   * Konum öğenin kendi JSX'i değil, onu oluşturan en yakın atanınki (öğe bağımlılık kodunda ya da React'in sahip
-   * yığını sınırı aşıldığında oluşturulmuş). Panel ve Kanıt güveni bunu açıkça gösterir.
-   */
+  /** Konum öğenin kendisinin değil, en yakın kullanıcı kodu atasının JSX'i. */
   fromAncestor?: boolean;
+  /** Konum bir React Server Component çerçevesinden (sunucuda oluşturulan öğe). */
+  serverComponent?: boolean;
 }
 
 type FetchText = (url: string) => Promise<string | null>;
@@ -58,18 +64,27 @@ function decodeDataUrl(url: string): string | null {
   return new TextDecoder().decode(bytes);
 }
 
+/** webpack eval modülü: `//# sourceMappingURL=data:…\n//# sourceURL=<modül>` (chunk metninde satır sonu `\n` kaçışlı). */
+const EVAL_MODULE_RE = /\/\/# sourceMappingURL=(data:[^\s"'\\]+)\\n\/\/# sourceURL=([^\s"'\\]+)/g;
+
+/** Chunk'taki kullanıcı modüllerinin satır içi haritaları (bağımlılıklar atlanır; onların çerçeveleri zaten iç sayılır). */
+function indexEvalModules(code: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of code.matchAll(EVAL_MODULE_RE)) if (!m[2].includes('node_modules')) out.set(m[2], m[1]);
+  return out;
+}
+
 /**
- * Kaynak yolunu projeye göreli yapar: köken, Vite `/@fs/`, webpack/Next/Turbopack önekleri atılır.
+ * Kaynak yolunu projeye göreli yapar: köken, Vite `/@fs/`, webpack/Next önekleri atılır.
  * `base`: göreli kaynakların çözüldüğü URL (map URL'si); `scriptUrl`: derlenmiş modülün URL'si.
- * `file://` kaynakları (Turbopack, Next RSC) mutlak dosya yolu olarak kalır; Windows'ta `C:/…` biçimindedir.
  */
 export function toProjectPath(source: string, base: string, scriptUrl = base): string {
   const webpack = /^webpack(?:-internal)?:\/\/\/?(?:\([^)]*\)\/|[^/]*\/)?(?:\.\/)?(.*)$/.exec(source);
   if (webpack) return webpack[1].replace(/\?.*$/, '');
-  // Turbopack: "turbopack:///[project]/app/page.tsx", "[project]/app/page.tsx".
-  const turbopack = /^(?:turbopack:\/\/\/)?\[project\]\/(.*)$/.exec(source);
-  if (turbopack) return turbopack[1].replace(/\?.*$/, '');
-  if (source.startsWith('file://')) return fileUrlToPath(source);
+  const turbopack = /^turbopack:\/\/\/\[project\]\/(.*)$/.exec(source);
+  if (turbopack) return turbopack[1];
+  // file:///C:/x → C:/x (Windows), file:///home/x → /home/x. Mutlak yolu sunucu proje köküne göre kısaltır.
+  if (source.startsWith('file://')) return decodeURIComponent(source.slice('file://'.length)).replace(/^\/([a-z]:\/)/i, '$1');
   const scriptPath = safeUrl(scriptUrl)?.pathname ?? '';
   let path: string;
   if (/^[a-z][a-z0-9+.-]*:/i.test(source)) {
@@ -86,45 +101,6 @@ export function toProjectPath(source: string, base: string, scriptUrl = base): s
   }
   if (path.startsWith('/@fs/')) return path.slice(4);
   return path.replace(/^\/+/, '');
-}
-
-/** `file:///home/u/a.tsx` → `/home/u/a.tsx`; `file:///C:/u/a.tsx` → `C:/u/a.tsx`. */
-function fileUrlToPath(source: string): string {
-  let path = source.slice('file://'.length).replace(/[?#].*$/, '');
-  try {
-    path = decodeURIComponent(path);
-  } catch {
-    /* olduğu gibi */
-  }
-  return /^\/[a-z]:[\\/]/i.test(path) ? path.slice(1) : path;
-}
-
-/**
- * React Flight (RSC) sunucu çerçevesi: React, sunucu bileşeninin yığınını istemcide sahte fonksiyonlarla
- * yeniden oluşturur; URL'leri `about://React/<ortam>/<dosya>?<n>` (React 19.1+) ya da `rsc://React/…` (19.0)
- * biçimindedir. Dönüş: sunucudaki dosya adı (`file:///…` ya da `webpack-internal:///(rsc)/…`).
- */
-export function serverFrameFilename(url: string): string | null {
-  const m = /^(?:about|rsc):\/\/React\/[^/]+\/(.+?)(?:\?\d+)?$/.exec(url);
-  if (!m) return null;
-  try {
-    return decodeURI(m[1]);
-  } catch {
-    return m[1];
-  }
-}
-
-/**
- * Next.js geliştirme sunucusunun source map ucu (`/__nextjs_source-map?filename=`): tarayıcının getiremeyeceği
- * çerçeveler için (webpack `eval-source-map` modülleri `webpack-internal:///…`, RSC sunucu çerçeveleri). Uç sayfanın
- * kendi kökenindedir (NFR-PRIV-01). Next dışı bir uygulamada `null`.
- */
-export function nextDevSourceMapUrl(frameUrl: string, pageOrigin: string): string | null {
-  const filename = serverFrameFilename(frameUrl) ?? (frameUrl.startsWith('webpack-internal:///') ? frameUrl : null);
-  if (!filename) return null;
-  const u = new URL('/__nextjs_source-map', pageOrigin);
-  u.searchParams.set('filename', filename);
-  return u.href;
 }
 
 function safeUrl(s: string, base?: string): URL | null {
@@ -148,31 +124,39 @@ export function isLocalSource(url: string, pageOrigin: string): boolean {
 }
 
 const NOT_LOCAL = 'yerel olmayan kaynak çözülmez (NFR-PRIV-01)';
-const NOT_FETCHABLE = 'paketleyici içi modül (webpack-internal / RSC) getirilemez ve source map ucu yok';
 
-export interface SourceResolverOptions {
+/**
+ * Turbopack, HMR ile gelen modülü `<chunk>.js?id=<modül>` adıyla değerlendirir. Kod yalnızca tarayıcıda; aynı URL'den
+ * dönen dosya bütün chunk'tır ve konumla eşleşmez.
+ */
+const TURBOPACK_HMR_RE = /\/_next\/static\/chunks\/[^?#]+\.js\?id=/;
+const TURBOPACK_HMR = 'Turbopack HMR modülü: kodu yalnızca tarayıcıda, source map getirilemez';
+
+export interface ResolverOptions {
+  /** Sayfanın yüklediği betikler, en yeniden eskiye (webpack eval modüllerini bulmak için). */
+  listScripts?: () => string[];
+  /** RSC: sunucudaki derlenmiş dosyanın source map URL'si; çerçeve sağlamıyorsa null. */
+  serverSourceMapUrl?: (file: string) => string | null;
   /**
-   * Betik URL'si getirilemeyen çerçeveler (ör. `webpack-internal:///…`, RSC `about://React/Server/…`) için doğrudan
-   * source map URL'si. `null`: bu çerçeve için yol yok.
+   * RSC yükü sayfa yüklendikten sonra yenilendi mi? React, yeniden kullanılan fiber'da öğenin mount anındaki
+   * sunucu konumunu tutar; HMR'den sonra bu konum güncel haritayla eşlenirse yanlış satır çıkar.
    */
-  mapUrlFor?: (frameUrl: string) => string | null;
-  /**
-   * React 18 `_debugSource.fileName` (mutlak dosya yolu) için sayfanın yüklediği modül URL'si (Vite: yolun sonu
-   * modülün URL yoluyla aynı olan modül). Bulunursa yol dev sunucusu köküne göreli verilir ve kod parçası eklenir.
-   */
-  moduleUrlFor?: (file: string) => string | null;
+  serverRefetched?: () => boolean;
 }
 
-/** `file` yolunun sonu, URL yollarından biriyle eşleşen en uzun aday (Vite `/@fs/` mutlak yolları dahil). */
-export function matchModuleUrl(file: string, urls: Iterable<string>, pageOrigin: string): string | null {
+/**
+ * React 18 `_debugSource` mutlak yol verir (`/home/u/app/src/Cart.tsx`). Sayfanın yüklediği modüllerden yolu bu
+ * dosyayla biten en uzun eşleşme (Vite `/@fs/` mutlak yolları dahil); yoksa null.
+ */
+export function matchModuleUrl(file: string, urls: Iterable<string>): string | null {
   const norm = file.replace(/\\/g, '/');
   let best: string | null = null;
   let bestLen = 0;
   for (const raw of urls) {
-    const u = safeUrl(raw);
-    if (!u || u.origin !== pageOrigin) continue;
+    let u: URL;
     let path: string;
     try {
+      u = new URL(raw);
       path = decodeURIComponent(u.pathname);
     } catch {
       continue;
@@ -187,39 +171,87 @@ export function matchModuleUrl(file: string, urls: Iterable<string>, pageOrigin:
   return best;
 }
 
+async function snippetOf(content: string, line: number): Promise<Snippet> {
+  const lines = content.split(/\r?\n/);
+  const start = Math.max(1, line - 3);
+  const end = Math.min(lines.length, line + 3);
+  return { startLine: start, lines: lines.slice(start - 1, end), fileHash: await hashContent(content) };
+}
+
 export class SourceResolver {
   /** Önbellek: tüketici ya da çözülememe nedeni. */
   private readonly maps = new Map<string, Promise<MapEntry | string>>();
+  /** Chunk URL'si → içindeki webpack eval modüllerinin haritaları. Chunk URL'leri değişmez (HMR yeni URL ile gelir). */
+  private readonly chunks = new Map<string, Promise<Map<string, string> | null>>();
 
   constructor(
     private readonly fetchText: FetchText,
     /** Bu URL getirilebilir mi? (yerel köken / loopback) */
     private readonly isAllowed: (url: string) => boolean,
-    private readonly options: SourceResolverOptions = {},
+    private readonly opts: ResolverOptions = {},
   ) {}
 
-  private load(scriptUrl: string): Promise<MapEntry | string> {
-    const direct = this.options.mapUrlFor?.(scriptUrl) ?? null;
-    const key = direct ? `map:${direct}` : scriptUrl;
+  private cached(key: string, load: () => Promise<MapEntry | string>): Promise<MapEntry | string> {
     let p = this.maps.get(key);
     if (!p) {
-      p = (direct ? this.loadMap(direct) : this.loadUncached(scriptUrl)).catch(() => 'source map okunamadı');
+      p = load().catch(() => 'source map okunamadı');
       this.maps.set(key, p);
     }
     return p;
   }
 
-  private async loadMap(mapUrl: string): Promise<MapEntry | string> {
+  private load(scriptUrl: string): Promise<MapEntry | string> {
+    return this.cached(scriptUrl, () => this.loadUncached(scriptUrl));
+  }
+
+  private evalModules(script: string): Promise<Map<string, string> | null> {
+    let p = this.chunks.get(script);
+    if (!p) {
+      p = this.fetchText(script)
+        .then((code) => (code === null ? null : indexEvalModules(code)))
+        .catch(() => null);
+      this.chunks.set(script, p);
+    }
+    return p;
+  }
+
+  /** webpack eval modülü: en yeni chunk'tan başlayarak modülün satır içi haritasını arar. */
+  private async loadEvalModule(moduleUrl: string): Promise<MapEntry | string> {
+    for (const script of this.opts.listScripts?.() ?? []) {
+      if (!this.isAllowed(script)) continue;
+      const ref = (await this.evalModules(script))?.get(moduleUrl);
+      if (!ref) continue;
+      return this.cached(`${script}#${moduleUrl}`, async () => {
+        const raw = decodeDataUrl(ref);
+        if (!raw) return 'source map bulunamadı';
+        return { consumer: new SourceMapConsumer(JSON.parse(raw) as RawSourceMap), mapUrl: moduleUrl };
+      });
+    }
+    return 'webpack modülü yüklü betiklerde bulunamadı';
+  }
+
+  /**
+   * RSC haritası her seferinde getirilir: webpack'te sunucu modülünün adı düzenlemeden sonra da aynı kalır,
+   * önbellek eski satırı verirdi.
+   */
+  private async loadServer(file: string): Promise<MapEntry | string> {
+    const mapUrl = this.opts.serverSourceMapUrl?.(file);
+    if (!mapUrl) return 'sunucu bileşeni (RSC): source map konumu bilinmiyor';
+    if (this.opts.serverRefetched?.()) {
+      return 'sunucu bileşeni (RSC): sunucu yükü sayfa yüklendikten sonra yenilendi (HMR ya da gezinme); satır doğrulanamaz, doğru satır için sayfayı yenileyip tekrarlayın';
+    }
     if (!this.isAllowed(mapUrl)) return NOT_LOCAL;
-    const raw = await this.fetchText(mapUrl);
-    if (!raw) return 'source map bulunamadı';
-    return { consumer: new SourceMapConsumer(JSON.parse(raw) as RawSourceMap), mapUrl };
+    try {
+      const raw = await this.fetchText(mapUrl);
+      if (!raw) return 'sunucu bileşeni (RSC): source map bulunamadı';
+      return { consumer: new SourceMapConsumer(JSON.parse(raw) as RawSourceMap), mapUrl };
+    } catch {
+      return 'sunucu bileşeni (RSC): source map okunamadı';
+    }
   }
 
   private async loadUncached(scriptUrl: string): Promise<MapEntry | string> {
-    if (!this.isAllowed(scriptUrl)) {
-      return /^(?:webpack-internal|about|rsc):/.test(scriptUrl) ? NOT_FETCHABLE : NOT_LOCAL;
-    }
+    if (!this.isAllowed(scriptUrl)) return NOT_LOCAL;
     const code = await this.fetchText(scriptUrl);
     if (code === null) return 'betik getirilemedi';
     const ref = findSourceMappingUrl(code);
@@ -237,31 +269,17 @@ export class SourceResolver {
     return { consumer: new SourceMapConsumer(json), mapUrl };
   }
 
-  /**
-   * React 18 `_debugSource`: satır JSX dönüşümünden gelir (orijinal dosya), source map gerekmez. Modül URL'si
-   * bulunursa yol göreli yapılır ve modülün source map'indeki kaynak içeriğinden kod parçası eklenir.
-   */
-  async fromDebugSource(fileName: string, line: number, column?: number): Promise<ResolvedLocation> {
-    const out: ResolvedLocation = { file: fileName, line, column: column ?? 1, resolved: true };
-    const scriptUrl = this.options.moduleUrlFor?.(fileName) ?? null;
-    if (!scriptUrl) return out;
-    const urlPath = decodeURIComponent(new URL(scriptUrl).pathname);
-    out.file = urlPath.startsWith('/@fs/') ? urlPath.slice(4) : urlPath.slice(1);
-    const entry = await this.load(scriptUrl);
-    if (typeof entry === 'string') return out;
-    const norm = fileName.replace(/\\/g, '/');
-    const source = entry.consumer.sources.find((s) => {
-      const p = toProjectPath(s, entry.mapUrl, scriptUrl);
-      return p === out.file || norm.endsWith(`/${p}`) || p === norm;
-    });
-    const content = source ? entry.consumer.sourceContentFor(source, true) : null;
-    if (content !== null) out.snippet = await snippetOf(content, line);
-    return out;
-  }
-
   async resolve(frame: StackFrame): Promise<ResolvedLocation> {
-    const compiled: ResolvedLocation = { file: frame.url, line: frame.line, column: frame.column, resolved: false };
-    const entry = await this.load(frame.url);
+    const server = serverComponentFile(frame.url);
+    const compiled: ResolvedLocation = { file: server ?? frame.url, line: frame.line, column: frame.column, resolved: false };
+    const entry =
+      server !== null
+        ? await this.loadServer(server)
+        : frame.url.startsWith('webpack-internal:')
+          ? await this.loadEvalModule(frame.url)
+          : TURBOPACK_HMR_RE.test(frame.url)
+            ? TURBOPACK_HMR
+            : await this.load(frame.url);
     if (typeof entry === 'string') return { ...compiled, reason: entry };
     const pos = entry.consumer.originalPositionFor({ line: frame.line, column: Math.max(0, frame.column - 1) });
     if (!pos.source || pos.line == null) return { ...compiled, reason: 'source map bu konumu eşlemiyor' };
@@ -275,11 +293,28 @@ export class SourceResolver {
     if (content !== null) out.snippet = await snippetOf(content, pos.line);
     return out;
   }
-}
 
-async function snippetOf(content: string, line: number): Promise<Snippet> {
-  const lines = content.split(/\r?\n/);
-  const start = Math.max(1, line - 3);
-  const end = Math.min(lines.length, line + 3);
-  return { startLine: start, lines: lines.slice(start - 1, end), fileHash: await hashContent(content) };
+  /**
+   * React 18 `_debugSource`: satır zaten kaynak dosyadadır. Dosyayı sunan modül sayfada yüklüyse (Vite) yol dev
+   * sunucusu köküne göreli yazılır ve kod parçası modülün haritasındaki kaynak içerikten alınır. Bulunamazsa konum
+   * olduğu gibi döner (alıcı mutlak yolu proje köküne göre kısaltır).
+   */
+  async fromDebugSource(fileName: string, line: number, column?: number): Promise<ResolvedLocation> {
+    const out: ResolvedLocation = { file: fileName, line, column: column ?? 1, resolved: true };
+    const scripts = (this.opts.listScripts?.() ?? []).filter((u) => this.isAllowed(u));
+    const scriptUrl = matchModuleUrl(fileName, scripts);
+    if (!scriptUrl) return out;
+    const urlPath = decodeURIComponent(new URL(scriptUrl).pathname);
+    if (!urlPath.startsWith('/@fs/')) out.file = urlPath.slice(1);
+    const entry = await this.load(scriptUrl);
+    if (typeof entry === 'string') return out;
+    const norm = fileName.replace(/\\/g, '/');
+    const source = entry.consumer.sources.find((src) => {
+      const p = toProjectPath(src, entry.mapUrl, scriptUrl);
+      return p === out.file || p === norm || norm.endsWith(`/${p}`);
+    });
+    const content = source ? entry.consumer.sourceContentFor(source, true) : null;
+    if (content !== null) out.snippet = await snippetOf(content, line);
+    return out;
+  }
 }
