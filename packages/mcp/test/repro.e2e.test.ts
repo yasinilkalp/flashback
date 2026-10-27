@@ -170,7 +170,9 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
 
     const script = generateReproScript({ config, store }, { id: inc.id, assertions });
     // Olay verisi spec'e girmez: işaret yolu yalnızca IR'den üretilen (JSON.stringify'lı) beklenti satırlarında geçer.
-    const lines = script.spec.split('\n').filter((l) => l.includes(marker));
+    // Ham yol yerine benzersiz klasör adı aranır: Windows'ta yol ters eğik çizgi içerir ve spec'te kaçışlı (`\\`) geçer.
+    const markerId = path.basename(path.dirname(marker));
+    const lines = script.spec.split('\n').filter((l) => l.includes(markerId));
     expect(lines).toHaveLength(2);
     expect(lines.every((l) => l.trim().startsWith('await expect('))).toBe(true);
     expect(script.spec).not.toContain(payloads[1]); // giriş değeri
