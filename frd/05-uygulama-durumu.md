@@ -21,7 +21,7 @@
 | KK-7 | ✅ | NFR-SIZE-01, NFR-TOK-01, NFR-REPRO-01 ve NFR-PRIV-01 testli. NFR-PERF-01, NFR-LAT-01 ve NFR-MEM-01 iki tur ölçüldü ([`07-nfr-olcumleri.md`](07-nfr-olcumleri.md) §0). MEM ve LAT geçti. PERF bağlayıcı profilde (1x) yalnızca 5.000 düğümdeki INP maddesinde kaldı (+32 ms, hedef ≤ 20 ms). Bu sonuç sürüm notuna yazılacak. |
 | KK-8 | ✅ | EK-B3 yapıldı (`spikes/ek-b3/`): Vite + React 18.3 ve 19, Next.js 16 App Router + Turbopack ve webpack; Chromium ve Firefox. İlk yüklemede %100 doğru, sessizce yanlış satır 0. Sonuçlar FRD §3.3, R1 ve R13'e işlendi. `examples/next-app`, `examples/react18` ve `examples/vue` uçtan uca testleri regresyon olarak koşar; Vue smoke testi geçti. |
 | KK-9 | ◐ | M ve M🔒 gereksinimlerin büyük çoğunluğunun testi var. Test kimliği eşlemesi tablo olarak çıkarılmadı. |
-| KK-10 | ◐ | `release:check` geçiyor. CI'dan provenance ile yayın akışı hazır (`release.yml`, etiketle tetiklenir). İlk sürüm `0.1.0-beta.0`; `NPM_TOKEN` sırrı eklenip etiket push edilince yayınlanacak (R8). |
+| KK-10 | ◐ | `flashback-devtools` ve `flashback-mcp` `0.1.0-beta.0` npm'de (`latest` ve `beta`). Bu ilk sürüm elle, 2FA ile yayımlandı; provenance imzası yok. Trusted Publisher ayarlandı; `release.yml` belirteçsiz (GitHub OIDC). İlk CI yayını (`0.1.0-beta.1`) provenance ile çıkınca ✓ olur (R8). |
 | KK-11 | ○ | Mini benchmark yapılmadı. "%60" iddiası README'den çıkarıldı. |
 
 ## 2. Alanlara göre durum
@@ -92,7 +92,7 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 
 1. **Cursor ve Codex smoke testi** (KK-5) ve kırmızı takım koşusu (FR-MCP-SEC-02).
 2. **Mini benchmark** (KK-11): 8–10 hata, Flashback ile ve Flashback olmadan. Sitedeki "%60" ifadesi o zamana kadar "n=1" notuyla verilmeli (FRD §2.3).
-3. **npm adlarının rezervasyonu** ve CI'dan provenance ile yayın (§11.3, KK-10).
+3. **İlk CI yayını** (`v0.1.0-beta.1` etiketi): Trusted Publishing ve provenance doğrulaması (§11.3, KK-10).
 4. **Ürün kararları:** AS-3 (kısayol), AS-4 (telefon), AS-5 (arayüz dili), AS-10 (önizleme olay başına mı, oturum başına mı).
 5. **Kısayol çakışma testi** (FR-UI-03, AS-3): Windows, macOS ve Linux'ta; TR-Q, TR-F ve US düzenlerinde; IME açıkken `Alt+Shift+R`. Kısayol fiziksel tuşa (`KeyboardEvent.code`) bağlı olduğu için düzen değişse de aynı tuşla tetiklenir. Asıl risk, Windows'ta `Alt+Shift` ile dil değiştirme.
 6. **`data-flashback-source` (v1.1, R13):** Derleme anında JSX'e kaynak konumu ekleyen Vite/Babel/SWC eklentisi. React 19'da HMR sonrası `resolved:false` kalan konumları kalıcı olarak çözer. EK-B3 bu işi "yedek plan"dan öncelikli işe taşıdı.

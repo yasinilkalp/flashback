@@ -1,7 +1,9 @@
 name: Release
 
-# Sürüm etiketi (ör. v0.1.0-beta.0) push edilince iki paketi derler, test eder ve npm'e
-# provenance imzasıyla yayınlar (KK-10, FRD §11.3). Token: depo sırrı NPM_TOKEN.
+# Sürüm etiketi (ör. v0.1.0-beta.1) push edilince iki paketi derler, test eder ve npm'e yayınlar
+# (KK-10, FRD §11.3). Kimlik: npm Trusted Publishing (GitHub OIDC). Belirteç ya da 2FA kodu gerekmez;
+# provenance imzası otomatik eklenir. npmjs.com'da her iki paketin Trusted Publisher ayarı:
+# depo yasinilkalp/flashback, iş akışı release.yml.
 on:
   push:
     tags: ['v*']
@@ -14,7 +16,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # npm provenance için GitHub OIDC kimliği
+  id-token: write # Trusted Publishing ve provenance için GitHub OIDC kimliği
 
 concurrency:
   group: release
@@ -31,6 +33,10 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing npm 11.5.1 ve üstünü ister; Node 22 ile gelen npm daha eski.
+      - run: npm install -g npm@11
+      - run: npm --version
 
       - run: npm ci
       - run: npm run build
@@ -50,31 +56,47 @@ jobs:
           if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$devtools" ]; then
             echo "::error::Etiket ${GITHUB_REF_NAME}, paket sürümü v$devtools ile uyuşmuyor"; exit 1
           fi
-          # Ön sürümler (0.1.0-beta.0) 'beta' etiketiyle, diğerleri 'latest' ile yayınlanır.
+          # Ön sürümler (0.1.0-beta.1) 'beta' etiketiyle, diğerleri 'latest' ile yayınlanır.
           if [[ "$devtools" == *-* ]]; then tag=beta; else tag=latest; fi
           echo "version=$devtools" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Sürüm $devtools, npm etiketi $tag"
 
+      - name: Bu sürüm npm'de var mı
+        id: exists
+        shell: bash
+        run: |
+          set -uo pipefail
+          v="${{ steps.version.outputs.version }}"
+          for p in flashback-devtools flashback-mcp; do
+            if npm view "$p@$v" version >/dev/null 2>&1; then
+              echo "::error::$p@$v npm'de zaten var. Yeni sürüm için iki paketin sürümünü artırıp yeni etiket gönderin."
+              exit 1
+            fi
+          done
+          echo "$v henüz yayınlanmamış."
+
       - name: Paket içeriği
         run: npm pack --dry-run -w flashback-devtools -w flashback-mcp
 
-      - name: npm kimliği
-        # Belirteç geçersizse burada açık bir hatayla durur; yetki (yazma, tüm paketler, 2FA atlama) npm'de ayarlanır.
-        run: |
-          user=$(npm whoami)
-          echo "npm kullanıcısı: $user"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Yayınla
         if: github.event_name == 'push' || inputs.dry_run == false
-        run: npm publish -w flashback-devtools -w flashback-mcp --provenance --access public --tag ${{ steps.version.outputs.tag }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish -w flashback-devtools -w flashback-mcp --access public --tag ${{ steps.version.outputs.tag }}
 
       - name: Yayınla (deneme)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: npm publish -w flashback-devtools -w flashback-mcp --dry-run --access public --tag ${{ steps.version.outputs.tag }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Yayını doğrula
+        if: github.event_name == 'push' || inputs.dry_run == false
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ steps.version.outputs.version }}"
+          for p in flashback-devtools flashback-mcp; do
+            for i in 1 2 3 4 5 6; do
+              if npm view "$p@$v" version >/dev/null 2>&1; then echo "$p@$v npm'de."; continue 2; fi
+              sleep 10
+            done
+            echo "::error::$p@$v yayından sonra npm'de görünmüyor"; exit 1
+          done

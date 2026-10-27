@@ -218,15 +218,22 @@ docs/             → Paketler arası uygulama sözleşmesi
 npm run release:check   # derler ve paketlere girecek dosyaları listeler (yayımlamaz)
 ```
 
-FRD §11.3 gereği paketler yalnızca CI'dan, npm provenance ile ve 2FA açık bir hesapla yayımlanır. Akış: `.github/workflows/release.yml`.
+FRD §11.3 gereği paketler CI'dan, npm provenance ile yayımlanır. Akış: `.github/workflows/release.yml`. Kimlik doğrulama npm **Trusted Publishing** (GitHub OIDC) ile yapılır; depoda npm belirteci tutulmaz, 2FA kodu da istenmez.
 
-1. npm belirteci depo sırrı olarak eklenir: **Settings → Secrets and variables → Actions → New repository secret**, adı `NPM_TOKEN`.
-2. İki paketin sürümü aynı olmalı (`packages/flashback/package.json`, `packages/mcp/package.json`; `FLASHBACK_VERSION` da aynı, test denetler).
-3. Sürüm etiketi push edilir. İş akışı derler, test eder, etiketi sürümle karşılaştırır ve yayımlar:
+Bir kerelik ayar (yapıldı): npmjs.com'da her iki paketin **Settings → Trusted Publisher** bölümünde GitHub Actions seçilir; depo `yasinilkalp/flashback`, iş akışı `release.yml`.
+
+Yeni sürüm için:
+
+1. Sürümü artırın. Şu yerler aynı sürümü taşımalı (testler denetler):
+   - `packages/flashback/package.json` ve `packages/mcp/package.json`
+   - `packages/flashback/src/config.ts` içindeki `FLASHBACK_VERSION`
+   - `examples/*/package.json` içindeki `flashback-devtools` bağımlılığı
+2. `npm install` ile `package-lock.json`'ı güncelleyip commit edin.
+3. Sürüm etiketini push edin. İş akışı derler, test eder, etiketi sürümle karşılaştırır, sürümün npm'de olmadığını denetler, yayımlar ve doğrular:
 
 ```bash
-git tag v0.1.0-beta.0
-git push origin v0.1.0-beta.0
+git tag v0.1.0-beta.1
+git push origin v0.1.0-beta.1
 ```
 
 Ön sürümler (`-beta.N`) npm'de `beta` etiketiyle, diğerleri `latest` ile çıkar. Önce denemek için **Actions → Release → Run workflow** (varsayılan: `--dry-run`).
