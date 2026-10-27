@@ -58,8 +58,25 @@ describe('kaynak yollarını proje köküne göre kısaltma (EK-B3)', () => {
     expect(toProjectRelative('src/Cart.tsx', r)).toBe('examples/demo/src/Cart.tsx');
     expect(toProjectRelative('./src/Cart.tsx', r)).toBe('examples/demo/src/Cart.tsx');
     expect(toProjectRelative('src/App.tsx', r)).toBe('src/App.tsx'); // iki aday: değişmez
+    fs.writeFileSync(path.join(mono, 'examples/demo/src/App.tsx'), 'a\nconst x = 1;\nb\n');
+    fs.writeFileSync(path.join(mono, 'examples/other/src/App.tsx'), 'a\r\nconst x = 2;\r\nb\r\n');
+    expect(toProjectRelative('src/App.tsx', r, { startLine: 2, lines: ['const x = 2;'] })).toBe('examples/other/src/App.tsx'); // kod parçası ayırır
+    expect(toProjectRelative('src/App.tsx', r, { startLine: 2, lines: ['const x = 3;'] })).toBe('src/App.tsx');
+    const base = IncidentDraftSchema.parse(draftInput());
+    const out = relativizeDraft({ ...base, target: { ...base.target!, file: 'src/App.tsx', snippet: { startLine: 1, lines: ['a', 'const x = 1;'], fileHash: 'h' } } }, r);
+    expect(out.target?.file).toBe('examples/demo/src/App.tsx');
     expect(toProjectRelative('src/Root.tsx', r)).toBe('src/Root.tsx'); // kökte var
     expect(toProjectRelative('src/Only.tsx', r)).toBe('src/Only.tsx'); // node_modules taranmaz
     expect(toProjectRelative('src/Yok.tsx', r)).toBe('src/Yok.tsx');
   });
+
+  it('bu depoda: src/Cart.tsx iki örnekte var (demo, react18); hedefin kod parçası demo dosyasını seçer', () => {
+    const repo = path.resolve(__dirname, '../../..');
+    const lines = fs.readFileSync(path.join(repo, 'examples/demo/src/Cart.tsx'), 'utf8').split(/\r?\n/);
+    const at = lines.findIndex((l) => l.includes('data-testid="total"'));
+    const snippet = { startLine: at - 2, lines: lines.slice(at - 3, at + 2) };
+    expect(toProjectRelative('src/Cart.tsx', projectRoots(repo), snippet)).toBe('examples/demo/src/Cart.tsx');
+    expect(toProjectRelative('src/Cart.tsx', projectRoots(repo))).toBe('src/Cart.tsx'); // parça yoksa ayırt edilemez
+  });
 });
+

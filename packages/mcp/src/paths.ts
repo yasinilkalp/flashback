@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import type { IncidentDraft } from '@flashback/shared';
 
 /** Kök içindeki mutlak yolu göreli (`/` ayraçlı) yapar; göreli, kök dışı ya da tanınmayan yollar olduğu gibi kalır. */
-export function toProjectRelative(file: string, roots: readonly string[]): string {
+export function toProjectRelative(file: string, roots: readonly string[], snippet?: Snippet): string {
   let p = file;
   if (p.startsWith('file://')) {
     try {
@@ -19,7 +19,7 @@ export function toProjectRelative(file: string, roots: readonly string[]): strin
     }
   }
   p = p.replace(/^\/([A-Za-z]:[\\/])/, '$1'); // /C:/x → C:/x
-  if (!path.isAbsolute(p)) return roots.length ? inWorkspacePackage(p, roots[0]) : file;
+  if (!path.isAbsolute(p)) return roots.length ? inWorkspacePackage(p, roots[0], snippet) : file;
   for (const root of roots) {
     const rel = path.relative(root, p);
     if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) return rel.split(path.sep).join('/');
@@ -58,18 +58,33 @@ const isFile = (p: string) => {
   }
 };
 
+/** Hedef öğenin kod parçası: aynı göreli yol birden çok pakette varsa doğru dosyayı seçmek için. */
+type Snippet = { startLine: number; lines: string[] };
+
+const snippetMatches = (file: string, snip: Snippet): boolean => {
+  try {
+    const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+    return snip.lines.every((l, i) => (lines[snip.startLine - 1 + i] ?? '').trimEnd() === l.trimEnd());
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Göreli yol (Vite gibi bundler'lar kaynağı kendi köküne göre verir, ör. `src/Cart.tsx`) proje kökünde yoksa
- * monorepo paketlerinde aranır; yalnızca tek bir pakette varsa yol o pakete göre tamamlanır
- * (`examples/demo/src/Cart.tsx`). Bulunamazsa ya da birden çok aday varsa olduğu gibi kalır.
+ * monorepo paketlerinde aranır ve pakete göre tamamlanır (`examples/demo/src/Cart.tsx`). Birden çok pakette
+ * varsa hedefin kod parçasıyla eşleşen tek dosya seçilir. Bulunamazsa ya da ayırt edilemezse olduğu gibi kalır.
  */
-function inWorkspacePackage(rel: string, root: string): string {
+function inWorkspacePackage(rel: string, root: string, snippet?: Snippet): string {
   const clean = rel.replace(/\\/g, '/').replace(/^\.\//, '');
   if (!clean || clean.startsWith('../') || /^[a-z][a-z0-9+.-]*:/i.test(clean)) return rel;
   if (isFile(path.join(root, clean))) return clean;
-  const hits = packageDirs(root).filter((d) => isFile(path.join(d, clean)));
+  let hits = packageDirs(root)
+    .map((d) => path.join(d, clean))
+    .filter(isFile);
+  if (hits.length > 1 && snippet?.lines.length) hits = hits.filter((f) => snippetMatches(f, snippet));
   if (hits.length !== 1) return rel;
-  return path.relative(root, path.join(hits[0], clean)).split(path.sep).join('/');
+  return path.relative(root, hits[0]).split(path.sep).join('/');
 }
 
 /** Proje kökü ve (sembolik bağlantıysa) gerçek yolu. */
@@ -93,6 +108,6 @@ export function relativizeDraft(d: IncidentDraft, roots: readonly string[]): Inc
       const m = c.source ? SOURCE_RE.exec(c.source) : null;
       return m ? { ...c, source: `${rel(m[1])}:${m[2]}:${m[3]}` } : c;
     }),
-    target: d.target?.file ? { ...d.target, file: rel(d.target.file) } : d.target,
+    target: d.target?.file ? { ...d.target, file: toProjectRelative(d.target.file, roots, d.target.snippet) } : d.target,
   };
 }
