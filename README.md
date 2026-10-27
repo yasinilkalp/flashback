@@ -1,6 +1,6 @@
 # Flashback
 
-**Hatayı anlatma; geri sar, göster.**
+**Hatayı anlatma; o ana dön, göster.**
 
 🌐 [yasinilkalp.github.io/flashback](https://yasinilkalp.github.io/flashback/)
 

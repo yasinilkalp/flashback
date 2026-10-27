@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flashback — Hatayı anlatma; geri sar, göster.</title>
+<title>Flashback — Hatayı anlatma; o ana dön, göster.</title>
 <meta name="description" content="Flashback, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracı. Son 60 saniyeyi kaydeder; geri sarıp hatalı öğeye tıklarsın, ajan kanıtla düzeltir ve kırmızı → yeşil testle kanıtlar.">
 <meta name="theme-color" content="#0d111c">
-<meta property="og:title" content="Flashback — Hatayı anlatma; geri sar, göster.">
+<meta property="og:title" content="Flashback — Hatayı anlatma; o ana dön, göster.">
 <meta property="og:description" content="AI kodlama ajanları için zaman yolculuklu hata raporu. Geri sar, öğeye tıkla, ajan doğru satırı ilk turda bulsun.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ffd23f'/%3E%3Cpath d='M10.54 9.49A8.5 8.5 0 1 1 7.5 16' fill='none' stroke='%230d111c' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M9.3 10.6 13.75 10.2 10.35 6.15z' fill='%230d111c'/%3E%3Cpath d='M17.3 10.2 13.2 16.6h3.1l-.9 5.2 4.3-6.8h-3.2z' fill='%230d111c'/%3E%3C/svg%3E">
@@ -96,8 +96,8 @@ li code, p code { overflow-wrap: anywhere; }
 .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); padding: 5px 11px; border-radius: 999px; }
 .dot-rec { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: rec 1.6s infinite; flex: none; }
 @keyframes rec { 0% { box-shadow: 0 0 0 0 rgba(255, 210, 63, .55); } 70% { box-shadow: 0 0 0 7px rgba(255, 210, 63, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0); } }
-h1 { font-size: clamp(40px, 6.2vw, 68px); line-height: 1.02; letter-spacing: -.035em; margin: 22px 0 20px; font-weight: 800; }
-h1 em { font-style: normal; background: linear-gradient(transparent 62%, var(--accent-soft) 62%, var(--accent-soft) 92%, transparent 92%); color: var(--fg); }
+h1 { font-size: clamp(38px, 5.2vw, 60px); line-height: 1.02; letter-spacing: -.035em; margin: 22px 0 20px; font-weight: 800; }
+h1 em { font-style: normal; white-space: nowrap; background: linear-gradient(transparent 62%, var(--accent-soft) 62%, var(--accent-soft) 92%, transparent 92%); color: var(--fg); }
 h1 em::after { content: ""; display: inline-block; width: .32em; height: .32em; margin-left: .08em; border-radius: 50%; background: var(--accent); vertical-align: .55em; }
 .lead { font-size: 19px; color: var(--muted); max-width: 540px; margin: 0 0 32px; }
 .lead strong { color: var(--fg); font-weight: 600; }
@@ -497,7 +497,7 @@ footer a:hover { color: var(--fg); }
   <div class="wrap">
     <div>
       <span class="eyebrow"><span class="dot-rec" aria-hidden="true"></span>AI kodlama ajanları için zaman yolculuklu hata raporu</span>
-      <h1 id="hero-title">Hatayı anlatma;<br><em>geri sar, göster.</em></h1>
+      <h1 id="hero-title">Hatayı anlatma;<br><em>o ana dön, göster.</em></h1>
       <p class="lead">Flashback, geliştirme ortamında uygulamanın <strong>son 60 saniyesini</strong> sürekli kaydeder. Bir şey bozulunca geri sarar, hatalı öğeye tıklarsın. Ajan tahmin yerine <strong>kanıt</strong> alır, düzeltir ve düzeltmeyi <strong>kırmızı → yeşil</strong> bir testle kanıtlar.</p>
       <div class="ctas">
         <a class="btn btn-primary" href="#kurulum">Hızlı başlangıç →</a>
@@ -972,7 +972,7 @@ root.<span class="f">render</span>(
 
 <section class="final" aria-labelledby="son-title">
   <div class="wrap">
-    <h2 id="son-title">Bir sonraki hatayı <span style="color:var(--accent-text)">geri sar.</span></h2>
+    <h2 id="son-title">Bir sonraki hatada <span style="color:var(--accent-text)">o ana dön.</span></h2>
     <p class="sub" style="margin:0 auto">Demoyu çalıştır, YAZ10 kuponunu dene ve ajanının doğru satırı ilk turda bulmasını izle.</p>
     <div class="ctas">
       <a class="btn btn-primary" href="https://github.com/yasinilkalp/flashback#hızlı-başlangıç-demo">Demoyu çalıştır →</a>

@@ -1,6 +1,6 @@
 # flashback-devtools
 
-> **Hatayı anlatma; geri sar, göster.**
+> **Hatayı anlatma; o ana dön, göster.**
 
 Geliştirme ortamında uygulamanın son ≥ 60 saniyesini kaydeder. Bir şey bozulduğunda panelde geri sararsınız,
 hatalı öğeye tıklarsınız (ya da sayfa düzeyi olay açarsınız), "Ne olmalıydı?" sorusunu yanıtlarsınız ve gizlenmiş,

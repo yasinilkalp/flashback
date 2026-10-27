@@ -1,6 +1,6 @@
 # Flashback — Fonksiyonel Gereksinim Dokümanı (FRD) v1.1
 
-> **Hatayı anlatma; geri sar, göster.**
+> **Hatayı anlatma; o ana dön, göster.**
 
 ## 0. Künye
 
@@ -23,7 +23,7 @@
 | v1.0 | 27.10.2026 | PM incelemesindeki 25 önerinin tamamı daraltılarak işlendi. İki ajanın tartışmasından 6 ek öneri ve 11 moderatör kararı eklendi. Belgeye tehdit modeli, sürüm kesimi, destek matrisi, sözleşmeler, sayısal NFR'ler, risk kaydı ve izlenebilirlik bölümleri girdi. |
 | v1.0.1 | 27.10.2026 | EK-B3 spike'ının sonuçları işlendi (§3.5'in öngördüğü çıktı): destek matrisi (§3.3), RSC satırı (§3.2), FR-MARK-04 durumu, R1 ve yeni HMR riski (v1.1'de R13), AS-7. Ölçüm ve yöntem: `spikes/ek-b3/README.md`. |
 | v1.1 | 27.10.2026 | Uygulamadan gelen sapmalar işlendi (D-1…D-14). v1.0.1'deki EK-B3 sonuçları korundu; HMR riski R13 olarak numaralandı. NFR-PERF-01'e ölçüm profili eklendi. FR-RCV-06 `project` başlığıyla somutlaştı. Güvenlik incelemesinden gelen kurallar FR-PKG-08, FR-REPRO-SEC-01 ve FR-REPRO-SEC-03'e yazıldı. AS-2, AS-7 ve AS-9 kapandı; AS-10 eklendi. Uygulama durumu `05-uygulama-durumu.md` belgesinde izlenir; bu belgedeki "Durum" sütunu v1.0'daki hâliyle bırakıldı. |
-| v1.1.1 | 27.10.2026 | Ürün adı **Rewind → Flashback** oldu. Neden: "Rewind" adı yapay zekâ ajanları alanında başka bir açık kaynak projede (agentoptics/rewind: CLI `rewind`, Claude Code eklentisi `rewind`) kullanılıyor ve Rewind.ai markasıyla karışıyor (rakip analizi, 27.10.2026). Paketler `flashback-devtools` ve `flashback-mcp`, bileşen `<Flashback/>`, ortam değişkenleri `FLASHBACK_*`, başlıklar `x-flashback-*`, olay klasörü `.flashback/`, olay kimliği `fb-YYYYMMDD-HHMMSS-xxxx`. Varsayılan kısayol `Alt+Shift+R` olarak kaldı (AS-3 açık). |
+| v1.1.1 | 27.10.2026 | Ürün adı **Rewind → Flashback** oldu. Neden: "Rewind" adı yapay zekâ ajanları alanında başka bir açık kaynak projede (agentoptics/rewind: CLI `rewind`, Claude Code eklentisi `rewind`) kullanılıyor ve Rewind.ai markasıyla karışıyor (rakip analizi, 27.10.2026). Paketler `flashback-devtools` ve `flashback-mcp`, bileşen `<Flashback/>`, ortam değişkenleri `FLASHBACK_*`, başlıklar `x-flashback-*`, olay klasörü `.flashback/`, olay kimliği `fb-YYYYMMDD-HHMMSS-xxxx`. Varsayılan kısayol `Alt+Shift+R` olarak kaldı (AS-3 açık). Slogan **"Hatayı anlatma; o ana dön, göster."** oldu (eskisi: "geri sar, göster"). |
 
 ### Bu belgede kullanılan etiketler
 
