@@ -43,6 +43,7 @@ export class Recorder {
   private readonly console = new ConsoleCapture();
   private readonly steps: StepCapture;
   private stopRrweb: (() => void) | undefined;
+  private checkoutTimer: ReturnType<typeof setInterval> | undefined;
   readonly mask: InputMasker;
 
   constructor(
@@ -68,7 +69,9 @@ export class Recorder {
     this.steps.install(window);
     this.stopRrweb = record({
       emit: (e, isCheckout) => this.ring.push(e, isCheckout),
-      checkoutEveryNms: (this.cfg.bufferSeconds * 1000) / 2,
+      // checkoutEveryNms KULLANILMAZ: rrweb süre dolunca checkout'u bir sonraki kayıtlı olayda, yani çoğunlukla bir
+      // tıklamanın ya da tuşun içinde alır ve etkileşim gecikmesini (INP) artırır (NFR-PERF-01). Checkout aşağıda
+      // tarayıcı boştayken alınır.
       blockSelector: BLOCK_SELECTOR,
       maskTextSelector: MASK_TEXT_SELECTOR,
       maskInputOptions: ALL_INPUTS,
@@ -79,9 +82,36 @@ export class Recorder {
       inlineImages: false,
       sampling: { input: 'last' },
     });
+    this.scheduleCheckouts();
+  }
+
+  /** Her `bufferSeconds/2` ms'de bir, tarayıcı boştayken tam anlık görüntü (checkout) alır (FR-REC-02). */
+  private scheduleCheckouts(): void {
+    const interval = (this.cfg.bufferSeconds * 1000) / 2;
+    let last = Date.now();
+    let pending = false;
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    const run = () => {
+      pending = false;
+      if (!this.stopRrweb) return;
+      try {
+        record.takeFullSnapshot(true);
+        last = Date.now();
+      } catch {
+        /* kayıt durdu */
+      }
+    };
+    this.checkoutTimer = setInterval(() => {
+      if (pending || Date.now() - last < interval) return;
+      pending = true;
+      if (idle) idle(run, { timeout: 2000 });
+      else setTimeout(run, 0);
+    }, Math.max(250, Math.min(1000, interval / 4)));
   }
 
   stop(): void {
+    if (this.checkoutTimer) clearInterval(this.checkoutTimer);
+    this.checkoutTimer = undefined;
     this.stopRrweb?.();
     this.stopRrweb = undefined;
     this.console.uninstall();

@@ -179,7 +179,9 @@ function SelectionInfo({ t, mark, resolving }: { t: Strings; mark: Mark | null; 
         <span>{t.component}</span>
         <span>{target.componentStack[0] ?? '—'}</span>
         <span>{t.source}</span>
-        <code data-rw="selected-source">{loc ? `${loc.file}:${loc.line}${loc.resolved ? '' : ` (${t.unresolvedSource})`}` : '—'}</code>
+        <code data-rw="selected-source">
+          {loc ? `${loc.file}:${loc.line}${!loc.resolved ? ` (${t.unresolvedSource})` : loc.fromAncestor ? ` (${t.ancestorSource})` : ''}` : '—'}
+        </code>
       </div>
     </div>
   );

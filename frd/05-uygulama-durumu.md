@@ -1,11 +1,12 @@
-# Rewind — Uygulama durumu (FRD v1.0'a göre)
+# Rewind — Uygulama durumu (FRD v1.1'e göre)
 
 | Alan | Değer |
 |---|---|
-| Tarih | 27.10.2026 |
+| Tarih | 27.10.2026 (ikinci güncelleme) |
 | Kod tabanı | Sıfırdan kuruldu. GitHub deposu boştu ve yerel klasörde yalnızca README ile yapılandırma dosyaları vardı. Bu nedenle FRD'deki "Durum" sütunu (README'ye göre "Mevcut") artık geçerli değil. Bu belge onun yerini alır; AS-9 kapandı. |
-| Doğrulama | 389 birim testi, 19 uçtan uca test (gerçek Chromium) yeşil. Tip denetimi temiz. `npm run release:check` geçiyor. |
+| Doğrulama | 457 birim testi ve 34 uçtan uca test (gerçek Chromium) yeşil. 1 uçtan uca test (Firefox kaynak çözümleme) yalnızca CI'da koşar. Tip denetimi temiz. |
 | Bağımsız güvenlik incelemesi | 9 bulgu çıktı: 3 High, 3 Medium, 3 Low. Bulguların 8'i exploit ile doğrulandı, 1'i kısmen doğrulandı. **Dokuzu da düzeltildi** ve her biri için regresyon testi eklendi (§4). |
+| FRD | §3'teki D-1…D-10 sapmaları [`08-FRD-v1.1.md`](08-FRD-v1.1.md) belgesine işlendi. |
 
 ## 1. Sürüm kabul kriterleri
 
@@ -14,11 +15,11 @@
 | KK-1 | ✅ | `tests/e2e/full-flow.e2e.test.ts` YAZ10 ve KIS20 senaryolarında şu akışı otomatik olarak tamamlar: panel → `rewind-mcp` (gerçek stdio + HTTP) → kırmızı → kaynak düzeltilir → yeşil ×2 → `fixed`. |
 | KK-2 | ✅ | Aynı dosyadaki ACCOUNT senaryosu: `storageState` yokken sonuç `precondition` olur ve kırmızı sayılmaz. `storageState` verilince kırmızı → yeşil ×2 → `fixed`. |
 | KK-3 | ✅ | FR-LIFE-04'teki dört senaryo `packages/mcp/test/lifecycle.test.ts` dosyasında test ediliyor. Tam akış e2e testinde de çalışıyor. |
-| KK-4 | ◐ | Güvenlik paketi (`security.test.ts`, `security.e2e.test.ts`) Linux'ta yeşil. Windows ve macOS'ta CI ile doğrulanacak (`.github/workflows/ci.yml` hazır). |
+| KK-4 | ◐ | Güvenlik paketi Linux'ta yeşil. GitHub CI'da macOS düzeltmesi geçti. Windows'taki üç hata düzeltildi: yol ayırıcı, sürücü harfi ve 413 yanıtında bağlantının sıfırlanması (`ECONNRESET`). Windows'un yeşile döndüğü bir sonraki push'ta doğrulanacak. |
 | KK-5 | ○ | Cursor ve Codex ile elle yapılacak smoke testi henüz yapılmadı. |
-| KK-6 | ✅ | Gizleme fixture seti (171 test) geçiyor. Bilinen sır biçimlerinde duyarlılık %100. Korunan 91 değerde yanlış pozitif 0. |
-| KK-7 | ◐ | NFR-SIZE-01, NFR-TOK-01, NFR-REPRO-01 ve NFR-PRIV-01 testli. NFR-PERF-01, NFR-LAT-01 ve NFR-MEM-01 için sürüm öncesi ölçüm yapılmadı. |
-| KK-8 | ○ | EK-B3 spike'ı yapılmadı. Doğrulanan tek kurulum React 19.3.1 + Vite 8.3.5 + Chromium. Next.js ve React 18 doğrulanmadı. |
+| KK-6 | ✅ | Gizleme fixture seti (173 test) geçiyor. Bilinen sır biçimlerinde duyarlılık %100. Korunan 91 değerde yanlış pozitif 0. |
+| KK-7 | ✅ | NFR-SIZE-01, NFR-TOK-01, NFR-REPRO-01 ve NFR-PRIV-01 testli. NFR-PERF-01, NFR-LAT-01 ve NFR-MEM-01 iki tur ölçüldü ([`07-nfr-olcumleri.md`](07-nfr-olcumleri.md) §0). MEM ve LAT geçti. PERF bağlayıcı profilde (1x) yalnızca 5.000 düğümdeki INP maddesinde kaldı (+32 ms, hedef ≤ 20 ms). Bu sonuç sürüm notuna yazılacak. |
+| KK-8 | ✅ | EK-B3 spike'ı yapıldı ([`06-ek-b3-spike.md`](06-ek-b3-spike.md)). Dört React kurulumunun hepsinde dosya:satır %100 doğru ve 0 yanlış: React 19 + Vite, React 18 + Vite, Next.js App Router (Turbopack ve webpack, RSC dahil). Vue smoke testi geçti. Firefox ölçümü CI'daki `firefox-source` işinde koşacak. |
 | KK-9 | ◐ | M ve M🔒 gereksinimlerin büyük çoğunluğunun testi var. Test kimliği eşlemesi tablo olarak çıkarılmadı. |
 | KK-10 | ◐ | `release:check` geçiyor. CI'dan provenance ile yayın akışı ve npm adlarının rezervasyonu henüz yapılmadı (R8). |
 | KK-11 | ○ | Mini benchmark yapılmadı. "%60" iddiası README'den çıkarıldı. |
@@ -28,18 +29,32 @@
 | Alan | Uygulanan | Atlanan veya kısmi |
 |---|---|---|
 | REC | 01–08, 10, 11, 14; S: 09, 12, 13 | 15 (YH) |
-| UI | 01, 02, 04, 06, 07, 08, 10, 11, 12, 15, 16; S: 05, 09, 14, 17, 18 | 03 (kısayol çakışma testi), 13 kısmi (ARIA var; axe denetimi ve focus trap yok), 10'daki "yanlış proje" göstergesi yalnızca şema sürümüne bakıyor, 19 (YH) |
-| MARK | 01–05, 07, 08, 10, 11, 12; S: 09 | 06 (Vue smoke testi yok), 13 (YH) |
+| UI | 01, 02, 04, 06, 07, 08, 10, 11, 12, 15, 16; S: 05, 09, 10 (yanlış proje göstergesi), 13 (axe denetiminde kritik/ciddi ihlal 0, odak tuzağı), 14, 17, 18 | 03 (kısayol çakışma testi: işletim sistemi ve giriş dili bazında elle denenmeli, AS-3), 19 (YH) |
+| MARK | 01–05, 07, 08, 10, 11, 12; S: 06 (Vue smoke testi), 09 | 13 (YH) |
 | PKG | 01–08, SEC-01–03 | SEC-04 (YH) |
 | RED | 01–15 | Telefon numarası varsayılan olarak kapalı (AS-4) |
-| RCV | 01–05, 07–11, SEC-01–06, SEC-08 | 06 (köken uyuşmazlığı uyarısı), SEC-07 (YH) |
-| MCP | 01–09, 11, 12, 15, SEC-01, SEC-03 | 10 (`outputSchema`), 13 (`cursor`), 14 (`portable`), 16 (YH), SEC-02 (kırmızı takım koşusu elle yapılacak) |
+| RCV | 01–11, SEC-01–06, SEC-08 | SEC-07 (YH) |
+| MCP | 01–15, SEC-01, SEC-03 | 16 (YH), SEC-02 (kırmızı takım koşusu elle yapılacak) |
 | REPRO | 01–22, SEC-01, SEC-03, SEC-04, SEC-05 | SEC-02 (C, `unsafe` mod), 23 (YH) |
 | LIFE | 01–06 | — |
 | CFG | 01–11 | 12 (v1.1) |
-| NFR | PRIV-01, SIZE-01, TOK-01, REPRO-01, COMP-01 (Node ≥ 22, Chromium) | PERF-01, LAT-01, MEM-01 ölçümü |
+| NFR | PRIV-01, SIZE-01, TOK-01, REPRO-01, COMP-01, MEM-01, LAT-01 | PERF-01: 5.000 düğümde INP +32 ms (1x) |
 
-## 3. FRD'den sapmalar (onay ya da FRD güncellemesi gerekiyor)
+### Bu turda eklenenler
+
+- **FR-MCP-10:** Araçlar `outputSchema` ve yapılandırılmış çıktı döndürüyor.
+- **FR-MCP-13:** `list_incidents` sayfalı (`cursor`). Geçersiz cursor `invalid_cursor` hatası verir.
+- **FR-MCP-14:** `get_repro_script({ portable: true })`. Projenin kendi `playwright.config` dosyasıyla çalışan, `.rewind/`'a bağımlı olmayan tek dosyalık spec üretir.
+- **FR-RCV-06:** `project` prop'u. Tarayıcı `x-rewind-project` başlığını gönderir. Alıcı yanlış projeye gelen olayı 409 ile reddeder; panel "yanlış proje" şeridini gösterir. Alıcı, kaynak yollarını proje köküne göre göreli hâle getirir (Windows sürücü harfi ve `file:///` dahil).
+- **FR-UI-13:** Odak panelin içinde tutuluyor (`aria-modal`). axe denetimi e2e testinde. Tekrar oynatma iframe'ine başlık eklendi.
+- **FR-MARK-06:** `examples/vue` ile smoke testi.
+- **EK-B3:** `examples/next-app` ve `examples/react18` ile kaynak çözümleme düzeltmeleri. Turbopack RSC çerçeveleri, webpack `_debugStack` ve React 18 `_debugSource` mutlak yolu için yapıldı.
+- **NFR düzeltmeleri** ([`07`](07-nfr-olcumleri.md) §0): animasyon kaldırıldı, checkout boşta alınıyor, Replayer gecikmeli ve sanal DOM'suz kuruluyor. Kaydet yolunda tek serileştirme, tembel önizleme ve `Blob` gövde kullanılıyor. 5.000 düğümde 4x kaydet → onay p95 3,7 sn → 1,6 sn.
+- **Gizleme:** Gizleme işaretleri olayları 5 MB'ın üstüne çıkarırsa olaylar kesin boyutla yeniden sığdırılıyor (önceden yük 413 alabiliyordu). Bunun için regresyon testi eklendi.
+
+## 3. FRD'den sapmalar
+
+Aşağıdakilerin hepsi FRD v1.1'e işlendi. D-5 açık bir karar olarak AS-10'a taşındı.
 
 | # | Konu | Uygulama | Öneri |
 |---|---|---|---|
@@ -70,10 +85,10 @@
 
 ## 5. Sıradaki işler (öneri sırası)
 
-1. **EK-B3 spike'ı** (3 gün): Next.js App Router (Turbopack ve webpack) ve React 18 ile kaynak çözümleme. Sonuç destek matrisine işlenecek.
-2. **CI'ı GitHub'da çalıştırmak:** Windows ve macOS'ta güvenlik paketi ve e2e testleri (KK-4).
-3. **Cursor ve Codex smoke testi** (KK-5) ve kırmızı takım koşusu (FR-MCP-SEC-02).
+1. **Windows CI'ın yeşile döndüğünü doğrulamak** (KK-4) ve Firefox kaynak çözümleme işinin sonucunu 06 belgesine işlemek (KK-8).
+2. **Cursor ve Codex smoke testi** (KK-5) ve kırmızı takım koşusu (FR-MCP-SEC-02).
+3. **Kısayol çakışma testi** (FR-UI-03, AS-3): Windows, macOS ve Linux'ta, TR-Q/TR-F/US düzenleri ve IME açıkken `Alt+Shift+R`. Kısayol fiziksel tuşa (`KeyboardEvent.code`) bağlı olduğu için düzen değişse de aynı tuşla tetiklenir. Asıl risk, Windows'ta `Alt+Shift` ile dil değiştirme.
 4. **Mini benchmark** (KK-11): 8–10 hata, Rewind ile ve Rewind olmadan.
-5. **NFR ölçümleri:** INP, bellek, gecikme.
-6. **npm adlarının rezervasyonu** ve CI'dan provenance ile yayın (§11.3).
-7. §3'teki sapmaların FRD'ye işlenmesi (v1.1 belgesi).
+5. **npm adlarının rezervasyonu** ve CI'dan provenance ile yayın (§11.3).
+6. **AS-10 kararı:** önizleme olay başına mı, oturum başına mı zorunlu olacak?
+7. Sürüm notu: NFR-PERF-01'in 5.000 düğümdeki INP sonucu (07 §0).

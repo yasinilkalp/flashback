@@ -76,7 +76,7 @@ type Tab = 'timeline' | 'incidents';
 function Panel({ controller, state, t }: { controller: RewindController; state: ControllerState; t: Strings }) {
   const [tab, setTab] = useState<Tab>('timeline');
   const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => ref.current?.focus(), []);
+  useLayoutEffect(() => ref.current?.focus({ preventScroll: true }), []);
   const redactOff = controller.cfg.redact.enabled === false;
 
   return (
@@ -84,13 +84,14 @@ function Panel({ controller, state, t }: { controller: RewindController; state: 
       ref={ref}
       className="rw-panel"
       role="dialog"
-      aria-modal="false"
+      aria-modal="true"
       aria-label={t.panelTitle}
       tabIndex={-1}
       data-rw="panel"
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === 'Escape' && !e.defaultPrevented) controller.close();
+        if (e.key === 'Tab' && ref.current) trapFocus(e, ref.current);
       }}
     >
       <div className="rw-header">
@@ -124,7 +125,13 @@ function Panel({ controller, state, t }: { controller: RewindController; state: 
       )}
       {controller.cfg.productionWarning && <div className="rw-strip rw-strip-err" role="alert">{t.productionOn}</div>}
       {state.memoryWarning && <div className="rw-strip rw-strip-warn">{t.memoryWarn}</div>}
-      {state.receiver !== 'connected' && <div className="rw-strip rw-strip-warn">{t.receiverDownHint}</div>}
+      {state.receiver === 'disconnected' && <div className="rw-strip rw-strip-warn">{t.receiverDownHint}</div>}
+      {state.receiver === 'wrong_project' && (
+        <div className="rw-strip rw-strip-warn" role="alert" data-rw="wrong-project">
+          {t.wrongProjectHint}
+          {state.health ? ` (${t.project}: ${state.health.projectName})` : ''}
+        </div>
+      )}
       {state.queueDelivered > 0 && <div className="rw-strip rw-strip-warn">{t.queueDelivered}: {state.queueDelivered}</div>}
       <div className="rw-body" id="rw-tab-timeline" role="tabpanel" hidden={tab !== 'timeline'} style={tab !== 'timeline' ? { display: 'none' } : undefined}>
         <TimelineTab controller={controller} state={state} t={t} />
@@ -136,4 +143,24 @@ function Panel({ controller, state, t }: { controller: RewindController; state: 
       )}
     </div>
   );
+}
+
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
+
+/** Panel sayfanın tamamını kaplar: Tab ile odak panelin dışına (görünmeyen sayfaya) kaçmaz (FR-UI-13). */
+export function trapFocus(e: { shiftKey: boolean; preventDefault(): void }, panel: HTMLElement): void {
+  const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => !el.closest('[hidden]') && el.offsetParent !== null);
+  if (!items.length) return;
+  const root = panel.getRootNode() as Document | ShadowRoot;
+  const active = root.activeElement as HTMLElement | null;
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (e.shiftKey && (active === first || active === panel)) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }

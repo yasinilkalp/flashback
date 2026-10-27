@@ -17,7 +17,8 @@
     "setup:browsers": "playwright install chromium",
     "release:check": "npm run build && npm pack --dry-run -w rewind-devtools -w rewind-mcp",
     "test": "vitest run",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "bench": "node scripts/bench/run-all.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

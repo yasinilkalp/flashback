@@ -67,6 +67,7 @@ export interface ResolvedConfig {
   position: RewindPosition;
   locale: RewindLocale;
   productionWarning: boolean;
+  project?: string;
 }
 
 export function detectLocale(language = typeof navigator === 'undefined' ? '' : navigator.language): RewindLocale {
@@ -85,6 +86,7 @@ export function resolveConfig(props: RewindProps, productionWarning = false): Re
     position: props.position ?? DEFAULTS.position,
     locale: props.locale ?? detectLocale(),
     productionWarning,
+    project: props.project?.trim() || undefined,
   };
 }
 

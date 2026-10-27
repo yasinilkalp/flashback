@@ -23,10 +23,22 @@ interface SnNode {
 /** rrweb ham olaylarından Rewind arayüz düğümlerini (yer tutucu ve mutasyonları) çıkarır (FR-REC-10). */
 export function withoutOwnUi(events: eventWithTime[]): eventWithTime[] {
   const ids = new Set<number>();
+  // Değişmeyen alt ağaçlar kopyalanmaz (5.000 düğümlük tam görüntüde kaydet yolunun belirgin bir payıydı).
   const strip = (node: SnNode): SnNode => {
     if (!node.childNodes) return node;
-    const childNodes = node.childNodes.filter((c) => (c.tagName === OWN_TAG ? (ids.add(c.id), false) : true)).map(strip);
-    return { ...node, childNodes };
+    let changed = false;
+    const childNodes: SnNode[] = [];
+    for (const c of node.childNodes) {
+      if (c.tagName === OWN_TAG) {
+        ids.add(c.id);
+        changed = true;
+        continue;
+      }
+      const s = strip(c);
+      if (s !== c) changed = true;
+      childNodes.push(s);
+    }
+    return changed ? { ...node, childNodes } : node;
   };
   return events.map((e) => {
     if (e.type === EventType.FullSnapshot) {

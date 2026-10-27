@@ -44,3 +44,21 @@ describe('EventRing (FR-REC-02, NFR-MEM-01)', () => {
     expect(ring.windowStart).toBe(10);
   });
 });
+
+describe('estimateEventBytes', () => {
+  it('tam anlık görüntüyü serileştirmeden JSON boyutuna yakın tahmin eder', async () => {
+    const { estimateEventBytes } = await import('../src/recorder/ring.js');
+    const rows = Array.from({ length: 500 }, (_, i) => ({
+      type: 2,
+      tagName: 'li',
+      id: i + 10,
+      attributes: { class: 'row', 'data-id': String(i) },
+      childNodes: [{ type: 3, textContent: `Satır ${i} — ürün açıklaması`, id: i + 10_000 }],
+    }));
+    const full = { type: 2, timestamp: 1, data: { node: { type: 0, id: 1, childNodes: [{ type: 2, tagName: 'ul', id: 2, attributes: {}, childNodes: rows }] }, initialOffset: { top: 0, left: 0 } } } as unknown as eventWithTime;
+    const exact = JSON.stringify(full).length * 2;
+    const est = estimateEventBytes(full);
+    expect(est / exact).toBeGreaterThan(0.6);
+    expect(est / exact).toBeLessThan(1.6);
+  });
+});

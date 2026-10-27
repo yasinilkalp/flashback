@@ -88,6 +88,7 @@ trackStore('redux', store.subscribe, store.getState);              // Redux
 | `shortcut` | `alt+shift+r` | Paneli açıp kapatan kısayol (`event.code` ile; metin girişindeyken tetiklenmez) |
 | `position` | `bottom-right` | Düğmenin köşesi |
 | `locale` | tarayıcı dili (`tr`/`en`) | Arayüz dili |
+| `project` | — | Projenin `package.json` adı. Verilirse alıcının projesiyle karşılaştırılır: uyuşmazsa düğme "yanlış proje" gösterir ve alıcı olayı 409 ile reddeder (aynı makinede birden çok proje çalışırken önerilir). |
 
 ### Hassas veri gizleme
 
@@ -180,7 +181,7 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 ## Bilinen sınırlar
 
 - Props/state değerleri işaretleme anında canlı uygulamadan okunur; geçmişteki ana ait değildir. Rapor bunu açıkça belirtir.
-- Bileşen bilgisi yalnızca React için çıkarılır. Next.js ve React 18 kaynak çözümlemesi henüz gerçek kurulumlarda doğrulanmadı (FRD §3.5 spike'ı).
+- Bileşen bilgisi yalnızca React için çıkarılır; React dışı öğelerde (Vue smoke testi) bileşen yığını boş kalır ve paket bunu belirtir. JSX kaynak satırı Chromium'da React 19 + Vite, React 18.3 + Vite ve Next.js 16 App Router (Turbopack ve webpack) kurulumlarında ölçüldü (EK-B3: [`frd/06-ek-b3-spike.md`](frd/06-ek-b3-spike.md)). Firefox ve Safari'de ölçülmedi (en iyi çaba). React Server Component öğelerinin satırı yalnızca Next.js geliştirme sunucusunda çözülür (en iyi çaba); çözülemezse `resolved: false` verilir.
 - Canvas, video ve çapraz kökenli iframe içerikleri tekrar oynatılmaz. WebSocket mesaj içerikleri kaydedilmez.
 - WSL2, Docker ve uzaktan geliştirme ortamları v1.0'da desteklenmez.
 - Yalnızca geliştirme ortamı içindir.
@@ -203,6 +204,8 @@ packages/shared   → @rewind/shared (yayımlanmaz): olay şeması, gizleme, sı
 packages/rewind   → rewind-devtools: <Rewind/> bileşeni, kaydedici, panel
 packages/mcp      → rewind-mcp: MCP sunucusu, HTTP alıcı, run_repro
 examples/demo     → kasıtlı hatalar içeren Vite + React sepet demosu
+examples/next-app → Next.js App Router kurulum örneği ('use client' sarmalayıcısı; Turbopack ve webpack)
+examples/react18  → React 18.3 + Vite örneği · examples/vue → Vue 3 + Vite smoke örneği (panel ayrı React kökünde)
 tests/e2e         → paketler arası uçtan uca akış testleri
 frd/              → Fonksiyonel gereksinim dokümanı (v1.0) ve inceleme süreci
 docs/             → Paketler arası uygulama sözleşmesi

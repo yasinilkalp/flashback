@@ -24,7 +24,8 @@ describe('preview and payload come from the same serialized object (FR-UI-08 �
     const submission = prepareSubmission(sample());
     const posted: string[] = [];
     const fetchFn = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
-      posted.push(String(init!.body));
+      const b = init!.body;
+      posted.push(b instanceof Blob ? await b.text() : String(b));
       expect(new Headers(init!.headers).get('content-type')).toBe('application/json');
       return new Response(JSON.stringify({ id: 'rw-20261027-120000-abcd' }), { status: 201 });
     }) as unknown as typeof fetch;
@@ -132,6 +133,22 @@ describe('delivery fallbacks (FR-RCV-07/08/11)', () => {
   it('marks an incompatible receiver as wrong project', async () => {
     const other = new ReceiverClient('http://127.0.0.1:1', (async () => new Response(JSON.stringify({ name: 'something-else', schemaVersion: 1 }))) as unknown as typeof fetch);
     expect((await other.health()).status).toBe('wrong_project');
+  });
+
+  it('project prop: alıcının projesiyle karşılaştırılır ve POST başlığında gider (FR-RCV-06)', async () => {
+    const health = JSON.stringify({ name: 'rewind-mcp', version: 't', schemaVersion: 1, projectId: 'x', projectName: 'shop' });
+    const seen: Array<Record<string, string>> = [];
+    const fetchFn = (async (_url: string, init?: RequestInit) => {
+      seen.push((init?.headers ?? {}) as Record<string, string>);
+      return init?.method === 'POST' ? new Response(JSON.stringify({ id: 'rw-20261027-120000-abcd' }), { status: 201 }) : new Response(health);
+    }) as unknown as typeof fetch;
+    expect((await new ReceiverClient('http://127.0.0.1:1', fetchFn, 'shop').health()).status).toBe('connected');
+    expect((await new ReceiverClient('http://127.0.0.1:1', fetchFn, 'admin-panel').health()).status).toBe('wrong_project');
+    expect((await new ReceiverClient('http://127.0.0.1:1', fetchFn).health()).status).toBe('connected');
+    await new ReceiverClient('http://127.0.0.1:1', fetchFn, 'shop').postIncident('{}');
+    expect(seen.at(-1)).toMatchObject({ 'x-rewind-project': 'shop' });
+    await new ReceiverClient('http://127.0.0.1:1', fetchFn).postIncident('{}');
+    expect(seen.at(-1)).not.toHaveProperty('x-rewind-project');
   });
 
   it('downloads a .md file when the clipboard is unavailable', async () => {

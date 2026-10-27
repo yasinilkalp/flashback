@@ -3,7 +3,7 @@
  * React 18.3+ ve 19.x geliştirme derlemelerinin iç alanlarını yalnızca OKUR; hiçbir şeyi değiştirmez.
  */
 import { safeSerialize } from '../serialize.js';
-import { firstUserFrame, type StackFrame } from '../source/stack.js';
+import { elementFrames, type StackFrame } from '../source/stack.js';
 
 export interface Fiber {
   tag: number;
@@ -15,6 +15,8 @@ export interface Fiber {
   stateNode?: unknown;
   _debugStack?: { stack?: string } | null;
   _debugSource?: { fileName: string; lineNumber: number; columnNumber?: number } | null;
+  /** Sahip: istemci bileşeninin fiber'ı ya da (RSC) sunucu bileşeni bilgisi. */
+  _debugOwner?: unknown;
 }
 
 // React iş etiketleri (ReactWorkTags).
@@ -72,24 +74,38 @@ export function nearestComponent(fiber: Fiber | null): Fiber | null {
   return null;
 }
 
-export type SourceHint =
-  | { kind: 'stack'; frame: StackFrame }
-  | { kind: 'debugSource'; file: string; line: number; column?: number };
+/** Sunucu bileşeni bilgisi (React Flight): RSC öğelerinin `_debugOwner`'ı fiber değil, bu nesnedir. */
+interface ServerComponentInfo {
+  name?: string;
+  env?: string;
+}
+
+/** Öğe bir React Server Component tarafından mı oluşturuldu? (istemcide fiber'ı olmayan sahip) */
+export function isServerOwned(f: Fiber): boolean {
+  const owner = f._debugOwner as (ServerComponentInfo & { tag?: unknown }) | null | undefined;
+  return !!owner && typeof owner === 'object' && typeof owner.tag !== 'number' && typeof owner.env === 'string';
+}
+
+export type SourceCandidate =
+  | { kind: 'stack'; frames: StackFrame[]; fiber: Fiber; depth: number }
+  | { kind: 'debugSource'; file: string; line: number; column?: number; fiber: Fiber; depth: number };
 
 /**
- * JSX'in yazıldığı yer: React 19 `_debugStack` (ilk kullanıcı çerçevesi) ya da React 18 `_debugSource`.
- * Öğenin kendi fiber'ı bağımlılık kodunda oluşturulduysa, kullanıcı kodundaki ilk ataya çıkılır.
+ * JSX'in yazıldığı yerin adayları, öğenin kendi fiber'ından köke doğru: React 19 `_debugStack` (kullanıcı kodu
+ * olabilecek çerçeveler) ya da React 18 `_debugSource`. `depth > 0`: aday bir ataya ait (öğe bağımlılık kodunda
+ * oluşturulmuş). Çözümleme ve eleme `source/locate.ts`'te yapılır.
  */
-export function sourceHint(fiber: Fiber | null): SourceHint | null {
-  for (let f = fiber; f; f = f.return) {
-    if (f._debugSource?.fileName && !/\/node_modules\//.test(f._debugSource.fileName)) {
-      return { kind: 'debugSource', file: f._debugSource.fileName, line: f._debugSource.lineNumber, column: f._debugSource.columnNumber };
+export function* sourceCandidates(fiber: Fiber | null): Generator<SourceCandidate> {
+  let depth = 0;
+  for (let f = fiber; f; f = f.return, depth++) {
+    const ds = f._debugSource;
+    if (ds?.fileName && typeof ds.lineNumber === 'number') {
+      yield { kind: 'debugSource', file: ds.fileName, line: ds.lineNumber, column: ds.columnNumber, fiber: f, depth };
+      continue;
     }
-    const stack = f._debugStack?.stack;
-    const frame = stack ? firstUserFrame(stack) : null;
-    if (frame) return { kind: 'stack', frame };
+    const frames = elementFrames(f._debugStack?.stack);
+    if (frames.length || isServerOwned(f)) yield { kind: 'stack', frames, fiber: f, depth };
   }
-  return null;
 }
 
 interface HookNode {

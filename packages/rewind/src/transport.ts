@@ -2,7 +2,7 @@
  * `rewind-mcp` alıcısıyla konuşma (FRD §9.3) ve teslim yedekleri (FR-RCV-07/08/11).
  * Tüm istekler yamasız fetch ile yapılır; böylece Rewind'in kendi istekleri kayda girmez (FR-REC-10).
  */
-import { ROUTES, type HealthResponse, type IncidentSummary } from '@rewind/shared';
+import { PROJECT_HEADER, ROUTES, type HealthResponse, type IncidentSummary } from '@rewind/shared';
 import { PAYLOAD_SCHEMA_VERSION } from './config.js';
 
 export type ReceiverStatus = 'connected' | 'disconnected' | 'wrong_project';
@@ -39,6 +39,8 @@ export class ReceiverClient {
   constructor(
     private readonly endpoint: string,
     private readonly fetchFn: FetchFn,
+    /** `project` prop'u (FR-RCV-06): verilirse alıcının projesiyle karşılaştırılır. */
+    private readonly project?: string,
   ) {}
 
   private url(path: string) {
@@ -50,7 +52,10 @@ export class ReceiverClient {
       const res = await this.fetchFn(this.url(ROUTES.health), { signal: timeout(HEALTH_TIMEOUT_MS) });
       if (!res.ok) return { status: 'disconnected' };
       const health = (await res.json()) as HealthResponse;
-      const compatible = health.name === 'rewind-mcp' && health.schemaVersion === PAYLOAD_SCHEMA_VERSION;
+      const compatible =
+        health.name === 'rewind-mcp' &&
+        health.schemaVersion === PAYLOAD_SCHEMA_VERSION &&
+        (this.project === undefined || health.projectName === this.project);
       return { status: compatible ? 'connected' : 'wrong_project', health };
     } catch {
       return { status: 'disconnected' };
@@ -62,8 +67,10 @@ export class ReceiverClient {
     try {
       res = await this.fetchFn(this.url(ROUTES.incidents), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
+        headers: { 'Content-Type': 'application/json', ...(this.project ? { [PROJECT_HEADER]: this.project } : {}) },
+        // Blob: metin tarayıcıda yerel olarak bir kez kodlanır. Düz metin gövde 4x CPU kısmada 3,8 MB'ta ~1 sn
+        // tutuyordu, Blob ~0,15 sn (NFR-LAT-01; 07-nfr-olcumleri.md §5).
+        body: typeof Blob === 'function' ? new Blob([body], { type: 'application/json' }) : body,
         signal: timeout(POST_TIMEOUT_MS),
       });
     } catch (err) {

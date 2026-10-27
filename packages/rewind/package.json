@@ -38,6 +38,7 @@
     "@rewind/shared": "0.1.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "axe-core": "^4.11.0",
     "happy-dom": "^21.0.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"

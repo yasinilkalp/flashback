@@ -15,7 +15,7 @@ import { checkTargetUrl, type RewindConfig } from './config.js';
 import { RewindError, ERROR_SUGGESTIONS } from './errors.js';
 import { countedRuns, evaluateVerification } from './lifecycle.js';
 import { sessionHints } from './report.js';
-import { CONFIG_TEMPLATE, renderSpec } from './repro-template.js';
+import { CONFIG_TEMPLATE, renderPortableSpec, renderSpec } from './repro-template.js';
 import { checkSecretValueAssertions, collectSecrets, envProvides, scrubSecrets, type Secret } from './secrets.js';
 import type { IncidentStore } from './store.js';
 
@@ -384,6 +384,8 @@ export interface RunReproResult {
   assertionText: string;
   comment: string[];
   previousRuns: string;
+  /** Bu koşudan önceki son (en fazla 10) koşunun özeti (yapılandırılmış çıktı için). */
+  previous: Array<Pick<ReproRun, 't' | 'status' | 'errorKind' | 'signature'>>;
   screenshot?: Buffer;
 }
 
@@ -420,6 +422,48 @@ async function isServerUp(url: string): Promise<boolean> {
   }
 }
 
+interface Resolved {
+  inc: Incident;
+  ir: AssertionIR;
+  assertionText: string;
+  baseUrl: string;
+  storageState: string | null;
+  strict: boolean;
+  signature: string;
+  built: ReturnType<typeof buildStepsData>;
+  warnings: string[];
+}
+
+/** Assertion'ı ayrıştırır, hedef adresi doğrular ve adım verisini kurar. Dosya yazmaz. */
+function resolveRepro(deps: ReproDeps, input: RunReproInput, screenshotPath: string): Resolved {
+  const { store, config } = deps;
+  const inc = store.require(input.id);
+  const { ir, text } = parseAssertions(input.assertions, { hasTarget: inc.target !== null });
+  const baseUrl = resolveBaseUrl(inc, input.baseUrl, config);
+  const warnings: string[] = [];
+  let storageState: string | null = null;
+  if (config.storageState) {
+    if (fs.existsSync(config.storageState)) storageState = config.storageState;
+    else warnings.push('REWIND_STORAGE_STATE dosyası bulunamadı; oturumsuz koşuldu.');
+  }
+  const strict = input.strict ?? false;
+  const signature = computeSignature(ir, strict, baseUrl, storageState !== null);
+  const built = buildStepsData(inc, {
+    baseUrl,
+    storageState,
+    strict,
+    screenshotPath,
+    passwordSet: !!(config.password || process.env.REWIND_PASSWORD),
+    allowOrigins: config.allowOrigins,
+  });
+  // Değeri ortam değişkeninden gelen alanlar assertion ile okunamaz (gerçek değer hata metnine sızar).
+  const secretSelectors = built.data.steps
+    .filter((s) => s.env?.some((name) => envProvides(name, { password: config.password })))
+    .flatMap((s) => s.selectors);
+  checkSecretValueAssertions(ir, secretSelectors, built.data.target?.selectors ?? null);
+  return { inc, ir, assertionText: text, baseUrl, storageState, strict, signature, built, warnings };
+}
+
 interface Prepared {
   inc: Incident;
   ir: AssertionIR;
@@ -438,64 +482,70 @@ interface Prepared {
 
 /** Assertion'ı ayrıştırır ve repro dosyalarını üretir. Çağıran kilidi tutmalıdır. */
 function prepare(deps: ReproDeps, input: RunReproInput, runTag: string): Prepared {
-  const { store, config } = deps;
-  const inc = store.require(input.id);
-  const { ir, text } = parseAssertions(input.assertions, { hasTarget: inc.target !== null });
-  const baseUrl = resolveBaseUrl(inc, input.baseUrl, config);
-  const warnings: string[] = [];
-  let storageState: string | null = null;
-  if (config.storageState) {
-    if (fs.existsSync(config.storageState)) storageState = config.storageState;
-    else warnings.push('REWIND_STORAGE_STATE dosyası bulunamadı; oturumsuz koşuldu.');
-  }
-  const strict = input.strict ?? false;
-  const signature = computeSignature(ir, strict, baseUrl, storageState !== null);
-
+  const { store } = deps;
+  const id = store.require(input.id).id;
   store.init();
   const dir = store.reproDir;
-  const specPath = path.join(dir, `${inc.id}.spec.ts`);
-  const stepsPath = path.join(dir, `${inc.id}.steps.json`);
+  const specPath = path.join(dir, `${id}.spec.ts`);
+  const stepsPath = path.join(dir, `${id}.steps.json`);
   const configPath = path.join(dir, CONFIG_FILE);
-  const screenshotPath = path.join(dir, `${inc.id}-${runTag}.png`);
-  const built = buildStepsData(inc, {
-    baseUrl,
-    storageState,
-    strict,
-    screenshotPath,
-    passwordSet: !!(config.password || process.env.REWIND_PASSWORD),
-    allowOrigins: config.allowOrigins,
-  });
-  // Değeri ortam değişkeninden gelen alanlar assertion ile okunamaz (gerçek değer hata metnine sızar).
-  const secretSelectors = built.data.steps
-    .filter((s) => s.env?.some((name) => envProvides(name, { password: config.password })))
-    .flatMap((s) => s.selectors);
-  checkSecretValueAssertions(ir, secretSelectors, built.data.target?.selectors ?? null);
-  store.writeAtomic(stepsPath, JSON.stringify(built.data, null, 2));
-  store.writeAtomic(specPath, renderSpec(renderAssertions(ir)));
+  const screenshotPath = path.join(dir, `${id}-${runTag}.png`);
+  const r = resolveRepro(deps, input, screenshotPath);
+  store.writeAtomic(stepsPath, JSON.stringify(r.built.data, null, 2));
+  store.writeAtomic(specPath, renderSpec(renderAssertions(r.ir)));
   store.writeAtomic(configPath, CONFIG_TEMPLATE);
   return {
-    inc,
-    ir,
-    assertionText: text,
-    baseUrl,
-    usedStorageState: storageState !== null,
-    signature,
+    inc: r.inc,
+    ir: r.ir,
+    assertionText: r.assertionText,
+    baseUrl: r.baseUrl,
+    usedStorageState: r.storageState !== null,
+    signature: r.signature,
     stepsPath,
     specPath,
     configPath,
     screenshotPath,
-    storageState,
-    syntheticInputs: built.syntheticInputs,
-    warnings: [...warnings, ...built.warnings],
+    storageState: r.storageState,
+    syntheticInputs: r.built.syntheticInputs,
+    warnings: [...r.warnings, ...r.built.warnings],
   };
 }
 
-/** `get_repro_script`: testi çalıştırmadan üretir (FR-MCP-06). */
-export function generateReproScript(deps: ReproDeps, input: Omit<RunReproInput, 'repeat' | 'headed'>) {
+interface ReproScriptBase {
+  specPath: string;
+  spec: string;
+  assertionText: string;
+  signature: string;
+  command: string;
+  syntheticInputs: string[];
+  warnings: string[];
+}
+/** Varsayılan çıktı: `.rewind/repro/` altında spec + adım verisi + yapılandırma. */
+export interface LocalReproScript extends ReproScriptBase {
+  portable: false;
+  stepsPath: string;
+  configPath: string;
+}
+/** FR-MCP-14: tek dosya; tüm veri spec içindedir, `.rewind/` dosyalarına bağımlılık yoktur. */
+export interface PortableReproScript extends ReproScriptBase {
+  portable: true;
+  stepsPath: null;
+  configPath: null;
+}
+export type ReproScript = LocalReproScript | PortableReproScript;
+type ScriptInput = Omit<RunReproInput, 'repeat' | 'headed'>;
+
+/** `get_repro_script`: testi çalıştırmadan üretir (FR-MCP-06). `portable: true` → FR-MCP-14. */
+export function generateReproScript(deps: ReproDeps, input: ScriptInput & { portable?: false }): LocalReproScript;
+export function generateReproScript(deps: ReproDeps, input: ScriptInput & { portable: true }): PortableReproScript;
+export function generateReproScript(deps: ReproDeps, input: ScriptInput & { portable?: boolean }): ReproScript;
+export function generateReproScript(deps: ReproDeps, input: ScriptInput & { portable?: boolean }): ReproScript {
+  if (input.portable) return generatePortableScript(deps, input);
   if (!deps.store.tryLock(input.id)) throw new RewindError('busy', 'Bu olay için bir koşu sürüyor.');
   try {
     const p = prepare(deps, input, 'manual');
     return {
+      portable: false,
       specPath: p.specPath,
       stepsPath: p.stepsPath,
       configPath: p.configPath,
@@ -509,6 +559,91 @@ export function generateReproScript(deps: ReproDeps, input: Omit<RunReproInput, 
   } finally {
     deps.store.unlock(input.id);
   }
+}
+
+// ---- Taşınabilir spec (FR-MCP-14) ---------------------------------------------
+
+/** Taşınabilir spec'e gömülen veri. Mutlak URL yoktur: yollar projenin `baseURL`'ine göre çözülür. */
+export interface PortableData {
+  format: 'rewind-portable';
+  stepsSchemaVersion: number;
+  incidentId: string;
+  /** Başlangıç yolu (ör. "/cart?x=1"); `page.goto` ile `baseURL`'e göre çözülür. */
+  startPath: string;
+  viewport: StepsData['viewport'];
+  locale: string;
+  timezone: string;
+  strict: boolean;
+  steps: Array<{ n: number; type: Step['type']; selectors: string[]; value?: string; env?: string[]; key?: string; path?: string }>;
+  firstActionIndex: number;
+  target: { selectors: string[] } | null;
+}
+
+const relPath = (abs: string) => {
+  const u = new URL(abs);
+  return u.pathname + u.search + u.hash;
+};
+
+/** Gerçek gizli değerleri (REWIND_PASSWORD, REWIND_INPUT_*, storageState) verideki tüm metinlerden temizler. */
+function scrubDeep<T>(v: T, secrets: Secret[]): T {
+  if (!secrets.length) return v;
+  if (typeof v === 'string') return scrubSecrets(v, secrets) as T;
+  if (Array.isArray(v)) return v.map((x) => scrubDeep(x, secrets)) as T;
+  if (v && typeof v === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) out[k] = scrubDeep(x, secrets);
+    return out as T;
+  }
+  return v;
+}
+
+/** StepsData → taşınabilir veri: köken ve `.rewind/` yolları çıkarılır, gezinmeler göreli yola çevrilir. */
+export function buildPortableData(data: StepsData, secrets: Secret[] = []): PortableData {
+  const out: PortableData = {
+    format: 'rewind-portable',
+    stepsSchemaVersion: data.stepsSchemaVersion,
+    incidentId: data.incidentId,
+    startPath: relPath(data.startUrl),
+    viewport: data.viewport,
+    locale: data.locale,
+    timezone: data.timezone,
+    strict: data.strict,
+    steps: data.steps.map(({ url, ...s }) => (s.type === 'navigate' && url ? { ...s, path: relPath(url) } : s)),
+    firstActionIndex: data.firstActionIndex,
+    target: data.target,
+  };
+  // Parola alanlarına zaten yer tutucu yazılır; yine de olay verisinde gerçek bir gizli değer geçiyorsa
+  // (ör. gizleme kapalıyken) projeye kopyalanacak dosyaya girmez.
+  return scrubDeep(out, secrets);
+}
+
+function generatePortableScript(deps: ReproDeps, input: ScriptInput): PortableReproScript {
+  const { store, config } = deps;
+  const r = resolveRepro(deps, input, '');
+  const secrets = collectSecrets({ password: config.password, storageState: r.storageState });
+  const spec = renderPortableSpec(buildPortableData(r.built.data, secrets), renderAssertions(r.ir));
+  store.init();
+  const dir = path.join(store.dir, 'portable');
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const specPath = path.join(dir, `${r.inc.id}.spec.ts`);
+  store.writeAtomic(specPath, spec);
+  return {
+    portable: true,
+    specPath,
+    stepsPath: null,
+    configPath: null,
+    spec,
+    assertionText: r.assertionText,
+    signature: r.signature,
+    command: `cp ${specPath} <projenin test klasörü>/ && npx playwright test ${path.basename(specPath)}`,
+    syntheticInputs: r.built.syntheticInputs,
+    warnings: [
+      ...(sessionHints(r.inc).length
+        ? ['Başlangıç bağlamında oturum işareti var: taşınabilir test projenin storageState ayarını ya da REWIND_STORAGE_STATE ortam değişkenini kullanır.']
+        : []),
+      ...r.built.warnings,
+    ],
+  };
 }
 
 function spawnPlaywright(
@@ -714,7 +849,8 @@ export async function runRepro(deps: ReproDeps, input: RunReproInput): Promise<R
       comment.push(`Uyarı: kayıtta ${sideEffects.length} yan etkili istek var; repro bunları canlı backend'e yeniden gönderir (FR-REPRO-19).`);
     }
     comment.push(...p.warnings);
-    return { run, assertionText: p.assertionText, comment, previousRuns: formatRuns(before.repros), screenshot };
+    const previous = before.repros.slice(-10).map(({ t, status, errorKind, signature }) => ({ t, status, errorKind, signature }));
+    return { run, assertionText: p.assertionText, comment, previousRuns: formatRuns(before.repros), previous, screenshot };
   } finally {
     store.unlock(input.id);
   }

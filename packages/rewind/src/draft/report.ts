@@ -4,6 +4,7 @@
  * Önizleme ile gönderilen yük AYNI serileştirilmiş metinden üretilir: yük bir kez `JSON.stringify` edilir,
  * POST gövdesi bu metindir ve önizleme yalnızca bu metnin `JSON.parse` sonucundan türetilir.
  */
+import { byteLength } from './build.js';
 import type { IncidentDraftInput } from '@rewind/shared';
 import { fnv1a } from '../hash.js';
 import { describeEvidence, pathOf } from './confidence.js';
@@ -32,7 +33,8 @@ export interface Submission {
   body: string;
   /** Önizlemenin türetildiği metin; `body` ile aynı nesnedir (FR-UI-08). */
   previewSource: string;
-  preview: Preview;
+  /** Tembel: ilk erişimde `previewSource`'tan türetilir. */
+  readonly preview: Preview;
 }
 
 const MAX_LIST = 25;
@@ -57,7 +59,7 @@ function recorded(lines: string[]): string[] {
 
 const sec = (ms: number) => `t+${(ms / 1000).toFixed(1)} sn`;
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}… [+${s.length - n}]` : s);
-const bytes = (s: string) => new TextEncoder().encode(s).length;
+const bytes = byteLength;
 
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -179,9 +181,20 @@ export function previewFromBody(body: string): Preview {
   return { draft, markdown: renderMarkdown(draft, size), extras: extrasOf(draft, size) };
 }
 
+/**
+ * Önizleme ilk erişimde (önizleme ekranı veya pano/.md yedeği) aynı metinden kurulur; önizlemesiz hızlı yolda
+ * 5 MB'lık gövdenin yeniden ayrıştırılması kaydet→onay süresine eklenmez (NFR-LAT-01).
+ */
 export function prepareSubmission(draft: IncidentDraftInput): Submission {
   const body = JSON.stringify(draft);
-  return { body, previewSource: body, preview: previewFromBody(body) };
+  let preview: Preview | undefined;
+  return {
+    body,
+    previewSource: body,
+    get preview() {
+      return (preview ??= previewFromBody(body));
+    },
+  };
 }
 
 /** Önizleme ile gönderilenin aynı olduğunu doğrulamak için parmak izi. */

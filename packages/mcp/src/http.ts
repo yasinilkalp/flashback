@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   CLIENT_HEADER,
   IncidentDraftSchema,
+  PROJECT_HEADER,
   LIMITS,
   MessageSchema,
   SCHEMA_VERSION,
@@ -18,7 +19,8 @@ import { QuotaError, type IncidentStore } from './store.js';
 import { VERSION } from './version.js';
 
 export interface ReceiverOptions {
-  config: Pick<RewindConfig, 'port' | 'host' | 'allowOrigins' | 'maxBodyBytes' | 'projectId' | 'projectName' | 'rateLimitPerMin'>;
+  config: Pick<RewindConfig, 'port' | 'host' | 'allowOrigins' | 'maxBodyBytes' | 'projectId' | 'projectName' | 'rateLimitPerMin'> &
+    Partial<Pick<RewindConfig, 'projectRoot'>>;
   store: IncidentStore;
   log?: (msg: string) => void;
   now?: () => Date;
@@ -66,7 +68,24 @@ export function isAllowedHost(hostHeader: string | undefined, port: number, extr
 }
 
 /** Kaydedilen alanları LIMITS'e göre kırpar (NFR-SIZE-01). */
-function clampDraft(d: IncidentDraft): IncidentDraft {
+/**
+ * Kaynak dosya yolunu proje köküne göreli yazar (EK-B3 önerisi). Turbopack gibi bazı kurulumlar mutlak yol verir
+ * (`/home/u/app/src/Cart.tsx`, `C:/Users/u/app/src/Cart.tsx`); ajan için `src/Cart.tsx` hem kısa hem taşınabilirdir.
+ * Proje dışındaki mutlak yollar olduğu gibi kalır.
+ */
+export function relativizeSourcePath(file: string | undefined, projectRoot: string | undefined): string | undefined {
+  if (!file || !projectRoot) return file;
+  const norm = (s: string) => s.replace(/\\/g, '/').replace(/^file:\/\/\/?/, '/').replace(/^\/([A-Za-z]:\/)/, '$1');
+  const f = norm(file);
+  const isAbs = f.startsWith('/') || /^[A-Za-z]:\//.test(f);
+  if (!isAbs) return file;
+  const root = norm(projectRoot).replace(/\/+$/, '') + '/';
+  const windowsLike = /^[A-Za-z]:\//.test(root);
+  const matches = windowsLike ? f.toLowerCase().startsWith(root.toLowerCase()) : f.startsWith(root);
+  return matches ? f.slice(root.length) : file;
+}
+
+function clampDraft(d: IncidentDraft, projectRoot?: string): IncidentDraft {
   const cap = (s: string | undefined) => (s === undefined ? s : truncateText(s, LIMITS.bodyBytes).text);
   return {
     ...d,
@@ -83,7 +102,9 @@ function clampDraft(d: IncidentDraft): IncidentDraft {
       };
     }),
     console: d.console.map((c) => ({ ...c, message: cap(c.message)!, stack: cap(c.stack) })),
-    target: d.target ? { ...d.target, html: cap(d.target.html), text: cap(d.target.text) } : null,
+    target: d.target
+      ? { ...d.target, file: relativizeSourcePath(d.target.file, projectRoot), html: cap(d.target.html), text: cap(d.target.text) }
+      : null,
     domSnapshot: truncateText(d.domSnapshot, LIMITS.domBytes).text,
   };
 }
@@ -116,6 +137,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
     // yanıt biter bitmez soketi kapatır). Gövde 2 sn içinde bitmezse (yavaş/sonsuz akış) bağlantı kesilir.
     const tooLarge = () => {
       send(res, 413, { error: `Gövde ${Math.round(limit / 1048576)} MB sınırını aşıyor (REWIND_MAX_BODY_MB).` });
+      req.removeAllListeners('data');
       req.resume();
       const timer = setTimeout(() => {
         if (!req.complete) req.destroy();
@@ -179,11 +201,20 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
       if (method === 'GET') return send(res, 200, store.list().map(toSummary));
       if (method === 'POST') {
         const body = await readJson(req, res);
+        // FR-RCV-06: tarayıcı projesini bildirdiyse ve bu alıcının projesi değilse olay sessizce yanlış klasöre yazılmaz.
+        const claimed = req.headers[PROJECT_HEADER];
+        if (typeof claimed === 'string' && claimed !== '' && claimed !== config.projectName) {
+          throw new HttpError(
+            409,
+            `Yanlış proje: olay "${claimed.slice(0, 100)}" için gönderildi, bu alıcı "${config.projectName}" projesine ait. ` +
+              'Doğru projede rewind-mcp çalıştırın ya da endpoint/REWIND_PORT değerini değiştirin.',
+          );
+        }
         if (rateLimited()) throw new HttpError(429, 'Çok fazla olay (REWIND_RATE_LIMIT_PER_MIN).');
         const parsed = IncidentDraftSchema.safeParse(body);
         if (!parsed.success) throw new HttpError(400, `Olay şemaya uymuyor:\n${z.prettifyError(parsed.error)}`);
         try {
-          const inc = store.create(clampDraft(parsed.data), config.projectId);
+          const inc = store.create(clampDraft(parsed.data, config.projectRoot), config.projectId);
           log(`Yeni olay: ${inc.id}`);
           return send(res, 201, { id: inc.id });
         } catch (e) {
@@ -246,7 +277,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
     if (req.method === 'OPTIONS') {
       if (origin === undefined) return send(res, 403, { error: 'Preflight için Origin gerekli.' });
       res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-      res.setHeader('access-control-allow-headers', `content-type, ${CLIENT_HEADER}`);
+      res.setHeader('access-control-allow-headers', `content-type, ${CLIENT_HEADER}, ${PROJECT_HEADER}`);
       res.setHeader('access-control-max-age', '600');
       if (req.headers['access-control-request-private-network'] === 'true') {
         res.setHeader('access-control-allow-private-network', 'true');

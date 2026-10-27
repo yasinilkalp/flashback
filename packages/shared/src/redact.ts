@@ -112,32 +112,37 @@ interface PatternRule {
   re: RegExp;
   /** Eşleşmenin gerçekten gizlenmesi gerekip gerekmediğini denetler (sağlama). */
   check?: (m: string) => boolean;
+  /** Ucuz ön koşul: metin bunu sağlamıyorsa düzenli ifade hiç çalıştırılmaz (yalnızca gerekli koşul). */
+  guard?: (s: string) => boolean;
 }
 
 const SECRET_RULES: PatternRule[] = [
-  { type: 'jwt', re: /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b/g },
-  { type: 'token', re: /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi },
-  { type: 'token', re: /\bBasic\s+[A-Za-z0-9+/=]{8,}/g },
-  { type: 'api_key', re: /\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}\b/g },
-  { type: 'api_key', re: /\b(?:ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{20,}\b/g },
-  { type: 'api_key', re: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g },
-  { type: 'api_key', re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g },
-  { type: 'api_key', re: /\bAIza[0-9A-Za-z_-]{35}\b/g },
+  { type: 'jwt', guard: (s) => s.includes('eyJ'), re: /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b/g },
+  { type: 'token', guard: (s) => /bearer/i.test(s), re: /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi },
+  { type: 'token', guard: (s) => s.includes('Basic'), re: /\bBasic\s+[A-Za-z0-9+/=]{8,}/g },
+  { type: 'api_key', guard: (s) => s.includes('sk-'), re: /\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}\b/g },
+  { type: 'api_key', guard: (s) => /gh[pousr]_|github_pat_/.test(s), re: /\b(?:ghp|gho|ghu|ghs|ghr|github_pat)_[A-Za-z0-9_]{20,}\b/g },
+  { type: 'api_key', guard: (s) => s.includes('IA'), re: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g },
+  { type: 'api_key', guard: (s) => s.includes('xox'), re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g },
+  { type: 'api_key', guard: (s) => s.includes('AIza'), re: /\bAIza[0-9A-Za-z_-]{35}\b/g },
 ];
 
 const EMAIL_RULE: PatternRule = {
   type: 'email',
+  guard: (s) => s.includes('@'),
   re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
 };
 
 const PII_RULES: PatternRule[] = [
   {
     type: 'iban',
+    guard: (s) => /[A-Z]{2}\d{2}/.test(s),
     re: /\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){2,7}(?:\s?[A-Z0-9]{1,4})?\b/g,
     check: (m) => ibanValid(m),
   },
   {
     type: 'card',
+    guard: (s) => /\d/.test(s),
     re: /\b\d(?:[ -]?\d){12,18}\b/g,
     check: (m) => {
       const digits = m.replace(/[ -]/g, '');
@@ -151,11 +156,19 @@ const PII_RULES: PatternRule[] = [
       );
     },
   },
-  { type: 'tckn', re: /\b[1-9]\d{10}\b/g, check: (m) => tcknValid(m) },
+  { type: 'tckn', guard: (s) => /\d{11}/.test(s), re: /\b[1-9]\d{10}\b/g, check: (m) => tcknValid(m) },
 ];
+
+/**
+ * Yerleşik desenlerin hepsinin gerekli koşullarının birleşimi: rakam, `@ : = _ -` ya da sabit önekler. Bunların
+ * hiçbiri yoksa (düz yazı, sınıf adları) hiçbir yerleşik kural eşleşemez; metin tek testle geçilir.
+ * Özel desen (`patterns`) varsa kullanılmaz.
+ */
+const PREFILTER_RE = /[\d@:=_-]|eyJ|bearer|basic|A[KS]IA|AIza/i;
 
 const PHONE_RULE: PatternRule = {
   type: 'phone',
+  guard: (s) => /\d{3}/.test(s),
   re: /(?:\+90[\s-]?|\b0)5\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}\b|\+[1-9]\d{7,14}\b/g,
 };
 
@@ -166,6 +179,7 @@ export class Redactor {
   readonly stats: RedactionStats = { count: 0, byType: {} };
   private readonly keySet: Set<string>;
   private readonly rules: PatternRule[];
+  private readonly prefilter: boolean;
 
   constructor(opts: RedactOptions = {}) {
     this.enabled = opts.enabled !== false;
@@ -179,6 +193,7 @@ export class Redactor {
       rules.push({ type: 'custom', re: new RegExp(p.source, flags) });
     }
     this.rules = rules;
+    this.prefilter = !opts.patterns?.length;
   }
 
   private bump(type: string) {
@@ -211,8 +226,10 @@ export class Redactor {
   /** Serbest metindeki desenleri gizler (FR-RED-03/04/05). */
   text(input: string): string {
     if (!this.enabled || !input) return input;
+    if (this.prefilter && !PREFILTER_RE.test(input)) return input;
     let out = input;
     for (const rule of this.rules) {
+      if (rule.guard && !rule.guard(out)) continue;
       rule.re.lastIndex = 0;
       out = out.replace(rule.re, (m) => {
         if (MARKER_RE.test(m)) return m;
@@ -222,6 +239,7 @@ export class Redactor {
       });
     }
     // Desenlerden SONRA: `Authorization: Bearer …` önce desenle bütünüyle gizlenir.
+    if (!/[:=]/.test(out)) return out;
     out = out.replace(KV_RE, (m, q: string, key: string, sep: string, val: string) => {
       if (MARKER_RE.test(val)) return m;
       const type = this.keyType(key) ?? 'secret';

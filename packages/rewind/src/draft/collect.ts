@@ -3,11 +3,12 @@
  * (FR-MARK-03/05), kaynak konumu (FR-MARK-04/11/12) ve başlangıç bağlamı (FR-PKG-07).
  */
 import { record } from 'rrweb';
-import { componentStack, getFiber, nearestComponent, propsAndState, sourceHint } from '../dom/fiber.js';
+import { componentStack, getFiber, nearestComponent, propsAndState } from '../dom/fiber.js';
 import { buildSelectors } from '../dom/selector.js';
 import type { ConsoleRecord } from '../recorder/console.js';
-import type { ResolvedLocation, SourceResolver } from '../source/sourcemap.js';
-import { parseStack } from '../source/stack.js';
+import { locateSource } from '../source/locate.js';
+import type { SourceResolver } from '../source/sourcemap.js';
+import { isInternalSource, parseStack, userFrames } from '../source/stack.js';
 import type { DraftEnv, TargetCapture } from './build.js';
 
 const STYLE_PROPS = [
@@ -62,11 +63,36 @@ function computedStyle(el: Element): Record<string, string> | undefined {
   return out;
 }
 
-async function locate(fiberNode: Element, resolver: SourceResolver): Promise<ResolvedLocation | undefined> {
-  const hint = sourceHint(getFiber(fiberNode));
-  if (!hint) return undefined;
-  if (hint.kind === 'debugSource') return { file: hint.file, line: hint.line, column: hint.column ?? 1, resolved: true };
-  return resolver.resolve(hint.frame);
+export type Framework = 'react' | 'vue' | 'svelte' | 'unknown';
+
+function hasKey(node: object, prefixes: string[]): boolean {
+  for (const key of Object.keys(node)) if (prefixes.some((p) => key.startsWith(p))) return true;
+  return false;
+}
+
+/** Öğeyi render eden çerçeve: React fiber'ı, Vue 3 (`__vnode`/`__vueParentComponent`), Svelte (`__svelte_meta`). */
+export function detectFramework(el: Element | null): Framework | null {
+  for (let n: Element | null = el; n; n = n.parentElement) {
+    if (getFiber(n)) return 'react';
+    if (hasKey(n, ['__vnode', '__vueParentComponent', '__vue_app__'])) return 'vue';
+    if (hasKey(n, ['__svelte_meta'])) return 'svelte';
+  }
+  return null;
+}
+
+/**
+ * Sayfanın çerçevesi (hedefsiz olaylar için). Rewind'in kendi React kökü gölge DOM'dadır ve sayfa ağacında fiber'lı
+ * öğe bırakmaz; bu yüzden React dışı bir uygulamaya eklenmiş `<Rewind/>` sayfayı "react" yapmaz.
+ */
+export function detectPageFramework(doc: Document = document): Framework {
+  const all = doc.body ? doc.body.getElementsByTagName('*') : [];
+  let vue = !!doc.querySelector('[data-v-app]');
+  for (let i = 0; i < all.length && i < 3000; i++) {
+    const el = all[i];
+    if (getFiber(el)) return 'react';
+    if (!vue && hasKey(el, ['__vnode', '__vue_app__'])) vue = true;
+  }
+  return vue ? 'vue' : 'unknown';
 }
 
 export async function captureTarget(replayNode: Element, replayMirror: ReplayMirror, resolver: SourceResolver): Promise<TargetCapture> {
@@ -85,11 +111,24 @@ export async function captureTarget(replayNode: Element, replayMirror: ReplayMir
   const fiber = fiberNode ? getFiber(fiberNode) : null;
   const component = nearestComponent(fiber);
   const { props, state } = propsAndState(component);
+  const framework = fiber ? 'react' : (detectFramework(fiberNode) ?? (fiberNode ? detectPageFramework(fiberNode.ownerDocument) : undefined));
+  const located = fiber ? await locateSource(fiber, resolver) : {};
+  const notes = [resolutionReason, located.note];
+  // FR-MARK-06: React dışı öğe — bileşen yığını boş, kaynak satırı yok; diğer veriler eksiksiz.
+  if (fiberNode && !fiber) {
+    notes.push(
+      framework === 'react'
+        ? "öğenin React fiber'ı yok (React dışında, ör. bir DOM kütüphanesiyle oluşturulmuş); bileşen yığını ve kaynak satırı çıkarılmaz"
+        : `React fiber yok: öğe React dışı bir çerçeveden (${framework ?? 'unknown'}); bileşen yığını ve kaynak satırı çıkarılmaz`,
+    );
+  }
+  const reason = notes.filter(Boolean).join('; ');
   return {
     ...selectors,
     resolution,
-    ...(resolutionReason ? { resolutionReason } : {}),
-    location: fiberNode ? await locate(fiberNode, resolver) : undefined,
+    ...(reason ? { resolutionReason: reason } : {}),
+    ...(framework ? { framework } : {}),
+    location: located.location,
     componentStack: componentStack(fiber),
     props,
     state,
@@ -106,7 +145,21 @@ export async function resolveConsoleSources(entries: ConsoleRecord[], resolver: 
       const frame = parseStack(`    at ${c.source}`)[0];
       if (!frame) return c;
       const loc = await resolver.resolve(frame);
-      return loc.resolved ? { ...c, source: `${loc.file}:${loc.line}:${loc.column}` } : c;
+      if (!loc.resolved) return c;
+      // Karma adlı paket parçaları (Turbopack) ya da konsolu saran çerçeve kodu bağımlılığa çözülebilir; yığındaki
+      // sonraki kullanıcı çerçevesi denenir. Hiçbiri kullanıcı koduna çözülmezse ilk çözüm kalır.
+      let best = loc;
+      if (isInternalSource(loc.file)) {
+        for (const next of userFrames(c.stack).filter((f) => f.url !== frame.url || f.line !== frame.line).slice(0, 8)) {
+          const l = await resolver.resolve(next);
+          if (!l.resolved) break;
+          if (!isInternalSource(l.file)) {
+            best = l;
+            break;
+          }
+        }
+      }
+      return { ...c, source: `${best.file}:${best.line}:${best.column}` };
     }),
   );
 }
@@ -144,6 +197,7 @@ export function collectEnv(tabId: string): DraftEnv {
     storageKeys: storageKeys(),
     cookieNames: cookieNames(),
     viewport: { width: window.innerWidth, height: window.innerHeight },
+    framework: detectPageFramework(),
   };
 }
 

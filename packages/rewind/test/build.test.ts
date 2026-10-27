@@ -296,4 +296,45 @@ describe('buildDraft', () => {
     expect(draft.events!.length).toBeLessThan(events.length);
     expect(draft.confidence!.find((c) => c.key === 'truncated')).toMatchObject({ level: 'warn' });
   });
+
+  it('gizleme işaretleri olayları büyütse de yük 5 MB altında kalır (NFR-SIZE-01)', () => {
+    // "a@b.co" (6 B) → "[REDACTED:email]" (16 B): gizleme öncesi sığan olaylar gizlemeden sonra taşar.
+    const emails = Array.from({ length: 40_000 }, (_, i) => `u${i % 10}@b.co`).join(' ');
+    const events = [];
+    for (let slice = 0; slice < 3; slice++) {
+      const ts = T0 + slice * 30_000;
+      events.push({ type: 4, data: { href: 'http://localhost:5173/', width: 1, height: 1 }, timestamp: ts });
+      events.push({ type: 2, data: { node: { type: 0, id: 1, childNodes: [] }, initialOffset: { left: 0, top: 0 } }, timestamp: ts + 1 });
+      for (let i = 0; i < 4; i++) events.push({ type: 5, data: { tag: 'log', payload: emails }, timestamp: ts + 2 + i });
+    }
+    const draft = buildDraft(draftInput({ snapshot: snapshot({ events: events as never }) }));
+    const json = JSON.stringify(draft);
+    expect(new TextEncoder().encode(json).length).toBeLessThanOrEqual(LIMITS.incidentBytes);
+    expect(json).toContain('[REDACTED:email]');
+    expect((draft.events as Array<{ type: number }>)[0].type).toBe(4);
+  });
+});
+
+describe('byteLength (UTF-8, TextEncoder ile aynı sonuç)', () => {
+  it('ASCII, Türkçe, emoji ve tek başına vekil karakter', async () => {
+    const { byteLength } = await import('../src/draft/build.js');
+    for (const s of ['', 'abc', 'Sipariş sayısı: 4 ₺', '😀 ok', 'x\uD800y', 'a'.repeat(10_000)]) {
+      expect(byteLength(s), s.slice(0, 20)).toBe(new TextEncoder().encode(s).length);
+    }
+  });
+});
+
+describe('trimToHistory (NFR-LAT-01)', () => {
+  const ev = (type: number, timestamp: number) => ({ type, timestamp, data: {} }) as never;
+  const events = [ev(4, 0), ev(2, 0), ev(3, 10_000), ev(4, 30_000), ev(2, 30_000), ev(3, 45_000), ev(4, 60_000), ev(2, 60_000), ev(3, 80_000)];
+
+  it('işaretlenen anı ve en az historyMs geçmişi kapsayan en geç Meta\'dan başlar', async () => {
+    const { trimToHistory } = await import('../src/draft/build.js');
+    // frozenAt 90 sn, geçmiş 60 sn → kesim 30 sn → 30 sn'deki Meta'dan başlar.
+    expect(trimToHistory(events, 85_000, 90_000, 60_000)[0]).toMatchObject({ type: 4, timestamp: 30_000 });
+    // İşaretlenen an daha eskiyse onu kapsayan Meta'dan başlar.
+    expect(trimToHistory(events, 20_000, 90_000, 60_000)[0]).toMatchObject({ type: 4, timestamp: 0 });
+    // Geçmiş verilmemişse dokunmaz.
+    expect(trimToHistory(events, 85_000, 90_000, undefined)).toBe(events);
+  });
 });

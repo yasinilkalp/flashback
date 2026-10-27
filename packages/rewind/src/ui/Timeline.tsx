@@ -259,26 +259,56 @@ function ReplayView({
   const [hover, setHover] = useState<Box | null>(null);
   const timeRef = useRef(time);
   timeRef.current = time;
+  const titleRef = useRef(t.replayFrameTitle);
+  titleRef.current = t.replayFrameTitle;
+
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const root = stageRef.current;
     const vp = viewportRef.current;
     if (!root || !vp) return;
-    const r = new Replayer(events, { root, mouseTail: false, showWarning: false, showDebug: false, skipInactive: false, triggerFocus: false, speed: 1 });
-    replayerRef.current = r;
-    const fit = () => {
-      const w = r.iframe.offsetWidth || Number(r.iframe.getAttribute('width')) || 1;
-      const h = r.iframe.offsetHeight || Number(r.iframe.getAttribute('height')) || 1;
-      setScale(Math.min(vp.clientWidth / w, vp.clientHeight / h, 1));
+    let r: Replayer | null = null;
+    let ro: ResizeObserver | null = null;
+    let cancelled = false;
+    setReady(false);
+    // Panel iskeleti önce çizilsin: Replayer'ın kurulup sona sarılması büyük sayfalarda yüzlerce ms sürer ve
+    // kısayolla aynı görevde yapılırsa panel o süre boyunca hiç görünmez (NFR-LAT-01). Bir kare sonra kurulur.
+    const build = () => {
+      if (cancelled) return;
+      r = new Replayer(events, {
+        root,
+        mouseTail: false,
+        showWarning: false,
+        showDebug: false,
+        skipInactive: false,
+        triggerFocus: false,
+        speed: 1,
+        // Sanal DOM ile ileri sarma büyük sayfalarda pahalı (5.000 düğüm, 4x CPU: 587 ms → 144 ms; NFR-LAT-01).
+        useVirtualDom: false,
+      });
+      const replayer = r;
+      replayer.iframe.title = titleRef.current; // ekran okuyucular için çerçeve adı (FR-UI-13, axe frame-title)
+      replayerRef.current = replayer;
+      const fit = () => {
+        const w = replayer.iframe.offsetWidth || Number(replayer.iframe.getAttribute('width')) || 1;
+        const h = replayer.iframe.offsetHeight || Number(replayer.iframe.getAttribute('height')) || 1;
+        setScale(Math.min(vp.clientWidth / w, vp.clientHeight / h, 1));
+      };
+      replayer.on('resize', fit);
+      ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
+      ro?.observe(vp);
+      replayer.pause(timeRef.current);
+      fit();
+      setReady(true);
     };
-    r.on('resize', fit);
-    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
-    ro?.observe(vp);
-    r.pause(timeRef.current);
-    fit();
+    const raf = typeof requestAnimationFrame === 'undefined' ? null : requestAnimationFrame(() => setTimeout(build, 0));
+    if (raf === null) build();
     return () => {
+      cancelled = true;
+      if (raf !== null) cancelAnimationFrame(raf);
       ro?.disconnect();
-      r.destroy();
+      r?.destroy();
       replayerRef.current = null;
     };
   }, [events, replayerRef]);
@@ -298,9 +328,14 @@ function ReplayView({
 
   const shown = selecting ? hover : selectedBox;
   return (
-    <div ref={viewportRef} className="rw-viewport" data-rw="viewport">
+    <div ref={viewportRef} className="rw-viewport" data-rw="viewport" aria-busy={!ready}>
       <div ref={stageRef} className="rw-replay" style={{ transform: `scale(${scale})` }} />
-      {selecting && (
+      {!ready && (
+        <div className="rw-loading" data-rw="replay-loading">
+          {t.replayLoading}
+        </div>
+      )}
+      {selecting && ready && (
         <div
           className="rw-overlay"
           role="application"

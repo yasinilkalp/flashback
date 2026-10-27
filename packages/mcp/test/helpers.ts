@@ -117,3 +117,22 @@ export function outsideFences(md: string): string[] {
   }
   return out;
 }
+
+/** Spec'teki `const DATA = {...};` bloğu: JSON olarak ayrıştırılabilir olmalı (kod değil, veri). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractData(spec: string): { text: string; value: any } {
+  const start = spec.indexOf('const DATA = ') + 'const DATA = '.length;
+  const end = spec.indexOf('\n};\n', start) + 2;
+  const text = spec.slice(start, end);
+  return { text, value: JSON.parse(text) };
+}
+
+/** DATA bloğu ve IR'den üretilen beklenti satırları dışındaki kod. */
+export function codeOutsideData(spec: string): string {
+  const { text } = extractData(spec);
+  return spec
+    .replace(text, '<DATA>')
+    .split('\n')
+    .filter((l) => !l.trim().startsWith('await expect('))
+    .join('\n');
+}

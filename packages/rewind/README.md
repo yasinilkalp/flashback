@@ -57,6 +57,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
+Çalışan örnek: [`examples/next-app`](../../examples/next-app) (Turbopack varsayılan; `next dev --webpack` ile webpack).
+İstemci bileşenlerinin satırı tarayıcıdaki source map ile, React Server Component öğelerinin satırı Next geliştirme
+sunucusunun kendi source map ucuyla (`/__nextjs_source-map`, sayfanın kökeni) çözülür; çözülemezse yanlış satır
+verilmez, `resolved: false` işaretlenir.
+
+## React dışı uygulamalar (Vue, Svelte…)
+
+Panel React ile yazıldığı için `react` ve `react-dom` kurulu olmalıdır; `<Rewind/>` uygulamadan ayrı bir React köküne
+bağlanır. Kayıt, zaman çizelgesi, ağ, konsol ve adımlar çerçeveden bağımsızdır. Bileşen yığını ve JSX kaynak satırı
+yalnızca React öğelerinde çıkarılır; React dışı bir öğe seçildiğinde paket bunu belirtir (`source.framework`,
+`resolutionReason`). Örnek: [`examples/vue`](../../examples/vue).
+
+```ts
+// src/rewind.ts
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Rewind } from 'rewind-devtools';
+
+const container = document.body.appendChild(document.createElement('div'));
+createRoot(container).render(createElement(Rewind, { enabled: import.meta.env.DEV }));
+```
+
 ## Üretim
 
 Kaydedici ve rrweb üretim paketine girmez; iki katmanlı koruma vardır:
@@ -96,6 +118,7 @@ trackStore('redux', store.subscribe, store.getState); // Redux
 | `position` | `bottom-right` | `bottom-left`, `top-right`, `top-left` |
 | `locale` | Tarayıcı diline göre `tr` / `en` | |
 | `allowProduction` | `false` | Önerilmez |
+| `project` | — | `package.json` adı (ör. `project={pkg.name}`). Alıcının projesiyle uyuşmazsa "yanlış proje" gösterilir ve olay reddedilir (FR-RCV-06). |
 
 ## Gizleme
 

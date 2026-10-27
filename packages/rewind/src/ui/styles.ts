@@ -32,8 +32,8 @@ export const PANEL_CSS = `
 .rw-root button.rw-pos-bottom-right { right: 16px; bottom: 16px; } .rw-root button.rw-pos-bottom-left { left: 16px; bottom: 16px; }
 .rw-root button.rw-pos-top-right { right: 16px; top: 16px; } .rw-root button.rw-pos-top-left { left: 16px; top: 16px; }
 .rw-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--err); display: inline-block; }
-.rw-dot.rw-rec { animation: rw-pulse 1.6s infinite; } .rw-dot.rw-frozen { background: var(--muted); }
-@keyframes rw-pulse { 50% { opacity: .35; } }
+/* Kayıt noktası bilerek sabit: sürekli animasyon her karede yeniden boyama yapar ve sayfanın etkileşim gecikmesini artırır (NFR-PERF-01). */
+.rw-dot.rw-frozen { background: var(--muted); }
 .rw-recv { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 .rw-recv-connected { background: var(--ok); } .rw-recv-disconnected { background: var(--err); } .rw-recv-wrong_project { background: var(--warn); }
 .rw-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
@@ -57,6 +57,7 @@ export const PANEL_CSS = `
 .rw-replay .replayer-mouse, .rw-replay .replayer-mouse-tail { display: none; }
 .rw-replay iframe { border: 0; display: block; background: #fff; }
 .rw-overlay { position: absolute; inset: 0; cursor: crosshair; }
+.rw-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #555; font-size: 13px; }
 .rw-highlight { position: absolute; pointer-events: none; border: 2px solid var(--accent); background: rgba(255,90,54,.12); border-radius: 2px; }
 .rw-highlight-label { position: absolute; transform: translateY(-100%); background: var(--accent); color: #fff; font-size: 11px; padding: 1px 4px; white-space: nowrap; border-radius: 3px 3px 0 0; }
 

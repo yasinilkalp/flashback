@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -178,13 +178,24 @@ describe('run_repro uçtan uca (Playwright Chromium)', () => {
     expect(script.spec).not.toContain(payloads[1]); // giriş değeri
     expect(script.spec).not.toContain('?q=');
     const pw = resolvePlaywright(REPO_ROOT)!;
-    const run = spawnSync(process.execPath, [pw.cliPath, 'test', path.basename(script.specPath), '--config', path.basename(script.configPath)], {
-      cwd: path.dirname(script.specPath),
-      env: { ...process.env, NODE_PATH: path.join(REPO_ROOT, 'node_modules'), REWIND_REPORT_FILE: path.join(dir, 'manual-report.json') },
-      encoding: 'utf8',
-      timeout: 120_000,
+    // Eşzamansız başlat: spawnSync süreç içindeki fixture sunucusunu bloklar ve test sayfaya hiç ulaşamazdı.
+    const reportFile = path.join(dir, 'manual-report.json');
+    const code = await new Promise<number | null>((resolve) => {
+      const child = spawn(process.execPath, [pw.cliPath, 'test', path.basename(script.specPath), '--config', path.basename(script.configPath)], {
+        cwd: path.dirname(script.specPath),
+        env: { ...process.env, NODE_PATH: path.join(REPO_ROOT, 'node_modules'), REWIND_REPORT_FILE: reportFile },
+        stdio: 'ignore',
+      });
+      const timer = setTimeout(() => child.kill('SIGKILL'), 120_000);
+      child.on('exit', (c) => {
+        clearTimeout(timer);
+        resolve(c);
+      });
     });
-    expect(run.status).not.toBeNull();
+    expect(code).not.toBeNull();
+    // Spec gerçekten sayfaya ulaşıp beklentiyi çalıştırdı (kırmızı): enjeksiyon yükleri yine de kod olarak çalışmadı.
+    const report = JSON.parse(fs.readFileSync(reportFile, 'utf8')) as { stats: { expected: number; unexpected: number } };
+    expect(report.stats.expected + report.stats.unexpected).toBe(1);
     expect(fs.existsSync(marker)).toBe(false);
   });
 });

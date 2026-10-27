@@ -7,7 +7,7 @@ exports[`MCP sunucusu > araç tanımları ve annotation'lar (FR-MCP-SEC-03, FR-M
       "openWorldHint": false,
       "readOnlyHint": true,
     },
-    "description": "Rewind olaylarını duruma göre listeler (yeniden eskiye). Her satırda pendingQuestion işareti ve birincil kanıt özeti bulunur.",
+    "description": "Rewind olaylarını duruma göre listeler (yeniden eskiye, eşitlikte kimliğe göre). Her satırda pendingQuestion işareti ve birincil kanıt özeti bulunur. Daha fazla olay varsa nextCursor döner; sonraki sayfa için aynı status ile cursor olarak ver.",
     "name": "list_incidents",
   },
   {
@@ -50,7 +50,7 @@ exports[`MCP sunucusu > araç tanımları ve annotation'lar (FR-MCP-SEC-03, FR-M
       "openWorldHint": false,
       "readOnlyHint": false,
     },
-    "description": "run_repro'nun çalıştıracağı Playwright testini çalıştırmadan üretir. Olay verisi spec koduna gömülmez; yanındaki <id>.steps.json dosyasından okunur.",
+    "description": "run_repro'nun çalıştıracağı Playwright testini çalıştırmadan üretir. Olay verisi spec koduna gömülmez; yanındaki <id>.steps.json dosyasından okunur. portable: true → projenin test klasörüne kopyalanıp projenin kendi playwright.config dosyasıyla (use.baseURL) çalışan, .rewind/ dosyalarına bağımlı olmayan tek dosyalık spec.",
     "name": "get_repro_script",
   },
   {

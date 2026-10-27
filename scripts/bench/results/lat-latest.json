@@ -1,0 +1,580 @@
+{
+  "nfr": "NFR-LAT-01",
+  "env": {
+    "date": "2026-10-27T13:29:24.588Z",
+    "os": "Linux 6.18.44-fc-v165 (linux/x64)",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz × 2",
+    "memoryGB": 7.8,
+    "node": "v22.23.4",
+    "chromium": "153.0.8010.12",
+    "playwright": "1.63.0",
+    "rrweb": "2.2.0",
+    "rewindDevtools": "0.1.0",
+    "rewindDistBuiltAt": "2026-10-27T13:24:31.125Z",
+    "git": "05218f8"
+  },
+  "params": {
+    "samples": 6,
+    "fillS": 65,
+    "questions": 10,
+    "throttles": [
+      1,
+      4
+    ],
+    "pages": [
+      "list",
+      "demo"
+    ],
+    "quick": false,
+    "receiver": "rewind-mcp (gerçek, stdio + HTTP)",
+    "note": "list (13:29) ve demo (13:35) koşularının birleşimi"
+  },
+  "results": [
+    {
+      "page": "list",
+      "throttle": 1,
+      "panelOpenMs": {
+        "n": 6,
+        "min": 11.24,
+        "median": 13.5,
+        "p75": 21,
+        "p95": 30.21,
+        "max": 30.21,
+        "mean": 17.91
+      },
+      "panelReplayReadyMs": {
+        "n": 6,
+        "min": 127.8,
+        "median": 135.7,
+        "p75": 146.9,
+        "p95": 196.9,
+        "max": 196.9,
+        "mean": 145.68
+      },
+      "saveToAckMs": {
+        "n": 5,
+        "min": 369.6,
+        "median": 463.4,
+        "p75": 476.5,
+        "p95": 513.8,
+        "max": 513.8,
+        "mean": 444.98
+      },
+      "firstSend": {
+        "saveToPreviewMs": 352.7,
+        "sendToAckMs": 217.2
+      },
+      "questionToPanelMs": null,
+      "raw": {
+        "open": [
+          {
+            "kd": 78443.4,
+            "shellFrame": 78473.61,
+            "replayFrame": 78490.2,
+            "painted": 78473.61,
+            "replayPainted": 78640.3
+          },
+          {
+            "kd": 86862.1,
+            "shellFrame": 86873.34,
+            "replayFrame": 86889.9,
+            "painted": 86873.34,
+            "replayPainted": 86989.9
+          },
+          {
+            "kd": 95237.2,
+            "shellFrame": 95239.67,
+            "replayFrame": 95273,
+            "painted": 95256.3,
+            "replayPainted": 95372.9
+          },
+          {
+            "kd": 103592.4,
+            "shellFrame": 103589.34,
+            "replayFrame": 103622.6,
+            "painted": 103605.9,
+            "replayPainted": 103739.3
+          },
+          {
+            "kd": 112117.9,
+            "shellFrame": 112122.32,
+            "replayFrame": 112155.6,
+            "painted": 112138.9,
+            "replayPainted": 112255.6
+          },
+          {
+            "kd": 120709.5,
+            "shellFrame": 120705.3,
+            "replayFrame": 120755.3,
+            "painted": 120721.9,
+            "replayPainted": 120838.6
+          }
+        ],
+        "saves": [
+          {
+            "kind": "save",
+            "click": 78783.2,
+            "preview": 79135.9,
+            "ack": null
+          },
+          {
+            "kind": "send",
+            "click": 79233.4,
+            "preview": null,
+            "ack": 79450.6
+          },
+          {
+            "kind": "save",
+            "click": 87113.3,
+            "preview": null,
+            "ack": 87576.7
+          },
+          {
+            "kind": "save",
+            "click": 95531.5,
+            "preview": null,
+            "ack": 96045.3
+          },
+          {
+            "kind": "save",
+            "click": 103879.3,
+            "preview": null,
+            "ack": 104248.9
+          },
+          {
+            "kind": "save",
+            "click": 112396.3,
+            "preview": null,
+            "ack": 112872.8
+          },
+          {
+            "kind": "save",
+            "click": 120993.9,
+            "preview": null,
+            "ack": 121395.5
+          }
+        ],
+        "questions": []
+      }
+    },
+    {
+      "page": "list",
+      "throttle": 4,
+      "panelOpenMs": {
+        "n": 6,
+        "min": 48.9,
+        "median": 52.2,
+        "p75": 77.6,
+        "p95": 104.5,
+        "max": 104.5,
+        "mean": 68.03
+      },
+      "panelReplayReadyMs": {
+        "n": 6,
+        "min": 518,
+        "median": 568.8,
+        "p75": 623.7,
+        "p95": 654.4,
+        "max": 654.4,
+        "mean": 584.67
+      },
+      "saveToAckMs": {
+        "n": 5,
+        "min": 1246.4,
+        "median": 1570.4,
+        "p75": 1573.9,
+        "p95": 1607.6,
+        "max": 1607.6,
+        "mean": 1512.14
+      },
+      "firstSend": {
+        "saveToPreviewMs": 1672.6,
+        "sendToAckMs": 402.9
+      },
+      "questionToPanelMs": null,
+      "raw": {
+        "open": [
+          {
+            "kd": 85692.1,
+            "shellFrame": 85779.92,
+            "replayFrame": 85829.8,
+            "painted": 85796.6,
+            "replayPainted": 86346.5
+          },
+          {
+            "kd": 99847.1,
+            "shellFrame": 99879.32,
+            "replayFrame": 99929.3,
+            "painted": 99896,
+            "replayPainted": 100429.2
+          },
+          {
+            "kd": 112851.1,
+            "shellFrame": 112912.15,
+            "replayFrame": 112945.4,
+            "painted": 112928.7,
+            "replayPainted": 113412.1
+          },
+          {
+            "kd": 125626.1,
+            "shellFrame": 125661.66,
+            "replayFrame": 125694.9,
+            "painted": 125678.3,
+            "replayPainted": 126194.9
+          },
+          {
+            "kd": 138693.1,
+            "shellFrame": 138727.73,
+            "replayFrame": 138761.1,
+            "painted": 138744.4,
+            "replayPainted": 139211.1
+          },
+          {
+            "kd": 151370.2,
+            "shellFrame": 151427.26,
+            "replayFrame": 151477.3,
+            "painted": 151443.9,
+            "replayPainted": 151993.9
+          }
+        ],
+        "saves": [
+          {
+            "kind": "save",
+            "click": 86746.7,
+            "preview": 88419.3,
+            "ack": null
+          },
+          {
+            "kind": "send",
+            "click": 88564,
+            "preview": null,
+            "ack": 88966.9
+          },
+          {
+            "kind": "save",
+            "click": 100723.3,
+            "preview": null,
+            "ack": 102285.7
+          },
+          {
+            "kind": "save",
+            "click": 113750.8,
+            "preview": null,
+            "ack": 115358.4
+          },
+          {
+            "kind": "save",
+            "click": 126791.2,
+            "preview": null,
+            "ack": 128037.6
+          },
+          {
+            "kind": "save",
+            "click": 139495.2,
+            "preview": null,
+            "ack": 141065.6
+          },
+          {
+            "kind": "save",
+            "click": 152314.5,
+            "preview": null,
+            "ack": 153888.4
+          }
+        ],
+        "questions": []
+      }
+    },
+    {
+      "page": "demo",
+      "throttle": 1,
+      "panelOpenMs": {
+        "n": 6,
+        "min": 15,
+        "median": 20.74,
+        "p75": 25.3,
+        "p95": 40.8,
+        "max": 40.8,
+        "mean": 23.7
+      },
+      "panelReplayReadyMs": {
+        "n": 6,
+        "min": 41.9,
+        "median": 51.7,
+        "p75": 55.3,
+        "p95": 74.1,
+        "max": 74.1,
+        "mean": 54.22
+      },
+      "saveToAckMs": {
+        "n": 5,
+        "min": 42.5,
+        "median": 59.9,
+        "p75": 61.2,
+        "p95": 69.3,
+        "max": 69.3,
+        "mean": 56.34
+      },
+      "firstSend": {
+        "saveToPreviewMs": 74.9,
+        "sendToAckMs": 56.2
+      },
+      "questionToPanelMs": {
+        "n": 10,
+        "min": 834,
+        "median": 1847,
+        "p75": 2070,
+        "p95": 2769,
+        "max": 2769,
+        "mean": 1812.1
+      },
+      "raw": {
+        "open": [
+          {
+            "kd": 80223.7,
+            "shellFrame": 80247.93,
+            "replayFrame": 80281.2,
+            "painted": 80264.5,
+            "replayPainted": 80297.8
+          },
+          {
+            "kd": 90405.5,
+            "shellFrame": 90414.14,
+            "replayFrame": 90430.8,
+            "painted": 90430.8,
+            "replayPainted": 90447.4
+          },
+          {
+            "kd": 100532.1,
+            "shellFrame": 100530.47,
+            "replayFrame": 100563.8,
+            "painted": 100547.1,
+            "replayPainted": 100580.4
+          },
+          {
+            "kd": 110591.4,
+            "shellFrame": 110596.74,
+            "replayFrame": 110630,
+            "painted": 110613.3,
+            "replayPainted": 110646.7
+          },
+          {
+            "kd": 120758.9,
+            "shellFrame": 120779.64,
+            "replayFrame": 120796.3,
+            "painted": 120779.64,
+            "replayPainted": 120812.9
+          },
+          {
+            "kd": 131044.1,
+            "shellFrame": 131062.54,
+            "replayFrame": 131079.1,
+            "painted": 131062.54,
+            "replayPainted": 131095.8
+          }
+        ],
+        "saves": [
+          {
+            "kind": "save",
+            "click": 80436.6,
+            "preview": 80511.5,
+            "ack": null
+          },
+          {
+            "kind": "send",
+            "click": 80568.9,
+            "preview": null,
+            "ack": 80625.1
+          },
+          {
+            "kind": "save",
+            "click": 90569.2,
+            "preview": null,
+            "ack": 90630.4
+          },
+          {
+            "kind": "save",
+            "click": 100669.3,
+            "preview": null,
+            "ack": 100711.8
+          },
+          {
+            "kind": "save",
+            "click": 110751.6,
+            "preview": null,
+            "ack": 110820.9
+          },
+          {
+            "kind": "save",
+            "click": 120934.9,
+            "preview": null,
+            "ack": 120994.8
+          },
+          {
+            "kind": "save",
+            "click": 131183.9,
+            "preview": null,
+            "ack": 131232.7
+          }
+        ],
+        "questions": [
+          2016,
+          2070,
+          1979,
+          2345,
+          1306,
+          1847,
+          2769,
+          1670,
+          1285,
+          834
+        ]
+      }
+    },
+    {
+      "page": "demo",
+      "throttle": 4,
+      "panelOpenMs": {
+        "n": 6,
+        "min": 46.9,
+        "median": 67.8,
+        "p75": 69.3,
+        "p95": 106,
+        "max": 106,
+        "mean": 69.87
+      },
+      "panelReplayReadyMs": {
+        "n": 6,
+        "min": 93.7,
+        "median": 118.8,
+        "p75": 134.4,
+        "p95": 289.4,
+        "max": 289.4,
+        "mean": 142.08
+      },
+      "saveToAckMs": {
+        "n": 5,
+        "min": 159.7,
+        "median": 179.1,
+        "p75": 207.2,
+        "p95": 321.7,
+        "max": 321.7,
+        "mean": 209
+      },
+      "firstSend": {
+        "saveToPreviewMs": 313.3,
+        "sendToAckMs": 112.1
+      },
+      "questionToPanelMs": {
+        "n": 10,
+        "min": 805,
+        "median": 1899,
+        "p75": 2360,
+        "p95": 2965,
+        "max": 2965,
+        "mean": 1897.4
+      },
+      "raw": {
+        "open": [
+          {
+            "kd": 83724.2,
+            "shellFrame": 83813.64,
+            "replayFrame": 83863.6,
+            "painted": 83830.2,
+            "replayPainted": 84013.6
+          },
+          {
+            "kd": 95045.4,
+            "shellFrame": 95096.46,
+            "replayFrame": 95129.8,
+            "painted": 95113.2,
+            "replayPainted": 95179.8
+          },
+          {
+            "kd": 105843.9,
+            "shellFrame": 105896.07,
+            "replayFrame": 105929.4,
+            "painted": 105912.7,
+            "replayPainted": 105962.7
+          },
+          {
+            "kd": 116668.5,
+            "shellFrame": 116712.27,
+            "replayFrame": 116745.6,
+            "painted": 116728.9,
+            "replayPainted": 116762.2
+          },
+          {
+            "kd": 127598.3,
+            "shellFrame": 127645.2,
+            "replayFrame": 127661.9,
+            "painted": 127645.2,
+            "replayPainted": 127695.2
+          },
+          {
+            "kd": 138808.7,
+            "shellFrame": 138861.44,
+            "replayFrame": 138894.7,
+            "painted": 138878,
+            "replayPainted": 138928
+          }
+        ],
+        "saves": [
+          {
+            "kind": "save",
+            "click": 84260.6,
+            "preview": 84573.9,
+            "ack": null
+          },
+          {
+            "kind": "send",
+            "click": 84640.5,
+            "preview": null,
+            "ack": 84752.6
+          },
+          {
+            "kind": "save",
+            "click": 95390.3,
+            "preview": null,
+            "ack": 95550
+          },
+          {
+            "kind": "save",
+            "click": 106211.6,
+            "preview": null,
+            "ack": 106418.8
+          },
+          {
+            "kind": "save",
+            "click": 116996.3,
+            "preview": null,
+            "ack": 117173.6
+          },
+          {
+            "kind": "save",
+            "click": 127984.7,
+            "preview": null,
+            "ack": 128306.4
+          },
+          {
+            "kind": "save",
+            "click": 139161.3,
+            "preview": null,
+            "ack": 139340.4
+          }
+        ],
+        "questions": [
+          2965,
+          2106,
+          1929,
+          2360,
+          1264,
+          1899,
+          2759,
+          1669,
+          1218,
+          805
+        ]
+      }
+    }
+  ]
+}

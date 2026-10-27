@@ -26,6 +26,8 @@ export interface TargetCapture {
   fallbackSelectors: string[];
   resolution: 'exact' | 'ancestor' | 'unresolved';
   resolutionReason?: string;
+  /** Öğeyi render eden çerçeve (FR-MARK-06): `react`, `vue`, `svelte`, `unknown`. */
+  framework?: string;
   /** Kaynak konumu; React/fiber bulunamadıysa yok. */
   location?: ResolvedLocation;
   componentStack: string[];
@@ -52,6 +54,8 @@ export interface DraftEnv {
   cookieNames: string[];
   /** Meta olayı yoksa kullanılacak görüntü alanı. */
   viewport: { width: number; height: number };
+  /** Sayfanın çerçevesi (hedef yoksa); varsayılan `react`. */
+  framework?: string;
 }
 
 export interface DraftInput {
@@ -67,6 +71,11 @@ export interface DraftInput {
   domRoot?: Element | null;
   env: DraftEnv;
   redact: RedactOptions;
+  /**
+   * Pakete girecek rrweb geçmişi (ms; genellikle `bufferSeconds`). Tampon 3 dilimle bunun 1,5 katına kadar
+   * olay tutar; fazlası gizlenmeden önce atılır (NFR-LAT-01: gizleme maliyeti olay sayısıyla orantılı).
+   */
+  historyMs?: number;
 }
 
 const ERROR_LEVELS = new Set(['error', 'uncaught', 'unhandledrejection']);
@@ -100,26 +109,82 @@ function redactStoreValues(path: string, before: unknown, after: unknown, r: Red
   return { before: r.value(before), after: r.value(after) };
 }
 
-const byteLength = (s: string) => new TextEncoder().encode(s).length;
+/**
+ * En az `historyMs` geçmişi ve işaretlenen anı kapsayan en geç tam anlık görüntüden (Meta) başlar; daha eskisini atar.
+ * Tekrar oynatma her zaman bir Meta + tam görüntüyle başlamalıdır.
+ */
+export function trimToHistory(events: eventWithTime[], markedAt: number, frozenAt: number, historyMs: number | undefined): eventWithTime[] {
+  if (!historyMs || !events.length) return events;
+  const cutoff = Math.min(markedAt, frozenAt - historyMs);
+  let start = -1;
+  for (let i = 0; i < events.length; i++) {
+    if (events[i].type !== EventType.Meta) continue;
+    if (events[i].timestamp <= cutoff) start = i;
+    else break;
+  }
+  return start > 0 ? events.slice(start) : events;
+}
+
+/** UTF-8 bayt uzunluğu; çok MB'lık metinler için TextEncoder ile yeni dizi ayırmaz (NFR-LAT-01). */
+const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+
+/** UTF-8 bayt uzunluğu. Uzun metinlerde yerel kodlayıcı (JS döngüsü 4x CPU kısmada yüzlerce ms tutuyordu). */
+export function byteLength(s: string): number {
+  if (encoder && s.length > 512) return encoder.encode(s).length;
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) {
+      const d = s.charCodeAt(i + 1);
+      if (d >= 0xdc00 && d <= 0xdfff) {
+        n += 4;
+        i++;
+      } else n += 3;
+    } else n += 3;
+  }
+  return n;
+}
 
 /**
  * rrweb olaylarını kalan bütçeye sığdırır: önce en eski dilimler (checkout sınırından), gerekirse tamamı.
  * Gizlemeden ÖNCE çalışır; böylece gizleme sayacı yalnızca yüke giren olayları sayar.
+ * Her olay bir kez serileştirilir; dilim atıldıkça toplam boyuttan düşülür (eskiden her adımda tüm dizi yeniden
+ * serileştiriliyordu).
  */
-function fitEvents(events: eventWithTime[], budget: number, truncated: string[]): eventWithTime[] {
-  let kept = events;
-  const size = () => byteLength(JSON.stringify(kept));
-  while (kept.length && size() > budget) {
-    const nextMeta = kept.findIndex((e, i) => i > 0 && e.type === EventType.Meta);
-    kept = nextMeta > 0 ? kept.slice(nextMeta) : [];
+function fitEvents(events: eventWithTime[], budget: number, truncated: string[]): { kept: eventWithTime[]; bytes: number } {
+  const sizes = events.map((e) => byteLength(JSON.stringify(e)) + 1);
+  let total = sizes.reduce((a, b) => a + b, 2);
+  let start = 0;
+  while (start < events.length && total > budget) {
+    let end = events.length;
+    for (let i = start + 1; i < events.length; i++) {
+      if (events[i].type === EventType.Meta) {
+        end = i;
+        break;
+      }
+    }
+    for (let i = start; i < end; i++) total -= sizes[i];
+    start = end;
   }
+  const kept = start === 0 ? events : events.slice(start);
   const dropped = events.length - kept.length;
   if (dropped) truncated.push(`en eski ${dropped} rrweb olayı (5 MB sınırı)`);
-  return kept;
+  return { kept, bytes: total };
 }
 
-/** Son güvenlik: yük hâlâ büyükse en eski ağ gövdeleri atılır (NFR-SIZE-01). */
-function fitBodies(draft: IncidentDraftInput, truncated: string[]): void {
+/** Gizleme işaretinin bir değere ekleyebileceği en fazla bayt (`""` → `"[REDACTED:client_secret]"` vb.). */
+const MARKER_SLACK = 40;
+
+/**
+ * Son güvenlik: yük hâlâ büyükse en eski ağ gövdeleri atılır (NFR-SIZE-01).
+ * `eventsUpper`: olay dizisinin bayt üst sınırı (gizleme öncesi boyut + gizleme payı). Toplam güvenle sınırın
+ * altındaysa olaylar yeniden serileştirilmez; değilse kesin boyut hesaplanır.
+ */
+function fitBodies(draft: IncidentDraftInput, truncated: string[], eventsUpper: number): void {
+  const rest = byteLength(JSON.stringify({ ...draft, events: [] }));
+  if (rest + eventsUpper <= LIMITS.incidentBytes) return;
   let size = byteLength(JSON.stringify(draft));
   let bodies = 0;
   for (const n of draft.network ?? []) {
@@ -132,6 +197,11 @@ function fitBodies(draft: IncidentDraftInput, truncated: string[]): void {
     bodies++;
   }
   if (bodies) truncated.push(`${bodies} ağ girdisinin gövdesi (5 MB sınırı)`);
+  // Gizleme işaretleri olayları büyüttüyse (ör. çok sayıda kısa e-posta): gizlenmiş olaylar kesin boyutla yeniden sığdırılır.
+  if (size > LIMITS.incidentBytes && draft.events?.length) {
+    const rest = byteLength(JSON.stringify({ ...draft, events: [] }));
+    draft.events = fitEvents(draft.events as eventWithTime[], LIMITS.incidentBytes * 0.97 - rest, truncated).kept;
+  }
 }
 
 function pickPrimary(
@@ -213,7 +283,7 @@ export function buildDraft(input: DraftInput): IncidentDraftInput {
 
   const draft: IncidentDraftInput = {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,
-    source: { origin: env.origin, rewindVersion: REWIND_VERSION, framework: 'react', userAgent: env.userAgent, tabId: env.tabId },
+    source: { origin: env.origin, rewindVersion: REWIND_VERSION, framework: input.target?.framework ?? env.framework ?? 'react', userAgent: env.userAgent, tabId: env.tabId },
     recordingStartedAt: new Date(base).toISOString(),
     markedAtMs: rel(input.markedAt),
     context: {
@@ -281,8 +351,11 @@ export function buildDraft(input: DraftInput): IncidentDraftInput {
 
   // Olaylar dışındaki her şey + Kanıt güveni payı çıkarıldıktan sonra kalan bütçe rrweb olaylarına kalır.
   const budget = LIMITS.incidentBytes * 0.97 - byteLength(JSON.stringify(draft));
-  draft.events = redactEvents(fitEvents(withoutOwnUi(snapshot.events), budget, truncated), r);
-  fitBodies(draft, truncated);
+  const history = trimToHistory(snapshot.events, input.markedAt, snapshot.frozenAt, input.historyMs);
+  const fitted = fitEvents(withoutOwnUi(history), budget, truncated);
+  const before = r.stats.count;
+  draft.events = redactEvents(fitted.kept, r);
+  fitBodies(draft, truncated, fitted.bytes + (r.stats.count - before) * MARKER_SLACK);
 
   draft.primaryEvidence = pickPrimary(draft, draft.markedAtMs, input.primaryOverride, {
     network: network.map((n) => n.seq),
@@ -296,6 +369,6 @@ export function buildDraft(input: DraftInput): IncidentDraftInput {
     count += n;
   }
   draft.redaction = { enabled: r.enabled, count, byType };
-  draft.confidence = confidenceItems({ draft, snapshot, truncated, excluded, sessionHint: env });
+  draft.confidence = confidenceItems({ draft, snapshot, truncated, excluded, sessionHint: env, sourceFromAncestor: !!input.target?.location?.fromAncestor });
   return draft;
 }

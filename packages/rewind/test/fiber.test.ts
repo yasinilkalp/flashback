@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { componentStack, getFiber, nearestComponent, propsAndState, sourceHint, type Fiber } from '../src/dom/fiber.js';
+import { componentStack, getFiber, isServerOwned, nearestComponent, propsAndState, sourceCandidates, type Fiber } from '../src/dom/fiber.js';
 
 const fiber = (over: Partial<Fiber>, parent: Fiber | null = null): Fiber => ({ tag: 5, type: 'div', return: parent, ...over });
 
@@ -29,17 +29,27 @@ describe('fiber reading (FR-MARK-03/04/05)', () => {
     expect(getFiber({} as Node)).toBeNull();
   });
 
-  it('reads JSX source from React 19 _debugStack and React 18 _debugSource', () => {
+  it('yields JSX source candidates from React 19 _debugStack and React 18 _debugSource, nearest first', () => {
     const r19 = fiber({
       _debugStack: { stack: 'Error: react-stack-top-frame\n    at jsxDEV (http://x/node_modules/.vite/deps/react_jsx-dev-runtime.js:1:1)\n    at Cart (http://x/src/Cart.tsx:108:21)' },
     });
-    expect(sourceHint(r19)).toEqual({ kind: 'stack', frame: { fn: 'Cart', url: 'http://x/src/Cart.tsx', line: 108, column: 21 } });
+    const [first] = sourceCandidates(r19);
+    expect(first).toMatchObject({ kind: 'stack', depth: 0, frames: [{ fn: 'Cart', url: 'http://x/src/Cart.tsx', line: 108, column: 21 }] });
     const r18 = fiber({ _debugSource: { fileName: '/app/src/Cart.tsx', lineNumber: 40, columnNumber: 7 } });
-    expect(sourceHint(r18)).toEqual({ kind: 'debugSource', file: '/app/src/Cart.tsx', line: 40, column: 7 });
-    // Kütüphane içinde oluşturulan öğe → kullanıcı kodundaki ataya çıkılır.
+    expect([...sourceCandidates(r18)][0]).toMatchObject({ kind: 'debugSource', file: '/app/src/Cart.tsx', line: 40, column: 7, depth: 0 });
+    // Kütüphane içinde oluşturulan öğe → kullanıcı kodundaki ata ikinci aday.
     const lib = fiber({ _debugStack: { stack: 'Error\n    at Lib (http://x/node_modules/lib/index.js:1:1)' } }, r19);
-    expect(sourceHint(lib)).toMatchObject({ kind: 'stack', frame: { url: 'http://x/src/Cart.tsx' } });
-    expect(sourceHint(fiber({}))).toBeNull();
+    expect([...sourceCandidates(lib)]).toMatchObject([{ kind: 'stack', depth: 1, frames: [{ url: 'http://x/src/Cart.tsx' }] }]);
+    expect([...sourceCandidates(fiber({}))]).toEqual([]);
+  });
+
+  it('recognises elements created by React Server Components (owner is server component info, not a fiber)', () => {
+    const rsc = fiber({ _debugOwner: { name: 'Page', env: 'Server', key: null }, _debugStack: { stack: 'Error\n    at fakeJSXCallSite (http://x/_next/static/chunks/react-server-dom.js:1:1)' } });
+    expect(isServerOwned(rsc)).toBe(true);
+    expect(isServerOwned(fiber({ _debugOwner: fiber({ tag: 0, type: Cart }) }))).toBe(false);
+    expect(isServerOwned(fiber({}))).toBe(false);
+    // Kullanıcı çerçevesi olmasa da aday olarak döner (atalara çıkmadan durmak için).
+    expect([...sourceCandidates(rsc)]).toMatchObject([{ kind: 'stack', frames: [], depth: 0 }]);
   });
 
   it('reads props (without children elements) and useState/useReducer hook state', () => {

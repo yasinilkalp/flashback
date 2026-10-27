@@ -13,6 +13,8 @@ export interface ConfidenceInput {
   truncated: string[];
   excluded: string[];
   sessionHint: { cookieNames: string[]; storageKeys: string[] };
+  /** Kaynak satırı öğenin değil en yakın atanın JSX'i (EK-B3). */
+  sourceFromAncestor?: boolean;
 }
 
 const ok = (key: string, message: string): ConfidenceItem => ({ key, level: 'ok', message });
@@ -52,7 +54,7 @@ export function pathOf(url: string): string {
   }
 }
 
-function sourceItem(draft: IncidentDraftInput): ConfidenceItem {
+function sourceItem(draft: IncidentDraftInput, fromAncestor = false): ConfidenceItem {
   const t = draft.target;
   if (!t) return ok('source', 'kaynak: sayfa düzeyi olay — hedef öğe yok');
   if (!t.file) {
@@ -61,6 +63,9 @@ function sourceItem(draft: IncidentDraftInput): ConfidenceItem {
   const where = `${t.file}:${t.line}`;
   if (!t.resolved) {
     return warn('source', `kaynak: source map çözülemedi — derlenmiş konum (${where})`, 'Bu satıra güvenme; bileşen yığını ve seçiciyle orijinal dosyayı bul.');
+  }
+  if (fromAncestor) {
+    return warn('source', `kaynak: ${where} — öğenin kendisinin değil, onu oluşturan en yakın atanın JSX'i`, 'Öğe bağımlılık kodunda ya da sahip yığını olmadan oluşturulmuş; bu satırdan başla, öğeyi seçici ve HTML ile doğrula.');
   }
   if (!t.snippet) {
     return warn('source', `kaynak: ${where} (source map ile çözüldü, kod parçası yok)`, 'Dosya düzenlendiyse satır kaymış olabilir; satırı içerikle doğrula.');
@@ -123,7 +128,7 @@ export function confidenceItems(input: ConfidenceInput): ConfidenceItem[] {
   const { draft, truncated, excluded } = input;
   const cut = [...truncated, ...excluded.map((e) => `${e} (geliştirici hariç tuttu)`)];
   return [
-    sourceItem(draft),
+    sourceItem(draft, input.sourceFromAncestor),
     elementItem(draft),
     warn('propsState', 'props/state: canlı (geçmiş değil)', 'Geçmişteki değerler için store değişikliklerine ve ağ yanıtlarına bak.'),
     preWindowItem(input),

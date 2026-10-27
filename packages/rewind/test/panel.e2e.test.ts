@@ -3,96 +3,18 @@
  * Önkoşul: `npm run build -w @rewind/shared && npm run build -w rewind-devtools` (demo paketi dist'ten kullanır).
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { createServer as createHttpServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { IncidentDraftSchema, type IncidentDraft, type IncidentSummary } from '@rewind/shared';
+import type { IncidentDraft } from '@rewind/shared';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { freePort, startReceiver, type Receiver } from './e2e-utils.js';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const demoDir = join(repo, 'examples/demo');
 const cartSource = readFileSync(join(demoDir, 'src/Cart.tsx'), 'utf8');
 const TOTAL_LINE = cartSource.split('\n').findIndex((l) => l.includes('data-testid="total"')) + 1;
-
-interface Receiver {
-  url: string;
-  drafts: IncidentDraft[];
-  rejected: string[];
-  down: boolean;
-  close(): Promise<void>;
-}
-
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (c: Buffer) => chunks.push(c));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-  });
-}
-
-/** `rewind-mcp` alıcısının HTTP sözleşmesini (FRD §9.3) taklit eder; POST'u IncidentDraftSchema ile doğrular. */
-async function startReceiver(): Promise<Receiver> {
-  const state: Receiver = { url: '', drafts: [], rejected: [], down: false, close: async () => {} };
-  const ids: string[] = [];
-  const server: Server = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
-    if (state.down) {
-      req.socket.destroy();
-      return;
-    }
-    const origin = req.headers.origin;
-    const cors = origin ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' } : {};
-    const json = (status: number, body: unknown) => {
-      res.writeHead(status, { 'Content-Type': 'application/json', ...cors });
-      res.end(JSON.stringify(body));
-    };
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204, cors);
-      return res.end();
-    }
-    if (req.method === 'GET' && req.url === '/health') return json(200, { name: 'rewind-mcp', version: 'test', schemaVersion: 1, projectId: 'p1', projectName: 'demo' });
-    if (req.method === 'POST' && req.url === '/incidents') {
-      if (!String(req.headers['content-type']).startsWith('application/json')) return json(415, { error: 'unsupported_media_type' });
-      const parsed = IncidentDraftSchema.safeParse(JSON.parse(await readBody(req)));
-      if (!parsed.success) {
-        state.rejected.push(JSON.stringify(parsed.error.issues).slice(0, 2000));
-        return json(400, { error: 'schema' });
-      }
-      state.drafts.push(parsed.data);
-      const id = `rw-20261027-1200${String(ids.length).padStart(2, '0')}-test`;
-      ids.push(id);
-      return json(201, { id });
-    }
-    if (req.method === 'GET' && req.url === '/incidents') {
-      const list: IncidentSummary[] = state.drafts.map((d, i) => ({
-        id: ids[i],
-        status: 'open',
-        createdAt: new Date().toISOString(),
-        url: d.context.url,
-        note: d.note,
-        pendingQuestion: false,
-        runs: [],
-        messages: [],
-      }));
-      return json(200, list.reverse());
-    }
-    return json(404, { error: 'not_found' });
-  });
-  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
-  state.url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  state.close = () => new Promise((r) => server.close(() => r()));
-  return state;
-}
-
-async function freePort(): Promise<number> {
-  const s = createHttpServer();
-  await new Promise<void>((r) => s.listen(0, '127.0.0.1', r));
-  const { port } = s.address() as AddressInfo;
-  await new Promise((r) => s.close(r));
-  return port;
-}
 
 interface ViteServer {
   listen(): Promise<unknown>;
@@ -327,6 +249,34 @@ describe.runIf(process.env.REWIND_E2E)('Rewind panel e2e (Vite demo + Chromium)'
     expect(await page.locator('[data-rw="panel"]').count()).toBe(0);
     await page.locator('[data-rw="launcher"]').click();
     expect(await page.locator('[data-rw="panel"]').evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
+    await page.close();
+  });
+
+  it('erişilebilirlik: axe denetiminde kritik/ciddi ihlal yok ve Tab odağı panelin dışına kaçmaz (FR-UI-13)', async () => {
+    const page = await openApp();
+    await fillCart(page, 'YAZ10');
+    await openPanel(page);
+    await page.addScriptTag({ path: createRequire(import.meta.url).resolve('axe-core/axe.min.js') });
+    const audit = async () =>
+      page.evaluate(async () => {
+        const axe = (window as unknown as { axe: { run: (ctx: unknown, opts: unknown) => Promise<{ violations: Array<{ id: string; impact: string; nodes: unknown[] }> }> } }).axe;
+        const r = await axe.run(
+          { include: [['rewind-devtools']], exclude: [['rewind-devtools', 'iframe']] },
+          { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } },
+        );
+        return r.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious').map((v) => `${v.id} (${v.impact}, ${v.nodes.length})`);
+      });
+    expect(await audit()).toEqual([]);
+    await page.getByRole('tab', { name: /Kayıtlar/ }).click();
+    expect(await audit()).toEqual([]);
+
+    // Odak tuzağı: panel sayfayı kaplar; Tab ile görünmeyen sayfaya geçilmez.
+    await page.locator('[data-rw="panel"]').focus();
+    for (let i = 0; i < 40; i++) {
+      await page.keyboard.press(i % 7 === 6 ? 'Shift+Tab' : 'Tab');
+      const inside = await page.evaluate(() => document.activeElement?.tagName.toLowerCase() === 'rewind-devtools');
+      expect(inside, `Tab #${i + 1}`).toBe(true);
+    }
     await page.close();
   });
 

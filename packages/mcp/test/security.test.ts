@@ -90,8 +90,16 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
 
   it('6 MB gövde 413 alır', async () => {
     const big = Buffer.alloc(6 * 1024 * 1024, 'a');
-    const r = await raw(port, { method: 'POST', path: '/incidents', headers: BROWSER, body: big });
-    expect(r.status).toBe(413);
+    // Yanıt başlığı gelir gelmez çöz: sunucu gövdenin geri kalanını okumadan bağlantıyı kesebilir.
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port, method: 'POST', path: '/incidents', headers: BROWSER }, (res) => {
+        res.resume();
+        resolve(res.statusCode ?? 0);
+      });
+      req.on('error', reject);
+      req.end(big);
+    });
+    expect(status).toBe(413);
   });
 
   it('Content-Length olmadan akan büyük gövde de 413 alır', async () => {
@@ -163,6 +171,15 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     expect(stored.status).toBe('open');
     expect(stored.projectId).toBe('p1');
 
+    // FR-RCV-06: başka bir proje için gönderilen olay reddedilir ve saklanmaz; doğru proje kabul edilir.
+    const countBefore = store.list().length;
+    const wrong = await raw(port, { method: 'POST', path: '/incidents', headers: { ...BROWSER, 'x-rewind-project': 'admin-panel' }, body: JSON.stringify(draftInput()) });
+    expect(wrong.status).toBe(409);
+    expect(wrong.body).toContain('Yanlış proje');
+    expect(store.list().length).toBe(countBefore);
+    const right = await raw(port, { method: 'POST', path: '/incidents', headers: { ...BROWSER, 'x-rewind-project': 'demo' }, body: JSON.stringify(draftInput()) });
+    expect(right.status).toBe(201);
+
     const bad = await raw(port, { method: 'POST', path: '/incidents', headers: BROWSER, body: JSON.stringify({ ...draftInput(), schemaVersion: 2 }) });
     expect(bad.status).toBe(400);
     expect(bad.body).toContain('schemaVersion');
@@ -180,6 +197,7 @@ describe('HTTP alıcı güvenliği (FR-RCV-SEC-01…05)', () => {
     expect(ok.headers['access-control-allow-origin']).toBe('http://localhost:5173');
     expect(ok.headers['access-control-allow-headers']).toContain('content-type');
     expect(ok.headers['access-control-allow-headers']).toContain('x-rewind-client');
+    expect(ok.headers['access-control-allow-headers']).toContain('x-rewind-project');
     const evil = await raw(port, { method: 'OPTIONS', path: '/incidents', headers: { origin: 'https://evil.example', ...pre } });
     expect(evil.status).toBe(403);
     expect(evil.headers['access-control-allow-origin']).toBeUndefined();

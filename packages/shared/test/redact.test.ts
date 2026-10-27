@@ -27,6 +27,9 @@ const SECRETS: Array<[string, string]> = [
   ['api_key', fake('sk-', 'ant-', 'api03-', 'abcdefghijklmnopqrstu')],
   ['api_key', fake('gh', 'p_', 'abcdefghijklmnopqrstuvwxyz0123456789')],
   ['api_key', fake('github', '_pat_', '11ABCDEFG0123456789_abcdefghijklmnop')],
+  // Ön koşul (guard) regresyonu: başka yerde 'gh' geçmeyen github_pat.
+  ['api_key', fake('github', '_pat_', '11ABCDEFG0123456789_ZZZZZZZZZZZZZZZZ')],
+  ['api_key', fake('AS', 'IA', 'IOSFODNN7EXAMPLE')],
   ['api_key', fake('AK', 'IA', 'IOSFODNN7EXAMPLE')],
   ['api_key', fake('xo', 'xb-', '1234567890-abcdefghij')],
   ['api_key', fake('xo', 'xp-', '0987654321-ZYXWVUTSRQ')],
@@ -335,5 +338,21 @@ describe('güvenlik incelemesi bulguları (bulgu 3 ve 6)', () => {
     expect(r.pathType('items[0].password')).toBe('password');
     expect(r.pathType('cart.items')).toBeNull();
     expect(r.pathType('apiKey')).toBe('secret');
+  });
+});
+
+describe('ön süzgeç (yalnızca harf/boşluk içeren metin)', () => {
+  it('düz yazıya dokunmaz; özel desen varsa süzgeç devre dışıdır', () => {
+    const r = new Redactor();
+    expect(r.text('Sepet toplamı yanlış görünüyor')).toBe('Sepet toplamı yanlış görünüyor');
+    expect(r.stats.count).toBe(0);
+    const custom = new Redactor({ patterns: [/gizliProje/] });
+    expect(custom.text('kod adı gizliProje')).toBe('kod adı [REDACTED:custom]');
+  });
+
+  it('Basic/Bearer belirteçleri yalnızca harften oluşsa da gizlenir', () => {
+    const r = new Redactor();
+    expect(r.text('Bearer abcdefghijklmnop')).toBe('[REDACTED:token]');
+    expect(r.text('Basic QWxhZGRpbjpvcGVu')).toBe('[REDACTED:token]');
   });
 });

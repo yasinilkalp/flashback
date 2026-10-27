@@ -233,3 +233,171 @@ export function renderSpec(assertionCode: string): string {
   const indented = assertionCode.split('\n').join('\n      ');
   return SPEC_TEMPLATE.replace(ASSERTIONS_PLACEHOLDER, () => indented);
 }
+
+// ---- Taşınabilir spec (FR-MCP-14) ---------------------------------------------
+
+export const DATA_PLACEHOLDER = '/*__REWIND_DATA__*/';
+
+/**
+ * `get_repro_script { portable: true }` şablonu. Projenin test klasörüne kopyalanıp projenin KENDİ
+ * playwright.config dosyasıyla çalışır: yollar `use.baseURL`'e göredir, yardımcılar satır içidir,
+ * `.rewind/` klasörüne ve `node:fs`'e bağımlılık yoktur.
+ *
+ * Şablon SABİTTİR. İki değişken parça vardır:
+ *   1. DATA: olay verisi, yalnızca `JSON.stringify` çıktısı olarak (kod değil, veri sabiti),
+ *   2. beklenti bloğu: doğrulanmış IR'den `renderAssertions` ile üretilen kod.
+ */
+export const PORTABLE_SPEC_TEMPLATE = `// @ts-nocheck
+// Rewind taşınabilir repro testi — rewind-mcp get_repro_script (portable: true) ile üretildi.
+// Projenin kendi playwright.config dosyasıyla çalışır; yollar use.baseURL'e göre çözülür.
+// Olay verisi yalnızca aşağıdaki DATA sabitindedir (JSON.stringify ile serileştirilmiş veri; kod değil).
+// Gizli/sentetik girişler ortam değişkenlerinden okunur (REWIND_PASSWORD, REWIND_INPUT_<ALAN>); yoksa yer tutucu kullanılır.
+// Oturum gerekiyorsa projenin storageState ayarını ya da REWIND_STORAGE_STATE ortam değişkenini kullanın.
+import { test, expect } from '@playwright/test';
+
+const DATA = ${DATA_PLACEHOLDER};
+
+const ENV_NAME = /^REWIND_(PASSWORD|INPUT_[A-Z0-9_]{1,64})$/;
+
+test.use({
+  viewport: DATA.viewport,
+  locale: DATA.locale,
+  timezoneId: DATA.timezone,
+  ...(process.env.REWIND_STORAGE_STATE ? { storageState: process.env.REWIND_STORAGE_STATE } : {}),
+});
+
+test('rewind repro ' + DATA.incidentId, async ({ page, context, baseURL }) => {
+  const root = baseURL || process.env.REWIND_BASE_URL;
+  if (!root) throw new Error('Rewind: playwright.config içinde use.baseURL (ya da REWIND_BASE_URL) tanımlı olmalı.');
+  const base = new URL(root);
+  const originOf = (u) => {
+    try {
+      return new URL(u, base).origin;
+    } catch {
+      return null;
+    }
+  };
+  // İzinli kökenler: baseURL kökeni + REWIND_ALLOW_ORIGINS (virgülle ayrılmış).
+  const allowed = new Set([base.origin]);
+  for (const o of (process.env.REWIND_ALLOW_ORIGINS || '').split(',')) {
+    const origin = o.trim() ? originOf(o.trim()) : null;
+    if (origin && origin !== 'null') allowed.add(origin);
+  }
+  const isAllowed = (u) => allowed.has(originOf(u));
+  // İzinli olmayan kökenlere üst düzey gezinme engellenir (sentetik/gizli değerler yabancı sayfaya yazılmaz).
+  await context.route('**/*', (route) => {
+    const req = route.request();
+    let topLevel = false;
+    try {
+      topLevel = req.isNavigationRequest() && req.frame().parentFrame() === null;
+    } catch {
+      topLevel = false;
+    }
+    if (topLevel && !isAllowed(req.url())) return route.abort('blockedbyclient');
+    return route.fallback();
+  });
+  const observed = { console: [], network: [] };
+  page.on('console', (m) => {
+    if (m.type() === 'error') observed.console.push(m.text());
+  });
+  page.on('pageerror', (e) => observed.console.push(String((e && e.message) || e)));
+  page.on('response', (r) => {
+    if (r.status() >= 400) observed.network.push(r.request().method() + ' ' + r.url() + ' → ' + r.status());
+  });
+
+  // Seçiciler yalnızca page.locator(<string>) argümanı olarak kullanılır.
+  const find = async (selectors, waitMs) => {
+    const deadline = Date.now() + waitMs;
+    for (;;) {
+      for (const sel of selectors) {
+        try {
+          const loc = page.locator(sel);
+          if ((await loc.count()) > 0) return loc.first();
+        } catch {
+          // geçersiz seçici: sıradakini dene
+        }
+      }
+      if (Date.now() >= deadline) return null;
+      await page.waitForTimeout(100);
+    }
+  };
+  const valueOf = (step) => {
+    for (const name of step.env || []) {
+      if (ENV_NAME.test(name) && process.env[name] !== undefined && process.env[name] !== '') return process.env[name];
+    }
+    return step.value ?? '';
+  };
+  const settle = () => page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+  const ensureOrigin = (what) => {
+    if (!isAllowed(page.url())) throw new Error('Rewind ön koşul: sayfa izinli olmayan bir kökene geçti; ' + what + ' yapılmadı.');
+  };
+
+  await page.goto(DATA.startPath);
+  await settle();
+  const want = new URL(DATA.startPath, base);
+  const landed = new URL(page.url());
+  if (landed.origin !== want.origin || landed.pathname !== want.pathname) {
+    throw new Error('Rewind ön koşul: ilk gezinme ' + want.pathname + ' yerine ' + landed.origin + landed.pathname + ' adresine yönlendi (oturum gerekli olabilir).');
+  }
+  for (let i = 0; i < DATA.steps.length; i++) {
+    const s = DATA.steps[i];
+    if (s.type === 'navigate') {
+      const next = new URL(s.path, base);
+      const cur = new URL(page.url());
+      if (cur.origin + cur.pathname + cur.search !== next.origin + next.pathname + next.search) {
+        await page.goto(s.path);
+        await settle();
+      }
+      continue;
+    }
+    let loc = null;
+    if (s.selectors.length) {
+      const first = i === DATA.firstActionIndex;
+      loc = await find(s.selectors, first ? 5000 : 10000);
+      if (!loc) {
+        throw new Error((first ? 'Rewind ön koşul: ilk ' : 'Rewind: ') + 'adım ' + s.n + ' (' + s.type + ') için seçici bulunamadı: ' + JSON.stringify(s.selectors[0]));
+      }
+    }
+    ensureOrigin('adım ' + s.n);
+    if (s.type === 'click') await loc.click();
+    else if (s.type === 'input') await loc.fill(valueOf(s));
+    else if (s.type === 'key') {
+      if (loc) await loc.press(s.key);
+      else await page.keyboard.press(s.key);
+    }
+  }
+  await settle();
+  ensureOrigin('beklenti denetimi');
+
+  let target = undefined;
+  if (DATA.target) {
+    target = (await find(DATA.target.selectors, 2000)) || page.locator(DATA.target.selectors[0]);
+  }
+
+  // ---- beklentiler (assertion IR'den üretildi) ----
+  ${ASSERTIONS_PLACEHOLDER}
+  // ----
+  if (DATA.strict && (observed.console.length || observed.network.length)) {
+    throw new Error('strict: ' + observed.console.length + ' konsol hatası, ' + observed.network.length + ' başarısız istek gözlendi');
+  }
+});
+`;
+
+/**
+ * Veriyi JS kaynağına gömülecek sabite çevirir. Tek yol `JSON.stringify`'dır: dize içindeki her tırnak,
+ * ters bölü ve kontrol karakteri kaçışlanır; `__proto__` anahtarları (nesne sabitinde prototip atar) düşürülür;
+ * U+2028/2029 kaçışlanır.
+ */
+export function dataLiteral(data: unknown): string {
+  const json = JSON.stringify(data, (k, v: unknown) => (k === '__proto__' ? undefined : v), 2);
+  if (json === undefined) throw new Error('veri serileştirilemedi');
+  return json.replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
+/** Taşınabilir spec: `data` yalnızca `dataLiteral` ile, `assertionCode` yalnızca `renderAssertions` çıktısı olmalıdır. */
+export function renderPortableSpec(data: unknown, assertionCode: string): string {
+  const indented = assertionCode.split('\n').join('\n  ');
+  const literal = dataLiteral(data);
+  // Yer tutucular tek geçişte değiştirilir; değiştirilen metin yeniden taranmaz (veri, beklenti yer tutucusunu içerse bile).
+  return PORTABLE_SPEC_TEMPLATE.replace(/\/\*__REWIND_(DATA|ASSERTIONS)__\*\//g, (m) => (m === DATA_PLACEHOLDER ? literal : indented));
+}

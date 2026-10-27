@@ -16,6 +16,7 @@ export const ERROR_SUGGESTIONS = {
   no_reply_yet: 'Yanıtı daha sonra get_incident ile oku.',
   base_url_rejected: 'Yalnızca loopback adresleri ya da REWIND_ALLOW_ORIGINS içindeki kökenler kullanılabilir.',
   invalid_transition: 'Olayın durumunu list_incidents ile kontrol et; kapalı olay yalnızca panelden yeniden açılabilir.',
+  invalid_cursor: 'cursor değerini yalnızca önceki list_incidents yanıtındaki nextCursor alanından aynı status ile kullan; baştan listelemek için cursor verme.',
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_SUGGESTIONS;

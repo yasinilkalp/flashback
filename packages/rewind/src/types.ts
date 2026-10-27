@@ -35,6 +35,11 @@ export interface RewindProps {
   locale?: RewindLocale;
   /** Üretimde çalışmaya izin verir (önerilmez, FR-CFG-09). */
   allowProduction?: boolean;
+  /**
+   * Projenin `package.json` adı (FR-RCV-06). Verilirse alıcının projesiyle karşılaştırılır: uyuşmazsa düğme
+   * "yanlış proje" gösterir ve alıcı olayı reddeder. Örn. `project={pkg.name}`.
+   */
+  project?: string;
 }
 
 /** `trackStore` dönüşü: takibi bırakır. */

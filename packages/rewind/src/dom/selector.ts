@@ -90,8 +90,12 @@ function nthOfType(el: Element): string {
   const tag = el.tagName.toLowerCase();
   const parent = el.parentElement;
   if (!parent) return tag;
-  const same = Array.from(parent.children).filter((c) => c.tagName === el.tagName);
-  return same.length === 1 ? tag : `${tag}:nth-of-type(${same.indexOf(el) + 1})`;
+  // Kardeşleri diziye kopyalamadan say: uzun listelerde her tıklamada çalışır (NFR-PERF-01).
+  let index = 1;
+  for (let s = el.previousElementSibling; s; s = s.previousElementSibling) if (s.tagName === el.tagName) index++;
+  if (index > 1) return `${tag}:nth-of-type(${index})`;
+  for (let s = el.nextElementSibling; s; s = s.nextElementSibling) if (s.tagName === el.tagName) return `${tag}:nth-of-type(1)`;
+  return tag;
 }
 
 /** Öğenin kendisi için benzersiz olabilecek "çapa" seçicileri (öncelik sırasıyla). */
