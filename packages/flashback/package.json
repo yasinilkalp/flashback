@@ -1,6 +1,6 @@
 {
   "name": "flashback-devtools",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "Flashback tarayıcı bileşeni: geliştirme ortamında son 60 saniyeyi kaydeder, hatayı geri sarıp gösterip AI kodlama ajanına gönderir.",
   "type": "module",
   "license": "MIT",

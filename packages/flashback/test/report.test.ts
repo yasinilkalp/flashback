@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { IncidentDraftSchema } from '@flashback/shared';
 import { describe, expect, it, vi } from 'vitest';
+import { FLASHBACK_VERSION } from '../src/config.js';
 import { buildDraft } from '../src/draft/build.js';
 import { fence, fingerprint, prepareSubmission, previewFromBody } from '../src/draft/report.js';
 import { deliverFallback, fileStamp, PendingQueue, ReceiverClient } from '../src/transport.js';
@@ -41,7 +42,8 @@ describe('preview and payload come from the same serialized object (FR-UI-08 �
   it('markdown has the origin/version header, confidence, intent, evidence, highlights and "Ayrıca gönderilenler"', () => {
     const { markdown, extras } = prepareSubmission(sample()).preview;
     const lines = markdown.split('\n');
-    expect(lines[1]).toMatch(/^Köken: http:\/\/localhost:5173 · flashback-devtools 0\.1\.0-beta\.0 · şema v1 · Gizleme: AÇIK/);
+    expect(lines[1]).toMatch(/^Köken: http:\/\/localhost:5173 · flashback-devtools \S+ · şema v1 · Gizleme: AÇIK/);
+    expect(lines[1]).toContain(`flashback-devtools ${FLASHBACK_VERSION} ·`);
     expect(markdown).toContain('## Kanıt güveni');
     expect(markdown).toContain('props/state: canlı (geçmiş değil)');
     expect(markdown).toContain('## Geliştiricinin niyeti\n**Ne olmalıydı?**\n> Uyarı gösterilmeli');
