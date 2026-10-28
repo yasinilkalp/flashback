@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { IncidentDraftSchema, type IncidentDraft, type IncidentSummary } from '@flashback/shared';
-import type { Page } from 'playwright';
+import type { ConsoleMessage, Page, Response } from 'playwright';
 
 export const repo = fileURLToPath(new URL('../../../', import.meta.url));
 
@@ -409,13 +409,32 @@ export async function sendSelected(page: Page, receiver: Receiver, expected = 'D
   return receiver.drafts[receiver.drafts.length - 1];
 }
 
-/** Uygulamayı açar, Flashback düğmesini bekler, kaydı başlatır ve kaydın birikmesini bekler. */
+/**
+ * Uygulamayı açar, Flashback düğmesini bekler, kaydı başlatır ve kaydın birikmesini bekler. Soğuk Vite sunucusu ilk
+ * açılışta bağımlılıkları yeniden paketlerse bir modül isteği 504 alıp sayfa yarım kalabilir (Windows CI'da görüldü).
+ * Düğme 30 sn'de görünmezse ilk yüklemenin hataları yazdırılır ve sayfa bir kez yenilenir.
+ */
 export async function openApp(page: Page, url: string, waitMs = 1500): Promise<string[]> {
   const errors: string[] = [];
+  const loadIssues: string[] = [];
+  const onConsole = (m: ConsoleMessage) => void (m.type() === 'error' && loadIssues.push(m.text()));
+  const onResponse = (r: Response) => void (r.status() >= 500 && loadIssues.push(`${r.status()} ${r.url()}`));
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', onConsole);
+  page.on('response', onResponse);
   await page.addInitScript(freshBasket);
   await page.goto(url);
-  await page.locator('[data-fb="launcher"]').waitFor({ timeout: 60_000 });
+  const launcher = page.locator('[data-fb="launcher"]');
+  try {
+    await launcher.waitFor({ timeout: 30_000 });
+  } catch {
+    console.warn(`[openApp] Flashback düğmesi 30 sn'de görünmedi; sayfa yenileniyor.\n${[...errors, ...loadIssues].join('\n') || '(hata yok)'}`);
+    errors.length = 0;
+    await page.reload();
+    await launcher.waitFor({ timeout: 60_000 });
+  }
+  page.off('console', onConsole);
+  page.off('response', onResponse);
   await startRecording(page);
   await page.waitForTimeout(waitMs);
   return errors;
