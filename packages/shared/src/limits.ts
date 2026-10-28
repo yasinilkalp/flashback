@@ -6,6 +6,12 @@ export const LIMITS = {
   domBytes: 1024 * 1024,
   /** Olay JSON'u üst sınırı (alıcıdaki varsayılan gövde sınırı da budur). */
   incidentBytes: 5 * 1024 * 1024,
+  /** Olaya eklenen ekran/mikrofon kaydının (`.webm`) üst sınırı (FR-REC-16). */
+  mediaBytes: 50 * 1024 * 1024,
+  /** Videodan alınıp olayla gönderilen en fazla anahtar kare. */
+  keyframes: 6,
+  /** Tek anahtar karenin (JPEG, base64) üst sınırı. */
+  keyframeChars: 400_000,
   /** get_incident varsayılan token bütçesi (NFR-TOK-01, AS-1). ~4 karakter = 1 token. */
   reportTokens: 4000,
   /** Kota (FR-RCV-09). */

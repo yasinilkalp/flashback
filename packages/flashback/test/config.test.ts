@@ -19,7 +19,7 @@ describe('props and defaults (FR-CFG-02/03, §9.4)', () => {
   it('matches the FRD §9.4 defaults table', () => {
     expect(DEFAULTS).toEqual({
       endpoint: DEFAULT_ENDPOINT,
-      maxRecordSeconds: 300,
+      maxRecordSeconds: 60,
       ignoreUrls: [],
       maskAllInputs: false,
       redact: true,
@@ -29,7 +29,7 @@ describe('props and defaults (FR-CFG-02/03, §9.4)', () => {
     });
     expect(DEFAULT_ENDPOINT).toBe('http://127.0.0.1:4747');
     const cfg = resolveConfig({ locale: 'tr' });
-    expect(cfg).toMatchObject({ endpoint: DEFAULT_ENDPOINT, maxRecordSeconds: 300, maskAllInputs: false, redact: { enabled: true }, shortcut: 'alt+shift+r', position: 'bottom-right' });
+    expect(cfg).toMatchObject({ endpoint: DEFAULT_ENDPOINT, maxRecordSeconds: 60, maskAllInputs: false, redact: { enabled: true }, shortcut: 'alt+shift+r', position: 'bottom-right' });
   });
 
   it('resolves redact variants and locale', () => {

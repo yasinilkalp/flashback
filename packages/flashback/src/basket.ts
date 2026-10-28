@@ -4,6 +4,7 @@
  * bellek içi yedeğe düşer. Özetler (`entries`) ile ağır veriler (klip ve gönderime hazır yük, `payloads`) ayrı
  * tutulur: liste ve rozet klipleri belleğe yüklemez.
  */
+import type { MediaClip } from './recorder/media.js';
 import type { FrozenSnapshot } from './recorder/recorder.js';
 import { fileStamp } from './transport.js';
 
@@ -19,11 +20,15 @@ export interface BasketEntry {
   note?: { what?: string; expected: string };
   /** Klip bellek sınırında kesildi (NFR-MEM-01). */
   truncated: boolean;
+  /** Ekran/mikrofon kaydı (FR-REC-16); dosyanın kendisi `payloads` içinde. */
+  media?: { source: MediaClip['source']; video: boolean; audio: boolean; bytes: number };
 }
 
 /** Gönderime hazır, gizlenmiş ve serileştirilmiş olay (alıcıya giden gövdenin aynısı). */
 export interface BasketDraft {
   body: string;
+  /** Gövde ekran kaydı bildiriyor: olay oluşturulunca `.webm` ayrıca yüklenir. */
+  media?: boolean;
 }
 
 const DB_NAME = 'flashback-devtools';
@@ -33,6 +38,7 @@ const PAYLOADS = 'payloads';
 
 const clipKey = (id: string) => `${id}:clip`;
 const draftKey = (id: string) => `${id}:draft`;
+const mediaKey = (id: string) => `${id}:media`;
 
 interface Backend {
   all(): Promise<BasketEntry[]>;
@@ -165,7 +171,7 @@ export class Basket {
     return (await this.backend.all()).sort(byNumber);
   }
 
-  async add(snapshot: FrozenSnapshot, url: string): Promise<BasketEntry> {
+  async add(snapshot: FrozenSnapshot, url: string, media?: MediaClip | null): Promise<BasketEntry> {
     const existing = await this.list();
     const entry: BasketEntry = {
       id: `clip-${snapshot.windowStart}-${randomSuffix()}`,
@@ -175,14 +181,20 @@ export class Basket {
       url,
       ready: false,
       truncated: snapshot.memoryWarning,
+      ...(media ? { media: { source: media.source, video: media.video, audio: media.audio, bytes: media.blob.size } } : {}),
     };
     await this.backend.put(PAYLOADS, clipKey(entry.id), cloneable(snapshot));
+    if (media) await this.backend.put(PAYLOADS, mediaKey(entry.id), media);
     await this.backend.put(ENTRIES, entry.id, entry);
     return entry;
   }
 
   clip(id: string): Promise<FrozenSnapshot | undefined> {
     return this.backend.get<FrozenSnapshot>(PAYLOADS, clipKey(id));
+  }
+
+  media(id: string): Promise<MediaClip | undefined> {
+    return this.backend.get<MediaClip>(PAYLOADS, mediaKey(id));
   }
 
   draft(id: string): Promise<BasketDraft | undefined> {
@@ -204,6 +216,7 @@ export class Basket {
       [ENTRIES, id],
       [PAYLOADS, clipKey(id)],
       [PAYLOADS, draftKey(id)],
+      [PAYLOADS, mediaKey(id)],
     ]);
   }
 

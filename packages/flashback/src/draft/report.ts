@@ -31,6 +31,8 @@ export interface Preview {
 export interface Submission {
   /** POST gövdesi. */
   body: string;
+  /** Gövde ekran kaydı bildiriyor (FR-REC-16): `.webm` olay oluşturulduktan sonra ayrıca yüklenir. */
+  media: boolean;
   /** Önizlemenin türetildiği metin; `body` ile aynı nesnedir (FR-UI-08). */
   previewSource: string;
   /** Tembel: ilk erişimde `previewSource`'tan türetilir. */
@@ -155,6 +157,10 @@ export function renderMarkdown(d: IncidentDraftInput, bodyBytes: number): string
   const ex = extrasOf(d, bodyBytes);
   out.push('', '## Ayrıca gönderilenler');
   out.push(`- rrweb olayı: ${ex.events} · DOM: ${formatBytes(ex.domBytes)} · ağ girdisi: ${ex.network} · toplam: ${formatBytes(ex.bodyBytes)}`);
+  if (d.media) {
+    const kind = d.media.video ? (d.media.audio ? 'ekran videosu + mikrofon sesi' : 'ekran videosu') : 'mikrofon sesi';
+    out.push(`- ekran kaydı: ${kind}, WebM ${formatBytes(d.media.bytes)}, ${d.media.keyframes?.length ?? 0} anahtar kare (yalnızca MCP alıcısına dosya olarak gider; bu metne girmez)`);
+  }
   out.push(`- gizlenen değerler: ${Object.entries(ex.redactedByType).map(([k, v]) => `${k} ${v}`).join(', ') || 'yok'}`);
   return out.join('\n');
 }
@@ -190,6 +196,7 @@ export function prepareSubmission(draft: IncidentDraftInput): Submission {
   let preview: Preview | undefined;
   return {
     body,
+    media: draft.media !== undefined,
     previewSource: body,
     get preview() {
       return (preview ??= previewFromBody(body));

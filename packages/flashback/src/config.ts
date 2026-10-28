@@ -12,7 +12,7 @@ export const PAYLOAD_SCHEMA_VERSION = 1 as const;
 /** FRD §9.4 prop varsayılanları (tek doğruluk kaynağı ile birebir). */
 export const DEFAULTS = {
   endpoint: DEFAULT_ENDPOINT,
-  maxRecordSeconds: 300,
+  maxRecordSeconds: 60,
   ignoreUrls: [] as Array<string | RegExp>,
   maskAllInputs: false,
   redact: true,

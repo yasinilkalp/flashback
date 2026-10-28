@@ -16,7 +16,7 @@ import type { FlashbackConfig } from './config.js';
 import { FlashbackError } from './errors.js';
 import { applyReopen, toSummary } from './lifecycle.js';
 import { projectRoots, relativizeDraft } from './paths.js';
-import { QuotaError, type IncidentStore } from './store.js';
+import { MediaError, QuotaError, type IncidentStore } from './store.js';
 import { VERSION } from './version.js';
 
 export interface ReceiverOptions {
@@ -111,15 +111,19 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
     res.end(json);
   }
 
-  function readBody(req: http.IncomingMessage, res: http.ServerResponse): Promise<string> {
-    const limit = config.maxBodyBytes;
+  function readBody(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    limit = config.maxBodyBytes,
+    limitName = 'FLASHBACK_MAX_BODY_MB',
+  ): Promise<Buffer> {
     const declared = Number(req.headers['content-length']);
     // Gövde sınırı aşılırsa hemen 413 döner, gövde artık saklanmaz (FR-RCV-SEC-05). Kalan veri okunup atılır:
     // okunmamış veri varken soketi kapatmak TCP RST'ye yol açar; macOS ve Windows RST'yi okunmamış 413 yanıtından
     // önce işler ve istemci 413 yerine ECONNRESET görür. Bu yüzden `connection: close` gönderilmez (Node o durumda
     // yanıt biter bitmez soketi kapatır). Gövde 2 sn içinde bitmezse (yavaş/sonsuz akış) bağlantı kesilir.
     const tooLarge = () => {
-      send(res, 413, { error: `Gövde ${Math.round(limit / 1048576)} MB sınırını aşıyor (FLASHBACK_MAX_BODY_MB).` });
+      send(res, 413, { error: `Gövde ${Math.round(limit / 1048576)} MB sınırını aşıyor (${limitName}).` });
       req.removeAllListeners('data');
       req.resume();
       const timer = setTimeout(() => {
@@ -143,7 +147,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
         }
         chunks.push(c);
       });
-      req.on('end', () => !failed && resolve(Buffer.concat(chunks).toString('utf8')));
+      req.on('end', () => !failed && resolve(Buffer.concat(chunks)));
       req.on('error', (e) => !failed && reject(e));
     });
   }
@@ -151,7 +155,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
   async function readJson(req: http.IncomingMessage, res: http.ServerResponse): Promise<unknown> {
     const ct = String(req.headers['content-type'] ?? '').toLowerCase();
     if (!/^application\/json\s*(;|$)/.test(ct)) throw new HttpError(415, 'Content-Type: application/json zorunlu.');
-    const raw = await readBody(req, res);
+    const raw = (await readBody(req, res)).toString('utf8');
     try {
       return JSON.parse(raw);
     } catch {
@@ -207,7 +211,7 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
       }
       throw new HttpError(405, 'Yöntem desteklenmiyor.');
     }
-    const m = /^\/incidents\/([^/]+)(\/messages|\/reopen)?$/.exec(pathname);
+    const m = /^\/incidents\/([^/]+)(\/messages|\/reopen|\/media)?$/.exec(pathname);
     if (!m) throw new HttpError(404, 'Bulunamadı.');
     let id: string;
     try {
@@ -232,6 +236,22 @@ export function createReceiver(opts: ReceiverOptions): Receiver {
         inc.pendingQuestion = false;
       });
       return send(res, 201, msg);
+    }
+    if (sub === '/media' && method === 'POST') {
+      // FR-REC-16: olayın ekran/mikrofon kaydı. Ham WebM gövdesi; olay önce JSON ile oluşturulmuş olmalı.
+      const ct = String(req.headers['content-type'] ?? '').toLowerCase();
+      if (!/^(video|audio)\/webm\s*(;|$)/.test(ct)) throw new HttpError(415, 'Content-Type: video/webm ya da audio/webm zorunlu.');
+      store.require(id);
+      const data = await readBody(req, res, LIMITS.mediaBytes, 'ekran kaydı');
+      try {
+        const inc = store.attachMedia(id, data);
+        log(`Kayıt eklendi: ${inc.media!.file} (${(data.length / 1048576).toFixed(1)} MB)`);
+        return send(res, 201, { file: inc.media!.file, bytes: data.length });
+      } catch (e) {
+        if (e instanceof MediaError) throw new HttpError(e.status, e.message);
+        if (e instanceof QuotaError) throw new HttpError(507, e.message);
+        throw e;
+      }
     }
     if (sub === '/reopen' && method === 'POST') {
       const parsed = ReopenBody.safeParse(await readJson(req, res));

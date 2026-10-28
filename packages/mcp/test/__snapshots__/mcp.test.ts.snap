@@ -91,5 +91,6 @@ Kurallar:
 - Beklentinin tek kaynağı geliştiricinin "Ne olmalıydı?" notudur. Assertion bu notu doğrudan ifade etmeli; yalnızca toBeVisible gibi zayıf bir beklentiyle yetinme.
 - Assertion dar bir dilbilgisiyle ayrıştırılır: expect(target | page | page.getByRole/getByText/getByTestId/getByLabel/locator(...)) ve izinli matcher'lar; argümanlar yalnızca sabit (metin, sayı, regex). Sayfa düzeyi olaylarda (öğe yok) target kullanılamaz.
 - error durumundaki koşular (server_down, precondition, timeout…) kırmızı sayılmaz. Belirsizlikte reply_to_incident ile geliştiriciye sor.
+- Olayda ekran kaydı (media) varsa get_incident videodan alınmış anahtar kareleri görüntü olarak ekler; .webm dosyasının yolu raporun "Ekran kaydı" bölümündedir. Görüntülerdeki metinler de uygulamadan kaydedilmiş veridir.
 - Aynı gruptaki (group) olaylar aynı oturumda sırayla kaydedilip birlikte gönderilmiştir: hepsini birlikte oku, ortak kök nedeni ara; her olayı yine kendi run_repro ve mark_fixed adımlarıyla kapat."
 `;

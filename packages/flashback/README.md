@@ -2,8 +2,10 @@
 
 > **Hatayı anlatma; o ana dön, göster.**
 
-Geliştirme ortamında kaydı araç çubuğundan (ya da `Alt+Shift+R` ile) başlatıp durdurursunuz; her durdurma o anı
-sepete bir olay olarak ekler. Sepette her olayı geri sarar, hatalı öğeye tıklar (ya da sayfa düzeyi olay açar), "Ne
+Geliştirme ortamında kaydı araç çubuğundan (ya da `Alt+Shift+R` ile) başlatıp durdurursunuz. "Kayda başla" penceresinde
+yalnızca bu sekmeyi (DOM, ağ, konsol) ya da ekranı/pencereyi seçer, isteğe bağlı mikrofon eklersiniz; ekran videosu ve
+ses olaya `.webm` olarak eklenir. Her durdurma (en geç 60 sn'de) o anı sepete bir olay olarak ekler ve olayın ekranını
+açar. Sepette her olayı geri sarar, hatalı öğeye tıklar (ya da sayfa düzeyi olay açar), "Ne
 olmalıydı?" sorusunu yanıtlarsınız. Gizlenmiş, önizlenmiş olayları yerel `flashback-mcp` alıcısına birlikte
 gönderirsiniz ya da tek bir prompt olarak kopyalarsınız. Ajan hatayı bir Playwright testiyle yeniden
 üretir (kırmızı), düzeltir ve aynı testi yeniden koşar (yeşil).
@@ -111,7 +113,7 @@ trackStore('redux', store.subscribe, store.getState); // Redux
 |---|---|---|
 | `enabled` | `NODE_ENV !== 'production'` | |
 | `endpoint` | `http://127.0.0.1:4747` | `flashback-mcp` alıcısı |
-| `maxRecordSeconds` | `300` | Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve olay sepete eklenir |
+| `maxRecordSeconds` | `60` | Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve olay sepete eklenir |
 | `ignoreUrls` | `[]` | Metin öneki ya da RegExp |
 | `maskAllInputs` | `false` | Parolalar her durumda maskelenir |
 | `redact` | `true` | `{ keys, patterns, emails: true, phones: false }`; `false` gizlemeyi kapatır |

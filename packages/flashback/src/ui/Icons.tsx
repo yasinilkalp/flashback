@@ -67,6 +67,24 @@ const PATHS = {
     </>
   ),
   minimize: <path d="M5 12h14" />,
+  tab: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M3 9h18M7 6.8h.01M10 6.8h.01" />
+    </>
+  ),
+  screen: (
+    <>
+      <rect x="2.5" y="4" width="19" height="12.5" rx="2" />
+      <path d="M8.5 20.5h7M12 16.5v4" />
+    </>
+  ),
+  mic: (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;

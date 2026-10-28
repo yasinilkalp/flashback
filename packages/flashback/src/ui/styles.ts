@@ -54,6 +54,33 @@ export const PANEL_CSS = `
 .fb-toast.fb-toast-warn { border-left-color: var(--warn); }
 .fb-pos-bottom-left .fb-toast, .fb-pos-top-left .fb-toast { right: auto; left: calc(100% + 10px); }
 .fb-pos-top-right .fb-toast, .fb-pos-top-left .fb-toast { bottom: auto; top: 0; }
+/* "Kayda başla" seçim penceresi: araç çubuğunun yanında, bildirimle aynı yerde. */
+.fb-pop { position: absolute; right: calc(100% + 10px); bottom: 0; width: 304px; padding: 14px; border-radius: 14px; background: var(--bg2); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--fg); text-align: left; }
+.fb-pos-bottom-left .fb-pop, .fb-pos-top-left .fb-pop { right: auto; left: calc(100% + 10px); }
+.fb-pos-top-right .fb-pop, .fb-pos-top-left .fb-pop { bottom: auto; top: 0; }
+.fb-pop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.fb-pop-title { font-size: 14px; font-weight: 700; }
+.fb-root .fb-pop-limit { font: 500 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); }
+.fb-pop-sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.fb-root label.fb-src { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-size: 12px; cursor: pointer; }
+.fb-root label.fb-src[data-on] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.fb-root label.fb-src[data-disabled] { opacity: .5; cursor: not-allowed; }
+.fb-root label.fb-src:has(input:focus-visible) { outline: 2px solid var(--info); outline-offset: 2px; }
+.fb-src input { position: absolute; opacity: 0; pointer-events: none; }
+.fb-src .fb-ico { width: 20px; height: 20px; color: var(--muted); }
+.fb-src[data-on] .fb-ico { color: var(--accent-text); }
+.fb-src-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.fb-src-label { font-size: 13px; font-weight: 600; }
+.fb-root .fb-src-hint { font-size: 11px; line-height: 1.3; color: var(--muted); }
+.fb-root label.fb-pop-check { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; color: var(--fg); font-size: 13px; cursor: pointer; }
+.fb-root label.fb-pop-check[data-disabled] { opacity: .5; cursor: not-allowed; }
+.fb-pop-check .fb-ico { width: 16px; height: 16px; color: var(--muted); }
+.fb-root .fb-pop-err { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--strip-err-bg); color: var(--strip-err-fg); font-size: 12px; }
+.fb-pop-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.fb-root button.fb-rec-go { background: var(--err); color: #fff; font-weight: 600; }
+.fb-root button.fb-rec-go:hover:not(:disabled) { border-color: transparent; filter: brightness(1.08); }
+/* Araç çubuğunun köşe noktası kuralı (.fb-bar .fb-dot) düğmedeki noktaya uygulanmasın. */
+.fb-rec-go .fb-dot { position: static; width: 8px; height: 8px; background: #fff; box-shadow: none; }
 .fb-root button.fb-bar-expand { position: relative; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; box-shadow: var(--bar-shadow); transition: transform .15s; }
 .fb-root button.fb-bar-expand:hover:not(:disabled) { border-color: transparent; transform: translateY(-1px); }
 .fb-bar-expand .fb-logo { width: 40px; height: 40px; }
@@ -93,6 +120,11 @@ export const PANEL_CSS = `
 .fb-root button.fb-chip[aria-pressed=true] { background: var(--bg2); border-color: var(--accent); }
 .fb-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1.5px var(--warn); }
 .fb-chip-dot.fb-chip-ready { background: var(--ok); box-shadow: none; }
+.fb-chip-media { display: inline-flex; color: var(--muted); }
+.fb-chip-media .fb-ico { width: 14px; height: 14px; }
+.fb-media { display: block; width: 100%; max-height: 200px; margin: 4px 0 6px; border-radius: 6px; background: #000; }
+audio.fb-media { background: none; }
+.fb-root .fb-warn-text { color: var(--warn); }
 .fb-root .fb-chip-time { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; font-weight: 400; color: var(--muted); }
 .fb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .fb-batch { position: relative; padding: 8px 12px 0; }

@@ -40,6 +40,8 @@ export const isClosed = (i: Pick<Incident, 'status'>) => i.status !== 'open';
 export class IncidentStore {
   readonly dir: string;
   readonly reproDir: string;
+  /** Ekran/mikrofon kayıtları ve anahtar kareler (FR-REC-16): `media/<id>.webm`, `media/<id>-k1.jpg`. */
+  readonly mediaDir: string;
   private readonly maxIncidents: number;
   private readonly maxBytes: number;
   private readonly now: () => Date;
@@ -51,6 +53,7 @@ export class IncidentStore {
   constructor(dir: string, opts: StoreOptions = {}) {
     this.dir = path.resolve(dir);
     this.reproDir = path.join(this.dir, 'repro');
+    this.mediaDir = path.join(this.dir, 'media');
     this.maxIncidents = opts.maxIncidents ?? LIMITS.maxIncidents;
     this.maxBytes = opts.maxBytes ?? LIMITS.maxStoreBytes;
     this.now = opts.now ?? (() => new Date());
@@ -59,7 +62,7 @@ export class IncidentStore {
 
   /** Klasörleri (0700) ve `*` içeren `.gitignore` dosyasını oluşturur (FR-RCV-02, FR-RCV-SEC-06). */
   init(): void {
-    for (const d of [this.dir, this.reproDir]) {
+    for (const d of [this.dir, this.reproDir, this.mediaDir]) {
       fs.mkdirSync(d, { recursive: true, mode: DIR_MODE });
       if (POSIX) fs.chmodSync(d, DIR_MODE);
     }
@@ -176,7 +179,10 @@ export class IncidentStore {
     return inc;
   }
 
-  /** Taslaktan olay oluşturur: kimlik, projectId, durum, zaman sunucuda atanır; kota uygulanır. */
+  /**
+   * Taslaktan olay oluşturur: kimlik, projectId, durum, zaman sunucuda atanır; kota uygulanır. Taslaktaki anahtar
+   * kareler (base64 JPEG) `media/` klasörüne dosya olarak yazılır ve olay JSON'unda yalnızca yolları kalır.
+   */
   create(draft: IncidentDraft, projectId: string): Incident {
     const now = this.now();
     let id = createIncidentId(now);
@@ -184,8 +190,19 @@ export class IncidentStore {
       if (i > 50) throw new Error('Benzersiz olay kimliği üretilemedi.');
       id = createIncidentId(now);
     }
+    const frames = draft.media ? keyframeFiles(id, draft.media.keyframes) : [];
     const incident: Incident = IncidentSchema.parse({
       ...draft,
+      ...(draft.media
+        ? {
+            media: {
+              ...draft.media,
+              // Yollar yalnızca alıcıda atanır; tarayıcının gönderdiği `file` değerleri yok sayılır.
+              file: undefined,
+              keyframes: draft.media.keyframes.map((k, i) => ({ t: k.t, width: k.width, height: k.height, file: frames[i]?.file })),
+            },
+          }
+        : {}),
       id,
       projectId,
       status: 'open',
@@ -195,9 +212,37 @@ export class IncidentStore {
       messages: [],
     });
     const json = JSON.stringify(incident);
-    this.ensureRoom(Buffer.byteLength(json));
+    const written = frames.filter((f) => f !== undefined);
+    this.ensureRoom(Buffer.byteLength(json) + written.reduce((n, f) => n + f.data.length, 0));
+    if (written.length) fs.mkdirSync(this.mediaDir, { recursive: true, mode: DIR_MODE });
+    for (const f of written) this.writeAtomic(path.join(this.dir, f.file), f.data);
     this.writeAtomic(this.resolvePath(id), json);
     return incident;
+  }
+
+  /**
+   * Olayın ekran/mikrofon kaydını (`.webm`) yazar (FR-REC-16). Olay kayıt bildirmiş olmalı ve kayıt bir kez
+   * yüklenir. Kota uygulanır.
+   */
+  attachMedia(id: string, data: Buffer): Incident {
+    const inc = this.require(id);
+    if (!inc.media) throw new MediaError(409, 'Bu olay ekran/mikrofon kaydı bildirmedi.');
+    if (inc.media.file) throw new MediaError(409, 'Bu olayın kaydı zaten yüklendi.');
+    if (!isWebm(data)) throw new MediaError(400, 'Gövde bir WebM dosyası değil.');
+    this.ensureRoom(data.length, false);
+    const file = `media/${id}.webm`;
+    fs.mkdirSync(this.mediaDir, { recursive: true, mode: DIR_MODE });
+    this.writeAtomic(path.join(this.dir, file), data);
+    return this.update(id, (i) => {
+      i.media = { ...i.media!, file, bytes: data.length };
+    });
+  }
+
+  /** Olaya ait medya dosyasının mutlak yolu; yol `media/` dışına çıkıyorsa `undefined`. */
+  mediaPath(file: string | undefined): string | undefined {
+    if (!file) return undefined;
+    const p = path.resolve(this.dir, file);
+    return path.dirname(p) === this.mediaDir ? p : undefined;
   }
 
   /** Klasördeki toplam olay sayısı ve bayt (repro dosyaları dahil). */
@@ -209,9 +254,9 @@ export class IncidentStore {
    * FR-RCV-09: yer açılana kadar en eski KAPALI olayları siler. Açık olaylara dokunulmaz;
    * yer açılamazsa `QuotaError`.
    */
-  ensureRoom(newBytes: number): void {
+  ensureRoom(newBytes: number, newIncident = true): void {
     let { count, bytes } = this.usage();
-    const fits = () => count + 1 <= this.maxIncidents && bytes + newBytes <= this.maxBytes;
+    const fits = () => count + (newIncident ? 1 : 0) <= this.maxIncidents && bytes + newBytes <= this.maxBytes;
     if (fits()) return;
     const closed = this.list()
       .filter(isClosed)
@@ -227,25 +272,11 @@ export class IncidentStore {
     );
   }
 
-  /** Olayı ve ona ait repro dosyalarını/ekran görüntülerini siler. */
+  /** Olayı ve ona ait repro dosyalarını, ekran görüntülerini ve medya dosyalarını siler. */
   delete(id: string): void {
     fs.rmSync(this.resolvePath(id), { force: true });
     this.cache.delete(id);
-    this.removeReproFiles(id);
-  }
-
-  private removeReproFiles(id: string): void {
-    let names: string[] = [];
-    try {
-      names = fs.readdirSync(this.reproDir);
-    } catch {
-      return;
-    }
-    for (const n of names) {
-      if (n.startsWith(`${id}.`) || n.startsWith(`${id}-`)) {
-        fs.rmSync(path.join(this.reproDir, n), { recursive: true, force: true });
-      }
-    }
+    for (const dir of [this.reproDir, this.mediaDir]) removeOwnFiles(dir, id);
   }
 
   /**
@@ -263,15 +294,17 @@ export class IncidentStore {
         deleted.push(inc.id);
       } else existing.add(inc.id);
     }
-    let names: string[] = [];
-    try {
-      names = fs.readdirSync(this.reproDir);
-    } catch {
-      /* repro klasörü yok */
-    }
-    for (const n of names) {
-      const m = /^(fb-\d{8}-\d{6}-[a-z0-9]{4})[.-]/.exec(n);
-      if (m && !existing.has(m[1])) fs.rmSync(path.join(this.reproDir, n), { recursive: true, force: true });
+    for (const dir of [this.reproDir, this.mediaDir]) {
+      let names: string[] = [];
+      try {
+        names = fs.readdirSync(dir);
+      } catch {
+        /* klasör yok */
+      }
+      for (const n of names) {
+        const m = /^(fb-\d{8}-\d{6}-[a-z0-9]{4})[.-]/.exec(n);
+        if (m && !existing.has(m[1])) fs.rmSync(path.join(dir, n), { recursive: true, force: true });
+      }
     }
     return deleted;
   }
@@ -285,6 +318,45 @@ export class IncidentStore {
 
   unlock(id: string): void {
     this.locks.delete(id);
+  }
+}
+
+/** Medya yüklemesi reddedildi (HTTP durumuyla). */
+export class MediaError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'MediaError';
+  }
+}
+
+/** WebM (EBML) dosya imzası. */
+export function isWebm(data: Buffer): boolean {
+  return data.length > 4 && data[0] === 0x1a && data[1] === 0x45 && data[2] === 0xdf && data[3] === 0xa3;
+}
+
+const isJpeg = (data: Buffer) => data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+
+/** Taslaktaki base64 anahtar kareleri dosyaya çevirir; JPEG olmayan kare atlanır (yolu boş kalır). */
+function keyframeFiles(id: string, frames: Array<{ jpeg?: string }>): Array<{ file: string; data: Buffer } | undefined> {
+  return frames.map((k, i) => {
+    if (!k.jpeg) return undefined;
+    const data = Buffer.from(k.jpeg, 'base64');
+    return isJpeg(data) ? { file: `media/${id}-k${i + 1}.jpg`, data } : undefined;
+  });
+}
+
+function removeOwnFiles(dir: string, id: string): void {
+  let names: string[] = [];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const n of names) {
+    if (n.startsWith(`${id}.`) || n.startsWith(`${id}-`)) fs.rmSync(path.join(dir, n), { recursive: true, force: true });
   }
 }
 

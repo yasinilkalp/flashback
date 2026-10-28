@@ -9,6 +9,7 @@ import { buildDraft, type Exclusions, type TargetCapture } from './draft/build.j
 import { collectEnv, getTabId, resolveConsoleSources } from './draft/collect.js';
 import { agentPrompt, combinePrompt, prepareSubmission, previewFromBody, withGroup, type Submission } from './draft/report.js';
 import { network } from './recorder/early.js';
+import { CaptureError, draftMedia, MediaCapture, needsMedia, type CaptureErrorKind, type MediaClip, type RecordOptions } from './recorder/media.js';
 import { Recorder, type FrozenSnapshot } from './recorder/recorder.js';
 import { pageResolverOptions } from './source/environment.js';
 import { isLocalSource, SourceResolver } from './source/sourcemap.js';
@@ -20,12 +21,25 @@ const NOTICE_MS = 4000;
 const MIN_CLIP_MS = 500;
 const PREVIEW_SEEN_KEY = 'flashback:previewSeen';
 const SEEN_KEY = 'flashback:seenMessages';
+const RECORD_OPTIONS_KEY = 'flashback:recordOptions';
+
+export type PanelTab = 'basket' | 'incidents';
 
 /** Araç çubuğundaki kısa bildirim. */
 export type Notice = { kind: 'added'; n: number; truncated: boolean } | { kind: 'tooShort' } | { kind: 'error'; message: string };
 
 export interface ControllerState {
   open: boolean;
+  /** Panelde açık sekme. */
+  tab: PanelTab;
+  /** "Kayda başla" seçim penceresi açık mı? */
+  picker: boolean;
+  /** Ekran/mikrofon izni bekleniyor (seçim penceresi açık kalır). */
+  starting: boolean;
+  /** Son kayıt denemesi neden başlamadı (izin yok, vazgeçildi, desteklenmiyor). */
+  pickerError: CaptureErrorKind | null;
+  /** Seçim penceresindeki kaynak ve mikrofon seçimi; sayfanın kökeninde saklanır. */
+  recordOptions: RecordOptions;
   receiver: ReceiverStatus;
   health?: HealthResponse;
   recording: boolean;
@@ -63,12 +77,25 @@ export interface BatchResult {
   fallback?: Fallback;
   /** Gönderilen olaylar için ajana yapıştırılacak kısa istem. */
   prompt?: string;
+  /** Olay gönderildi ama ekran kaydı yüklenemedi (FR-REC-16). */
+  mediaFailed: Array<{ n: number; error: string }>;
 }
 
 /** Panelde açık sepet olayı ve klibi. */
 export interface Selected {
   entry: BasketEntry;
   snapshot: FrozenSnapshot;
+  /** Ekran/mikrofon kaydı (FR-REC-16). */
+  media?: MediaClip;
+}
+
+function readRecordOptions(): RecordOptions {
+  try {
+    const o = JSON.parse(localStorage.getItem(RECORD_OPTIONS_KEY) ?? '{}') as Partial<RecordOptions>;
+    return { source: o.source === 'screen' ? 'screen' : 'tab', mic: o.mic === true };
+  } catch {
+    return { source: 'tab', mic: false };
+  }
 }
 
 function readSeen(): Record<string, string> {
@@ -101,6 +128,8 @@ export class FlashbackController {
   private noticeTimer: ReturnType<typeof setTimeout> | undefined;
   private basket: Basket | null = null;
   private ready: Promise<void> = Promise.resolve();
+  /** Süren ekran/mikrofon kaydı. */
+  private media: MediaCapture | null = null;
   /** Panelde açık olay (klip IndexedDB'den yüklenir). */
   selected: Selected | null = null;
 
@@ -122,6 +151,11 @@ export class FlashbackController {
     );
     this.state = {
       open: false,
+      tab: 'basket',
+      picker: false,
+      starting: false,
+      pickerError: null,
+      recordOptions: readRecordOptions(),
       receiver: 'disconnected',
       recording: false,
       elapsedMs: 0,
@@ -162,6 +196,8 @@ export class FlashbackController {
     clearInterval(this.tick);
     clearTimeout(this.noticeTimer);
     this.recorder.stop();
+    this.media?.release();
+    this.media = null;
     this.listeners.clear();
   }
 
@@ -205,25 +241,76 @@ export class FlashbackController {
     this.noticeTimer = setTimeout(() => this.set({ notice: null }), NOTICE_MS);
   }
 
-  // ---- Kayıt (FR-REC-01/02) ----------------------------------------------------
+  // ---- Kayıt (FR-REC-01/02, FR-REC-16) -----------------------------------------
 
-  startRecording(): void {
+  /** "Kayda başla" seçim penceresini açar; panel açıksa kapanır. */
+  openPicker(): void {
     if (this.recorder.recording) return;
-    this.recorder.start();
-    this.set({ recording: true, elapsedMs: 0, notice: null });
-    this.tick = setInterval(() => this.set({ elapsedMs: this.recorder.elapsedMs }), 1000);
+    this.close();
+    this.set({ picker: true, pickerError: null });
+  }
+
+  closePicker(): void {
+    if (this.state.starting) return;
+    this.set({ picker: false, pickerError: null });
+  }
+
+  setRecordOptions(o: RecordOptions): void {
+    try {
+      localStorage.setItem(RECORD_OPTIONS_KEY, JSON.stringify(o));
+    } catch {
+      /* depolama kapalı: seçim yalnızca bu oturumda geçerli */
+    }
+    this.set({ recordOptions: o, pickerError: null });
   }
 
   /**
-   * Kaydı durdurur ve klibi sepete ekler (FR-BSK-01). Boş klip eklenmez. Yanlışlıkla iki kez basılan düğme ya da
-   * kısayolun ürettiği çok kısa klip de eklenmez; sepet açılarak durdurulan klip ise (`keepShort`) kısa da olsa eklenir.
+   * Kaydı başlatır. Ekran/pencere ya da mikrofon seçildiyse önce izin istenir; kullanıcı vazgeçerse kayıt başlamaz
+   * ve seçim penceresi hatayla açık kalır. DOM kaydı izin alındıktan sonra başlar: video ile aynı andan başlasın.
+   */
+  async startRecording(options: RecordOptions = this.state.recordOptions): Promise<boolean> {
+    if (this.recorder.recording || this.state.starting) return false;
+    let media: MediaCapture | null = null;
+    if (needsMedia(options)) {
+      media = new MediaCapture(options);
+      this.set({ starting: true, pickerError: null });
+      try {
+        await media.acquire();
+      } catch (err) {
+        this.set({ starting: false, picker: true, pickerError: err instanceof CaptureError ? err.kind : 'screen' });
+        return false;
+      }
+    }
+    this.close();
+    this.recorder.start();
+    if (media) {
+      try {
+        media.start(() => void this.stopRecording());
+        this.media = media;
+      } catch {
+        // MediaRecorder kurulamadı (desteklenmeyen biçim): DOM kaydı videosuz sürer.
+        media.release();
+      }
+    }
+    this.set({ recording: true, elapsedMs: 0, notice: null, picker: false, starting: false, pickerError: null });
+    this.tick = setInterval(() => this.set({ elapsedMs: this.recorder.elapsedMs }), 1000);
+    return true;
+  }
+
+  /**
+   * Kaydı durdurur, klibi sepete ekler (FR-BSK-01) ve o olayın ekranını (not ve öğe seçimi) açar. Boş klip
+   * eklenmez. Yanlışlıkla iki kez basılan düğme ya da kısayolun ürettiği çok kısa klip de eklenmez; sepet açılarak
+   * durdurulan klip ise (`keepShort`) kısa da olsa eklenir.
    */
   async stopRecording(opts: { keepShort?: boolean } = {}): Promise<BasketEntry | null> {
     const snapshot = this.recorder.stop();
+    const capture = this.media;
+    this.media = null;
     clearInterval(this.tick);
     this.tick = undefined;
     if (!this.state.recording && !snapshot) return null;
     this.set({ recording: false, elapsedMs: 0 });
+    const media = capture ? await capture.stop().catch(() => null) : null;
     if (!snapshot) return null;
     if (snapshot.events.length < 2 || (!opts.keepShort && snapshot.frozenAt - snapshot.windowStart < MIN_CLIP_MS)) {
       this.notify({ kind: 'tooShort' });
@@ -231,10 +318,12 @@ export class FlashbackController {
     }
     try {
       await this.ready;
-      const entry = await this.basket!.add(snapshot, location.href);
+      const entry = await this.basket!.add(snapshot, location.href, media);
       await this.reloadBasket();
       this.notify({ kind: 'added', n: entry.n, truncated: entry.truncated });
       await this.select(entry.id);
+      // Panel kullanıcı tarafından açıldıysa (ör. Kayıtlar düğmesi) sekmesine dokunulmaz.
+      if (!this.state.open) this.set({ open: true, tab: 'basket', queueDelivered: 0 });
       return entry;
     } catch (err) {
       this.notify({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
@@ -242,22 +331,28 @@ export class FlashbackController {
     }
   }
 
-  /** Kısayol (FR-UI-02): kaydı başlatır ya da durdurur. Panel açıksa kapanır, kayıt sayfada sürer. */
+  /**
+   * Kısayol (FR-UI-02): kayıt sürüyorsa durdurur; seçim penceresi açıksa son seçimle kaydı başlatır; değilse
+   * seçim penceresini açar (panel açıksa kapanır).
+   */
   toggleRecording(): void {
     if (this.recorder.recording) {
       void this.stopRecording();
       return;
     }
-    this.close();
-    this.startRecording();
+    if (this.state.picker) void this.startRecording();
+    else this.openPicker();
   }
 
   // ---- Panel ve sepet ----------------------------------------------------------
 
   /** Paneli açar; kayıt sürüyorsa önce durdurulup sepete eklenir. */
-  open(): void {
-    if (this.state.open) return;
-    this.set({ open: true, queueDelivered: 0 });
+  open(tab: PanelTab = this.state.tab): void {
+    if (this.state.open) {
+      if (tab !== this.state.tab) this.set({ tab });
+      return;
+    }
+    this.set({ open: true, tab, picker: false, pickerError: null, queueDelivered: 0 });
     if (this.recorder.recording) void this.stopRecording({ keepShort: true });
     else void this.ensureSelection();
   }
@@ -270,6 +365,10 @@ export class FlashbackController {
   toggle(): void {
     if (this.state.open) this.close();
     else this.open();
+  }
+
+  setTab(tab: PanelTab): void {
+    this.set({ tab });
   }
 
   private async reloadBasket(): Promise<BasketEntry[]> {
@@ -295,7 +394,8 @@ export class FlashbackController {
     const entry = this.state.basket?.find((e) => e.id === id);
     const snapshot = entry && (await this.basket!.clip(id));
     if (!entry || !snapshot) return;
-    this.selected = { entry, snapshot };
+    const media = entry.media ? await this.basket!.media(id) : undefined;
+    this.selected = { entry, snapshot, ...(media ? { media } : {}) };
     this.set({ selectedId: id });
   }
 
@@ -334,6 +434,8 @@ export class FlashbackController {
   async prepare(input: MarkInput): Promise<Submission> {
     const snapshot = this.selected?.snapshot;
     if (!snapshot) throw new Error('Sepette seçili olay yok');
+    const clip = this.selected?.media;
+    const media = clip && !input.exclude.media ? await draftMedia(clip, input.markedAt) : undefined;
     const consoleResolved = await resolveConsoleSources(snapshot.console, this.resolver);
     const draft = buildDraft({
       snapshot: { ...snapshot, console: consoleResolved },
@@ -343,6 +445,7 @@ export class FlashbackController {
       primaryOverride: input.primaryOverride,
       exclude: input.exclude,
       domRoot: input.domRoot,
+      media,
       env: collectEnv(this.tabId),
       redact: this.cfg.redact,
     });
@@ -353,18 +456,18 @@ export class FlashbackController {
   async saveDraft(submission: Submission, note: { what?: string; expected: string }): Promise<BasketEntry> {
     const sel = this.selected;
     if (!sel) throw new Error('Sepette seçili olay yok');
-    const entry = await this.basket!.setDraft(sel.entry.id, { body: submission.body }, note);
+    const entry = await this.basket!.setDraft(sel.entry.id, { body: submission.body, ...(submission.media ? { media: true } : {}) }, note);
     this.selected = { ...sel, entry };
     await this.reloadBasket();
     return entry;
   }
 
-  private async readyDrafts(): Promise<Array<{ entry: BasketEntry; body: string }>> {
+  private async readyDrafts(): Promise<Array<{ entry: BasketEntry; body: string; media: boolean }>> {
     await this.ready;
-    const out: Array<{ entry: BasketEntry; body: string }> = [];
+    const out: Array<{ entry: BasketEntry; body: string; media: boolean }> = [];
     for (const entry of await this.basket!.list()) {
       const d = entry.ready ? await this.basket!.draft(entry.id) : undefined;
-      if (d) out.push({ entry, body: d.body });
+      if (d) out.push({ entry, body: d.body, media: d.media === true });
     }
     return out;
   }
@@ -375,13 +478,19 @@ export class FlashbackController {
    */
   async sendAll(): Promise<BatchResult> {
     const items = await this.readyDrafts();
-    const result: BatchResult = { sent: [], rejected: [] };
+    const result: BatchResult = { sent: [], rejected: [], mediaFailed: [] };
     if (!items.length) return result;
     const groupId = items.length > 1 ? createGroupId() : undefined;
-    for (const [i, { entry, body }] of items.entries()) {
+    for (const [i, { entry, body, media }] of items.entries()) {
       const r = await this.client.postIncident(groupId ? withGroup(body, { id: groupId, index: i + 1, size: items.length }) : body);
       if (r.ok) {
         result.sent.push({ n: entry.n, id: r.id });
+        // FR-REC-16: kayıt dosyası olay oluştuktan sonra ayrı bir istekle yüklenir.
+        const clip = media ? await this.basket!.media(entry.id) : undefined;
+        if (clip) {
+          const up = await this.client.postMedia(r.id, clip.blob, clip.mimeType);
+          if (!up.ok) result.mediaFailed.push({ n: entry.n, error: up.error });
+        }
         await this.basket!.remove(entry.id);
         continue;
       }

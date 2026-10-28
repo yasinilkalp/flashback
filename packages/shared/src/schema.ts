@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LIMITS } from './limits.js';
 
 /** FR-PKG-05: şema sürümü. Ek alanlar sürümü artırmaz; alan kaldırma/anlam değişikliği ana sürümü artırır. */
 export const SCHEMA_VERSION = 1 as const;
@@ -185,6 +186,35 @@ export const IncidentGroupSchema = z.object({
   size: z.number().int().min(1),
 });
 
+/** Ekran/pencere videosundan alınmış anahtar kare (FR-REC-16). */
+export const KeyframeSchema = z.object({
+  /** Kayıt başlangıcına göre ms (`markedAtMs` ile aynı taban). */
+  t: z.number(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  /** Tarayıcının gönderdiği JPEG (base64, `data:` öneki yok). Alıcı dosyaya yazar ve bu alanı saklamaz. */
+  jpeg: z.string().max(LIMITS.keyframeChars).optional(),
+  /** Alıcının yazdığı dosya, olay klasörüne göre (`media/<id>-k1.jpg`). Tarayıcının gönderdiği değer yok sayılır. */
+  file: z.string().optional(),
+});
+
+/**
+ * Olaya eklenen ekran/pencere videosu ve/veya mikrofon sesi (FR-REC-16). Kayıt (`.webm`) olay oluşturulduktan sonra
+ * `POST /incidents/:id/media` ile ayrıca yüklenir; `file` o zaman alıcı tarafından doldurulur.
+ */
+export const MediaSchema = z.object({
+  /** `screen`: ekran/pencere videosu; `tab`: yalnızca bu sekme (DOM) + mikrofon sesi. */
+  source: z.enum(['tab', 'screen']),
+  mimeType: z.string().regex(/^(video|audio)\/webm(;[^\r\n]{0,80})?$/),
+  video: z.boolean(),
+  audio: z.boolean(),
+  durationMs: z.number().min(0),
+  bytes: z.number().int().min(0).max(LIMITS.mediaBytes),
+  /** Alıcının yazdığı dosya, olay klasörüne göre (`media/<id>.webm`). Tarayıcının gönderdiği değer yok sayılır. */
+  file: z.string().optional(),
+  keyframes: z.array(KeyframeSchema).max(LIMITS.keyframes).default([]),
+});
+
 /** Tarayıcının alıcıya POST ettiği yük. Sunucu kimlik, durum ve projectId alanlarını kendisi ekler. */
 export const IncidentDraftSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
@@ -226,6 +256,7 @@ export const IncidentDraftSchema = z.object({
   }),
   confidence: z.array(ConfidenceItemSchema).default([]),
   group: IncidentGroupSchema.optional(),
+  media: MediaSchema.optional(),
 });
 
 export const IncidentSchema = IncidentDraftSchema.extend({
@@ -263,6 +294,8 @@ export type ReproRun = z.infer<typeof ReproRunSchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type IncidentStatus = z.infer<typeof IncidentStatusSchema>;
 export type IncidentGroup = z.infer<typeof IncidentGroupSchema>;
+export type Keyframe = z.infer<typeof KeyframeSchema>;
+export type Media = z.infer<typeof MediaSchema>;
 export type IncidentDraft = z.infer<typeof IncidentDraftSchema>;
 export type IncidentDraftInput = z.input<typeof IncidentDraftSchema>;
 export type Incident = z.infer<typeof IncidentSchema>;

@@ -15,6 +15,7 @@ import {
 } from '@flashback/shared';
 import { EventType, type eventWithTime } from 'rrweb';
 import { PAYLOAD_SCHEMA_VERSION, FLASHBACK_VERSION } from '../config.js';
+import type { DraftMedia } from '../recorder/media.js';
 import type { FrozenSnapshot } from '../recorder/recorder.js';
 import type { ResolvedLocation } from '../source/sourcemap.js';
 import { confidenceItems } from './confidence.js';
@@ -42,6 +43,8 @@ export interface Exclusions {
   network?: boolean;
   dom?: boolean;
   store?: boolean;
+  /** Ekran/mikrofon kaydı ve anahtar kareler (FR-REC-16). */
+  media?: boolean;
 }
 
 export interface DraftEnv {
@@ -69,6 +72,8 @@ export interface DraftInput {
   exclude?: Exclusions;
   /** İşaretlenen andaki belge kökü (tekrar oynatma iframe'i). */
   domRoot?: Element | null;
+  /** Ekran/mikrofon kaydının özeti ve anahtar kareleri (FR-REC-16); dosya gönderimden sonra ayrıca yüklenir. */
+  media?: DraftMedia;
   env: DraftEnv;
   redact: RedactOptions;
   /**
@@ -267,6 +272,8 @@ export function buildDraft(input: DraftInput): IncidentDraftInput {
   if (exclude.network) excluded.push('ağ girdileri');
   if (exclude.store) excluded.push('store değişiklikleri');
   if (exclude.dom) excluded.push('DOM anlık görüntüsü');
+  const media = exclude.media ? undefined : input.media;
+  if (exclude.media && input.media) excluded.push('ekran kaydı');
 
   const times = [snapshot.windowStart, ...network.map((n) => n.time), ...snapshot.console.map((c) => c.time), ...snapshot.steps.map((s) => s.time), ...store.map((s) => s.time)].filter(Number.isFinite);
   const base = Math.min(...times, input.markedAt);
@@ -340,6 +347,11 @@ export function buildDraft(input: DraftInput): IncidentDraftInput {
     redaction: { enabled: r.enabled, count: 0, byType: {} },
     confidence: [],
   };
+  // Anahtar kareler olay bütçesinden önce eklenir: rrweb olaylarına kalan pay onlar çıkarılarak hesaplanır.
+  if (media) {
+    const { keyframes, ...meta } = media;
+    draft.media = { ...meta, keyframes: keyframes.map((k) => ({ t: rel(k.time), width: k.width, height: k.height, jpeg: k.jpeg })) };
+  }
 
   const bodiesTruncated = (draft.network ?? []).filter((n) => n.truncated).length;
   if (bodiesTruncated) truncated.push(`${bodiesTruncated} ağ gövdesi (${LIMITS.bodyBytes / 1024} KB sınırı)`);

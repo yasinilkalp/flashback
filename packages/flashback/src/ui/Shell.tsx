@@ -1,12 +1,13 @@
 /** Flashback araç çubuğu (FR-UI-01, FR-UI-10, FR-REC-01) ve panel iskeleti (FR-UI-02, FR-UI-11, FR-UI-13). */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { isEditableTarget, matchesShortcut, parseShortcut } from '../config.js';
-import type { ControllerState, FlashbackController } from '../controller.js';
+import type { ControllerState, FlashbackController, PanelTab } from '../controller.js';
 import { BasketTab } from './Basket.js';
 import { strings, type Strings } from './i18n.js';
 import { Icon } from './Icons.js';
 import { IncidentsTab } from './Incidents.js';
 import { Logo } from './Logo.js';
+import { RecordPicker } from './RecordPicker.js';
 import { clock } from './Timeline.js';
 
 type Theme = 'dark' | 'light';
@@ -86,11 +87,6 @@ export function Shell({ controller }: { controller: FlashbackController }) {
   const t = strings(controller.cfg.locale);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const [theme, toggleTheme] = useTheme();
-  const [tab, setTab] = useState<Tab>('basket');
-  const openOn = (next: Tab) => {
-    setTab(next);
-    controller.open();
-  };
 
   useEffect(() => {
     const shortcut = parseShortcut(controller.cfg.shortcut);
@@ -104,16 +100,17 @@ export function Shell({ controller }: { controller: FlashbackController }) {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [controller]);
 
+  // Panel kapanınca odak araç çubuğuna döner; "Kayda başla" penceresi açıldıysa odak onda kalır.
   const wasOpen = useRef(false);
   useEffect(() => {
-    if (wasOpen.current && !state.open) launcherRef.current?.focus();
+    if (wasOpen.current && !state.open && !state.picker) launcherRef.current?.focus();
     wasOpen.current = state.open;
-  }, [state.open]);
+  }, [state.open, state.picker]);
 
   return (
     <div className="fb-root" data-theme={theme}>
-      <Launcher buttonRef={launcherRef} controller={controller} state={state} t={t} onOpen={openOn} />
-      {state.open && <Panel controller={controller} state={state} t={t} tab={tab} onTab={setTab} theme={theme} onToggleTheme={toggleTheme} />}
+      <Launcher buttonRef={launcherRef} controller={controller} state={state} t={t} />
+      {state.open && <Panel controller={controller} state={state} t={t} theme={theme} onToggleTheme={toggleTheme} />}
     </div>
   );
 }
@@ -126,15 +123,18 @@ function Launcher({
   state,
   t,
   buttonRef,
-  onOpen,
 }: {
   controller: FlashbackController;
   state: ControllerState;
   t: Strings;
   buttonRef: React.RefObject<HTMLButtonElement | null>;
-  onOpen: (tab: Tab) => void;
 }) {
   const [collapsed, setCollapsed] = useCollapsed();
+  const recordRef = useRef<HTMLButtonElement>(null);
+  const onOpen = (tab: PanelTab) => controller.open(tab);
+  // Seçim penceresi kapanınca odak kayıt düğmesine (küçükken logoya) döner.
+  const pickerClosed = () => (recordRef.current ?? buttonRef.current)?.focus();
+  const picker = state.picker && <RecordPicker controller={controller} state={state} t={t} onClose={pickerClosed} />;
   // Küçült/aç düğmesi kendini kaldırır; odak yeni görünen ana düğmeye geçer.
   const moveFocus = useRef(false);
   useEffect(() => {
@@ -160,7 +160,7 @@ function Launcher({
     </span>
   );
   const unread = state.unread > 0 ? ` — ${state.unread} ${t.unread}` : '';
-  const notice = state.notice && <Toast t={t} notice={state.notice} />;
+  const notice = state.notice && !state.picker && <Toast t={t} notice={state.notice} />;
 
   if (collapsed) {
     return (
@@ -179,6 +179,7 @@ function Launcher({
           <Logo className="fb-logo" />
           {state.recording && dot}
         </button>
+        {picker}
         {notice}
       </div>
     );
@@ -195,14 +196,21 @@ function Launcher({
       </span>
       <span className="fb-bar-sep" />
       <button
+        ref={recordRef}
         type="button"
         className="fb-bar-btn fb-bar-rec"
         aria-label={`${state.recording ? t.stopRecord : t.record} (${shortcut}) — ${title}`}
         aria-pressed={state.recording}
+        aria-haspopup={state.recording ? undefined : 'dialog'}
+        aria-expanded={state.recording ? undefined : state.picker}
         title={`${state.recording ? t.stopRecord : t.record} · ${shortcut}`}
         data-fb="record"
         data-receiver={state.receiver}
-        onClick={() => controller.toggleRecording()}
+        onClick={() => {
+          if (state.recording) void controller.stopRecording();
+          else if (state.picker) controller.closePicker();
+          else controller.openPicker();
+        }}
       >
         <Icon name={state.recording ? 'stop' : 'record'} />
       </button>
@@ -235,6 +243,7 @@ function Launcher({
       <button type="button" className="fb-bar-btn" aria-label={t.collapse} title={t.collapse} data-fb="collapse" onClick={() => flip(true)}>
         <Icon name="minimize" />
       </button>
+      {picker}
       {notice}
     </div>
   );
@@ -255,25 +264,21 @@ function Toast({ t, notice }: { t: Strings; notice: NonNullable<ControllerState[
   );
 }
 
-type Tab = 'basket' | 'incidents';
-
 function Panel({
   controller,
   state,
   t,
-  tab,
-  onTab: setTab,
   theme,
   onToggleTheme,
 }: {
   controller: FlashbackController;
   state: ControllerState;
   t: Strings;
-  tab: Tab;
-  onTab: (tab: Tab) => void;
   theme: Theme;
   onToggleTheme: () => void;
 }) {
+  const tab = state.tab;
+  const setTab = (next: PanelTab) => controller.setTab(next);
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => ref.current?.focus({ preventScroll: true }), []);
   const redactOff = controller.cfg.redact.enabled === false;

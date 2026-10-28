@@ -2,9 +2,9 @@
 
 | Alan | Değer |
 |---|---|
-| Tarih | 27.10.2026 (ikinci güncelleme) |
+| Tarih | 28.10.2026 (kayıt akışı kararları, FRD v1.3) |
 | Kod tabanı | Sıfırdan kuruldu. GitHub deposu boştu ve yerel klasörde yalnızca README ile yapılandırma dosyaları vardı. Bu nedenle FRD'deki "Durum" sütunu (README'ye göre "Mevcut") artık geçerli değil. Bu belge onun yerini alır; AS-9 kapandı. |
-| Doğrulama | 444 birim testi ve 34 uçtan uca test (gerçek Chromium) yeşil. Tip denetimi temiz. CI üç işletim sisteminde yeşil (birleştirmeden önceki son koşu). EK-B3 ölçümü: 4 kurulum × 2 tarayıcı, sessizce yanlış satır 0 (`spikes/ek-b3/results/summary.md`). |
+| Doğrulama | 479 birim testi yeşil. 40 uçtan uca testin (gerçek Chromium) 38'i yeşil; kalan 2'si `portable.e2e.test.ts`'deki symlink EPERM hatası (Windows'ta Developer Mode kapalı, ortamdan kaynaklı). Tip denetimi temiz (28.10.2026, Windows). CI üç işletim sisteminde yeşil (birleştirmeden önceki son koşu). EK-B3 ölçümü: 4 kurulum × 2 tarayıcı, sessizce yanlış satır 0 (`spikes/ek-b3/results/summary.md`). |
 | Bağımsız güvenlik incelemesi | 9 bulgu çıktı: 3 High, 3 Medium, 3 Low. Bulguların 8'i exploit ile doğrulandı, 1'i kısmen doğrulandı. **Dokuzu da düzeltildi** ve her biri için regresyon testi eklendi (§4). |
 | FRD | §3'teki D-1…D-10 sapmaları [`08-FRD-v1.1.md`](08-FRD-v1.1.md) belgesine işlendi. |
 
@@ -28,7 +28,7 @@
 
 | Alan | Uygulanan | Atlanan veya kısmi |
 |---|---|---|
-| REC | 01–08, 10, 11, 14; S: 09, 12, 13 | 15 (YH) |
+| REC | 01–08, 10, 11, 14; S: 09, 12, 13, 16 (ekran/mikrofon kaydı) | 15 (YH) |
 | UI | 01, 02, 04, 06, 07, 08, 10, 11, 12, 15, 16; S: 05, 09, 10 (yanlış proje göstergesi), 13 (axe denetiminde kritik/ciddi ihlal 0, odak tuzağı), 14, 17, 18 | 03 (kısayol çakışma testi: işletim sistemi ve giriş dili bazında elle denenmeli, AS-3), 19 (YH) |
 | MARK | 01–05, 07, 08, 10, 11, 12; S: 06 (Vue smoke testi), 09. 04 EK-B3 ile doğrulandı; 05'teki eski fiber kopyası hatası düzeltildi (§3, D-11) | 13 (YH) |
 | PKG | 01–08, SEC-01–03 | SEC-04 (YH) |
@@ -40,7 +40,19 @@
 | CFG | 01–11 | 12 (v1.1) |
 | NFR | PRIV-01, SIZE-01, TOK-01, REPRO-01, COMP-01, MEM-01, LAT-01 | PERF-01: 5.000 düğümde INP +32 ms (1x) |
 
-### Bu turda eklenenler
+### 28.10.2026: kayıt akışı (FRD v1.3)
+
+Kullanıcının 28.10.2026 kararları uygulandı. Sürekli açık 60 sn tampon zaten kalkmıştı (v1.2, yalnızca elle kayıt).
+
+- **60 sn sınırı (FR-REC-02):** `maxRecordSeconds` varsayılanı 300 → 60. Kayıt 60. saniyede kendiliğinden durur (`controller.test.ts`, sahte zamanlayıcıyla).
+- **Durunca olay ekranı açılır (FR-BSK-01):** Kayıt elle ya da sınırda durunca klip sepete girer, panel açılır ve o olayın zaman çizelgesi ile not/öğe seçimi gösterilir. Panel kullanıcı tarafından açıldıysa (ör. Kayıtlar düğmesi) sekmesine dokunulmaz. Panel sekmesi artık denetleyicide tutuluyor.
+- **"Kayda başla" penceresi (FR-REC-01):** Kayıt düğmesi ve `Alt+Shift+R` pencereyi açar: "Bu sekme" / "Ekran / pencere", "Mikrofonu ekle", İptal ve ● Kaydı başlat. Seçim sayfanın kökeninde saklanır. Pencere açıkken kısayola yeniden basmak kaydı başlatır. Esc, İptal ve dışarı tıklama kapatır; odak kayıt düğmesine döner. İzin reddedilirse kayıt başlamaz, pencere hatayla açık kalır.
+- **Ekran/pencere videosu ve mikrofon sesi (FR-REC-16, yeni):** `getDisplayMedia` + `getUserMedia` → `MediaRecorder` → tek `.webm` (VP9/Opus, ~1,2 Mbit/sn; 60 sn ≈ 9 MB). Videodan 2 sn'de bir 960 px JPEG kare alınır; olay kurulurken en fazla 6 anahtar kare seçilir (işaretlenen ana en yakın kare, son kare ve aradakiler). Kayıt sepette klibin yanında durur; olay ekranında oynatıcı ve "video gizlenmez" uyarısı var, önizlemede hariç tutulabilir.
+- **Protokol ve alıcı:** Şemaya isteğe bağlı `media` alanı (şema sürümü değişmedi). Kareler olay JSON'unda base64 gelir; alıcı onları `.flashback/media/<id>-kN.jpg` olarak yazar ve JSON'da yalnızca yolları tutar. `.webm` olay oluşturulduktan sonra `POST /incidents/:id/media` ile yüklenir (WebM imzası denetlenir, en fazla 50 MB, bir kez). Tarayıcının gönderdiği yollar yok sayılır. Olay silinince ve budanınca medya dosyaları da silinir.
+- **MCP:** `get_incident` raporunda "Ekran kaydı" bölümü (`.webm` ve karelerin mutlak yolları); anahtar kareler yanıta görüntü olarak eklenir (`FLASHBACK_NO_IMAGES=1` ise yalnızca yollar). Yapılandırılmış özete `media` eklendi; sunucu talimatlarına bir satır eklendi.
+- **Testler:** Yeni birim testleri `packages/flashback/test/controller.test.ts`, `packages/flashback/test/media.test.ts`, `packages/mcp/test/media.test.ts`. E2E: `panel.e2e.test.ts` yeni akışa uyarlandı ve ekran + mikrofon senaryosu eklendi; `full-flow.e2e.test.ts` gerçek `flashback-mcp` ile `.webm` dosyasını ve `get_incident` görüntülerini doğrular. Başsız Chromium'da ekran seçme penceresi olmadığı için ekran bir tuval akışıyla, mikrofon bir osilatörle taklit edilir. Gerçek izin pencereleri elle denenmeli (§5).
+
+### 27.10.2026 turunda eklenenler
 
 - **FR-MCP-10:** Araçlar `outputSchema` ve yapılandırılmış çıktı döndürüyor.
 - **FR-MCP-13:** `list_incidents` sayfalı (`cursor`). Geçersiz cursor `invalid_cursor` hatası verir.
@@ -97,3 +109,4 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 5. **`data-flashback-source` (v1.1, R13):** Derleme anında JSX'e kaynak konumu ekleyen Vite/Babel/SWC eklentisi. React 19'da HMR sonrası `resolved:false` kalan konumları kalıcı olarak çözer. EK-B3 bu işi "yedek plan"dan öncelikli işe taşıdı.
 6. **EK-B3 ölçümünü CI'a almak:** `spikes/ek-b3` haftalık ya da sürüm öncesi bir işte çalışsın. Firefox kayıt e2e'si de eklensin (Firefox → "Doğrulandı").
 7. **Sürüm notu:** NFR-PERF-01'in 5.000 düğümdeki INP sonucu (07 §0) ve HMR sınırı (R13).
+8. **Ekran kaydını gerçek tarayıcılarda elle denemek (FR-REC-16):** Chrome, Edge ve Firefox'ta gerçek izin pencereleri; başka bir pencereyi paylaşırken sekme arka plandayken anahtar kareler; tarayıcının "Paylaşımı durdur" çubuğu (kaydı durdurmalı); Firefox'ta `ImageCapture` yok, `<video>` yedeği kullanılır.

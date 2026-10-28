@@ -261,19 +261,25 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
     const page = await openApp();
     const count = () => page.locator('[data-fb="basket-count"]').textContent();
-    // 1. olay: kısayol kaydı durdurur, olay sepete düşer.
+    // 1. olay: kısayol kaydı durdurur, olay sepete düşer ve olayın ekranı (not ve öğe seçimi) hemen açılır.
     await page.getByTestId('add-1').click();
     await page.waitForTimeout(700);
     await page.keyboard.press('Alt+Shift+KeyR');
     await expect.poll(() => page.locator('[data-fb="toast"]').textContent()).toBe('Olay 1 sepete eklendi');
     expect(await page.locator('[data-fb="record"]').getAttribute('aria-pressed')).toBe('false');
     expect(await count()).toBe('1');
+    await page.locator('[data-fb="panel"]').waitFor();
+    expect(await page.getByRole('tab', { name: /Sepet/ }).getAttribute('aria-selected')).toBe('true');
+    await expect.poll(() => page.locator('[data-fb="basket-item-1"]').getAttribute('aria-pressed')).toBe('true');
+    await page.locator('[data-fb="expected"]').waitFor();
+    await page.locator('[data-fb="close"]').click();
     // 2. olay: düğmeyle başlat ve durdur.
     await startRecording(page);
     await page.getByTestId('add-2').click();
     await page.waitForTimeout(700);
     await page.locator('[data-fb="record"]').click();
     await expect.poll(count).toBe('2');
+    await expect.poll(() => page.locator('[data-fb="basket-item-2"]').getAttribute('aria-pressed')).toBe('true');
     // Sayfa yenilense de sepet durur (IndexedDB).
     await page.reload();
     await expect.poll(count, { timeout: 10_000 }).toBe('2');
@@ -341,9 +347,10 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     await expect.poll(() => page.locator('[data-fb="basket-item-1"]').getAttribute('aria-pressed')).toBe('true');
     expect(await page.locator('[data-fb="record"]').getAttribute('aria-pressed')).toBe('false');
     await page.locator('[data-fb="close"]').click();
-    await page.locator('[data-fb="record"]').click();
+    await startRecording(page);
     await page.locator('[data-fb="record"]').click();
     await expect.poll(() => page.locator('[data-fb="toast"]').textContent()).toBe('Kayıt çok kısa; sepete eklenmedi.');
+    expect(await page.locator('[data-fb="panel"]').count()).toBe(0);
     expect(await page.locator('[data-fb="basket-count"]').textContent()).toBe('1');
     await page.close();
   });
@@ -378,6 +385,108 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
       const inside = await page.evaluate(() => document.activeElement?.tagName.toLowerCase() === 'flashback-devtools');
       expect(inside, `Tab #${i + 1}`).toBe(true);
     }
+    await page.close();
+  });
+
+  it('Kayda başla penceresi: Esc/İptal kapatır, kısayol açar; ekran/pencere + mikrofon kaydı .webm ve anahtar karelerle gider (FR-REC-16)', async () => {
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.addInitScript(freshBasket);
+    // Başsız Chromium'da ekran seçme penceresi yok: ekran hareketli bir tuvalden, mikrofon bir osilatörden gelir.
+    await page.addInitScript(() => {
+      const md = navigator.mediaDevices;
+      md.getDisplayMedia = async () => {
+        const c = document.createElement('canvas');
+        c.width = 1280;
+        c.height = 720;
+        const ctx = c.getContext('2d')!;
+        let n = 0;
+        setInterval(() => {
+          ctx.fillStyle = `hsl(${(n * 25) % 360} 60% 40%)`;
+          ctx.fillRect(0, 0, c.width, c.height);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 96px sans-serif';
+          ctx.fillText(`Ekran ${n++}`, 80, 360);
+        }, 100);
+        return c.captureStream(15);
+      };
+      md.getUserMedia = async () => {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator();
+        const dest = ac.createMediaStreamDestination();
+        osc.connect(dest);
+        osc.start();
+        return dest.stream;
+      };
+    });
+    await page.goto(base + '/');
+    await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 15_000 });
+
+    // Kayıt düğmesi kaydı hemen başlatmaz: seçim penceresini açar.
+    await page.locator('[data-fb="record"]').click();
+    const picker = page.locator('[data-fb="record-picker"]');
+    await picker.waitFor();
+    const text = await picker.textContent();
+    for (const s of ['Kayda başla', 'En fazla 60 sn', 'Bu sekme', 'Ekran / pencere', 'Mikrofonu ekle', 'İptal', 'Kaydı başlat']) expect(text).toContain(s);
+    expect(await page.locator('[data-fb="record"]').getAttribute('aria-pressed')).toBe('false');
+    expect(await page.locator('[data-fb="record"]').getAttribute('aria-expanded')).toBe('true');
+    // Odak "Kaydı başlat"ta; Esc kapatır ve odak kayıt düğmesine döner.
+    const focused = () => page.evaluate(() => document.querySelector('flashback-devtools')!.shadowRoot!.activeElement?.getAttribute('data-fb'));
+    expect(await focused()).toBe('rec-start');
+    await page.keyboard.press('Escape');
+    await picker.waitFor({ state: 'detached' });
+    expect(await focused()).toBe('record');
+    // Kısayol da pencereyi açar; İptal kapatır.
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('Alt+Shift+KeyR');
+    await picker.waitFor();
+    await picker.locator('[data-fb="rec-cancel"]').click();
+    await picker.waitFor({ state: 'detached' });
+    expect(await page.locator('[data-fb="record"]').getAttribute('aria-pressed')).toBe('false');
+
+    await startRecording(page, { source: 'screen', mic: true });
+    await fillCart(page, 'YAZ10');
+    await page.waitForTimeout(2500);
+    await page.locator('[data-fb="record"]').click();
+    // Durunca olay sepete girer ve ekranı açılır: kayıt kartında video oynatıcısı.
+    await page.locator('[data-fb="panel"]').waitFor();
+    await expect.poll(() => page.locator('[data-fb="basket-item-1"]').getAttribute('aria-pressed')).toBe('true');
+    await page.locator('[data-fb="basket-item-1"] [data-fb="chip-media"]').waitFor();
+    const card = page.locator('[data-fb="media-card"]');
+    await card.waitFor();
+    expect(await card.locator('video').count()).toBe(1);
+    expect(await card.textContent()).toContain('mikrofon sesiyle');
+    expect(await card.textContent()).toMatch(/\d+ anahtar kare/);
+
+    await page.locator('[data-fb="page-level"]').click();
+    await page.locator('[data-fb="expected"]').fill('Toplam 1380 ₺ olmalı.');
+    await page.locator('[data-fb="preview"]').click();
+    const preview = page.locator('[data-fb="preview-view"]');
+    await preview.waitFor();
+    await preview.locator('[data-fb="also-sent-media"]').waitFor();
+    expect(await preview.locator('[data-fb="exclude-media"]').isChecked()).toBe(false);
+    await page.locator('[data-fb="preview-save"]').click();
+    await page.locator('[data-fb="saved"]').waitFor();
+
+    const before = { drafts: receiver.drafts.length, media: receiver.media.length };
+    const [id] = await sendAll(page);
+    expect(receiver.rejected).toEqual([]);
+    const draft = receiver.drafts[before.drafts];
+    expect(draft.media).toMatchObject({ source: 'screen', video: true, audio: true });
+    expect(draft.media!.mimeType).toMatch(/^video\/webm/);
+    expect(draft.media!.durationMs).toBeGreaterThan(2000);
+    const frames = draft.media!.keyframes;
+    expect(frames.length).toBeGreaterThanOrEqual(2);
+    expect(frames.length).toBeLessThanOrEqual(6);
+    for (const k of frames) {
+      expect(k.jpeg!.startsWith('/9j/')).toBe(true); // JPEG imzası (base64)
+      expect(k.width).toBeLessThanOrEqual(960);
+    }
+    expect(frames.map((k) => k.t)).toEqual([...frames.map((k) => k.t)].sort((a, b) => a - b));
+    expect(receiver.media.slice(before.media)).toEqual([{ id, type: expect.stringMatching(/^video\/webm/), bytes: draft.media!.bytes, webm: true }]);
+    expect(await page.locator('[data-fb="media-failed"]').count()).toBe(0);
+    expect(errors).toEqual([]);
     await page.close();
   });
 

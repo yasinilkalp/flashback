@@ -310,6 +310,72 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback uçtan uca: panel → MCP �
     await page.close();
   });
 
+  it('FR-REC-16: ekran + mikrofon kaydı gerçek alıcıya .webm olarak yüklenir; get_incident yolu ve anahtar kareleri görüntü olarak verir', async () => {
+    // Anahtar kareler görüntü içeriği olarak dönsün (öbür testler FLASHBACK_NO_IMAGES=1 ile koşar).
+    await startMcp({ FLASHBACK_NO_IMAGES: '0' });
+    const page = await context.newPage();
+    await page.addInitScript(freshBasket);
+    // Başsız Chromium'da ekran seçme penceresi yok: ekran hareketli bir tuvalden, mikrofon bir osilatörden gelir.
+    await page.addInitScript(() => {
+      navigator.mediaDevices.getDisplayMedia = async () => {
+        const c = document.createElement('canvas');
+        c.width = 1280;
+        c.height = 720;
+        const ctx = c.getContext('2d')!;
+        let n = 0;
+        setInterval(() => {
+          ctx.fillStyle = `hsl(${(n * 25) % 360} 60% 40%)`;
+          ctx.fillRect(0, 0, c.width, c.height);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 96px sans-serif';
+          ctx.fillText(`Ekran ${n++}`, 80, 360);
+        }, 100);
+        return c.captureStream(15);
+      };
+      navigator.mediaDevices.getUserMedia = async () => {
+        const ac = new AudioContext();
+        const dest = ac.createMediaStreamDestination();
+        const osc = ac.createOscillator();
+        osc.connect(dest);
+        osc.start();
+        return dest.stream;
+      };
+    });
+    await page.goto(base + '/');
+    await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 10_000 });
+    await startRecording(page, { source: 'screen', mic: true });
+    await fillCart(page, 'KIS20');
+    await page.waitForTimeout(2500);
+    // Durdurunca olayın ekranı kendiliğinden açılır.
+    await page.locator('[data-fb="record"]').click();
+    await page.locator('[data-fb="media-card"]').waitFor({ timeout: 10_000 });
+    await page.locator('[data-fb="page-level"]').click();
+    await page.locator('[data-fb="expected"]').fill('"Kupon uygulanamadı" uyarısı gösterilmeli.');
+    const id = await send(page);
+
+    const inc = readIncident(id);
+    expect(inc.media).toMatchObject({ source: 'screen', video: true, audio: true, file: `media/${id}.webm` });
+    const video = join(work, '.flashback', 'media', `${id}.webm`);
+    expect(readFileSync(video).subarray(0, 4)).toEqual(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
+    expect(readFileSync(video).length).toBe(inc.media!.bytes);
+    expect(JSON.stringify(inc)).not.toContain('"jpeg"');
+
+    const r = (await call('get_incident', { id })) as ToolResult & { content: Array<{ type: string; mimeType?: string; data?: string }> };
+    const report = textOf(r);
+    expect(report).toContain('## Ekran kaydı');
+    expect(report).toContain('Ekran/pencere videosu + mikrofon sesi');
+    expect(report).toContain(video);
+    const images = r.content.filter((c) => c.type === 'image');
+    expect(images.length).toBe(inc.media!.keyframes.length);
+    expect(images.length).toBeGreaterThanOrEqual(2);
+    for (const img of images) {
+      expect(img.mimeType).toBe('image/jpeg');
+      expect(img.data!.startsWith('/9j/')).toBe(true);
+    }
+    await page.close();
+    await startMcp();
+  });
+
   /** KK-2 için: ilk koşu `precondition` hatası olduğundan geçerli koşular onu saymaz. */
   async function agentLoop2(id: string, assertion: string) {
     const red = await call('run_repro', { id, assertions: assertion });

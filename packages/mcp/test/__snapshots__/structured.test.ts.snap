@@ -164,6 +164,76 @@ exports[`FR-MCP-10: outputSchema + structuredContent > her aracın outputSchema'
       "markedAtMs": {
         "type": "number",
       },
+      "media": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "audio": {
+                "type": "boolean",
+              },
+              "bytes": {
+                "type": "number",
+              },
+              "durationMs": {
+                "type": "number",
+              },
+              "file": {
+                "description": "Kaydın (.webm) mutlak yolu; yüklenmediyse null",
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "keyframes": {
+                "description": "Videodan alınmış anahtar karelerin mutlak yolları",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "type": "string",
+                    },
+                    "t": {
+                      "description": "Kayıt başlangıcına göre ms",
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "t",
+                    "file",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "source": {
+                "enum": [
+                  "tab",
+                  "screen",
+                ],
+                "type": "string",
+              },
+              "video": {
+                "type": "boolean",
+              },
+            },
+            "required": [
+              "source",
+              "video",
+              "audio",
+              "durationMs",
+              "bytes",
+              "file",
+              "keyframes",
+            ],
+            "type": "object",
+          },
+          {
+            "type": "null",
+          },
+        ],
+        "description": "Ekran/pencere videosu ve/veya mikrofon sesi (FR-REC-16); yoksa null",
+      },
       "pageLevel": {
         "description": "true: öğe seçilmedi; assertion yalnızca page ile yazılır",
         "type": "boolean",
@@ -292,6 +362,7 @@ exports[`FR-MCP-10: outputSchema + structuredContent > her aracın outputSchema'
       "confidence",
       "group",
       "siblings",
+      "media",
       "counts",
     ],
     "type": "object",

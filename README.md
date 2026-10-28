@@ -37,8 +37,8 @@ npm run dev                # demo: http://localhost:5173
    claude mcp add flashback --scope project -- node packages/mcp/dist/cli.js
    ```
    Ya da `mcp.example.json` dosyasını `.mcp.json` olarak kopyalayın.
-2. Sağ alttaki araç çubuğunda **●** düğmesine basın (ya da `Alt+Shift+R`): kayıt başlar. Demoda üç ürünü sepete ekleyin ve **YAZ10** kuponunu girin. Toplam `135030 ₺` gösterir, çünkü kargo ücreti API'den metin olarak geliyor. **■** ile durdurun: kayıt sepete "Olay 1" olarak eklenir. Aynı yolla **KIS20** kuponunu deneyip "Olay 2"yi kaydedin; bu kuponda sunucu 500 döner ve kullanıcıya hiçbir şey gösterilmez. Ayrıntılar: [`examples/demo/BUGS.md`](examples/demo/BUGS.md).
-3. **Sepet** düğmesine basın. Her olayı seçin; kaydın altındaki araç takımıyla geri sarın (ya da **Boşluk** ile oynatın), **S** tuşuna basıp "Toplam" değerine tıklayın (KIS20 için **Sayfa düzeyi olay**), "Ne olmalıydı?" alanını doldurup **Sepete kaydet**'e basın. Sonra **Hepsini gönder (MCP)** ile olayları birlikte gönderin ya da **Prompt olarak kopyala** ile herhangi bir sohbete yapıştırın. Kapat düğmesinin yanındaki düğme paneli açık ya da koyu temaya geçirir.
+2. Sağ alttaki araç çubuğunda **●** düğmesine basın (ya da `Alt+Shift+R`): "Kayda başla" penceresi açılır. **Bu sekme**'yi seçip **● Kaydı başlat**'a basın (**Ekran / pencere** seçerseniz ekran videosu, **Mikrofonu ekle** ile sesli anlatımınız da `.webm` olarak olaya eklenir). Demoda üç ürünü sepete ekleyin ve **YAZ10** kuponunu girin. Toplam `135030 ₺` gösterir, çünkü kargo ücreti API'den metin olarak geliyor. **■** ile durdurun (kayıt en fazla 60 sn sürer): kayıt sepete "Olay 1" olarak eklenir ve olayın ekranı hemen açılır. Paneli kapatıp aynı yolla **KIS20** kuponunu deneyip "Olay 2"yi kaydedin; bu kuponda sunucu 500 döner ve kullanıcıya hiçbir şey gösterilmez. Ayrıntılar: [`examples/demo/BUGS.md`](examples/demo/BUGS.md).
+3. Panelde (ya da sonradan **Sepet** düğmesiyle) her olayı seçin; kaydın altındaki araç takımıyla geri sarın (ya da **Boşluk** ile oynatın), **S** tuşuna basıp "Toplam" değerine tıklayın (KIS20 için **Sayfa düzeyi olay**), "Ne olmalıydı?" alanını doldurup **Sepete kaydet**'e basın. Sonra **Hepsini gönder (MCP)** ile olayları birlikte gönderin ya da **Prompt olarak kopyala** ile herhangi bir sohbete yapıştırın. Kapat düğmesinin yanındaki düğme paneli açık ya da koyu temaya geçirir.
 4. Panelin gösterdiği istemi ajanınıza yapıştırın; ör. *"Flashback MCP'deki grp-… grubundaki 2 olayı (…) get_incident ile oku, birlikte değerlendir ve düzelt."*
 
 > Sepet tarayıcıda (IndexedDB) durur; sayfa yenilense de kaybolmaz. Alıcıya ulaşılamazsa olaylar sepette kalır ve gizlenmiş Markdown prompt olarak panoya kopyalanır; pano kullanılamıyorsa `.md` dosyası olarak iner.
@@ -81,7 +81,7 @@ trackStore('redux', store.subscribe, store.getState);              // Redux
 |---|---|---|
 | `enabled` | `NODE_ENV !== 'production'` | Kaydı açar/kapatır |
 | `endpoint` | `http://127.0.0.1:4747` | `flashback-mcp` alıcısının adresi |
-| `maxRecordSeconds` | `300` | Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve olay sepete eklenir |
+| `maxRecordSeconds` | `60` | Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve olay sepete eklenir |
 | `ignoreUrls` | `[]` | Kaydedilmeyecek istekler (metin öneki veya RegExp) |
 | `maskAllInputs` | `false` | Tüm girişleri maskeler. Parolalar her durumda maskelenir |
 | `redact` | `true` | `{ keys, patterns, emails: true, phones: false }`. `false` her şeyi olduğu gibi gönderir ve panelde kalıcı uyarı gösterir |

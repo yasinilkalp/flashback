@@ -21,6 +21,7 @@ type FetchFn = typeof fetch;
 
 const HEALTH_TIMEOUT_MS = 2500;
 const POST_TIMEOUT_MS = 15_000;
+const MEDIA_TIMEOUT_MS = 60_000;
 
 function timeout(ms: number): AbortSignal | undefined {
   return typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(ms) : undefined;
@@ -81,6 +82,21 @@ export class ReceiverClient {
       return { ok: true, id: j.id };
     }
     return { ok: false, network: false, status: res.status, error: await errorText(res) };
+  }
+
+  /** Olayın ekran/mikrofon kaydını (`.webm`) yükler (FR-REC-16). Olay önce `postIncident` ile oluşturulmuş olmalı. */
+  async postMedia(id: string, blob: Blob, mimeType: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    try {
+      const res = await this.fetchFn(this.url(ROUTES.media(id)), {
+        method: 'POST',
+        headers: { 'Content-Type': mimeType },
+        body: blob,
+        signal: timeout(MEDIA_TIMEOUT_MS),
+      });
+      return res.ok ? { ok: true } : { ok: false, error: await errorText(res) };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
   }
 
   async list(): Promise<IncidentSummary[]> {

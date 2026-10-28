@@ -64,6 +64,11 @@ export function BasketTab({ controller, state, t }: { controller: FlashbackContr
             >
               <span className={`fb-chip-dot${e.ready ? ' fb-chip-ready' : ''}`} aria-hidden="true" />
               {t.basketItem} {e.n}
+              {e.media && (
+                <span className="fb-chip-media" title={e.media.video ? t.mediaScreen : t.mediaMic} data-fb="chip-media">
+                  <Icon name={e.media.video ? 'screen' : 'mic'} />
+                </span>
+              )}
               <span className="fb-chip-time">{clock(e.durationMs)}</span>
               <span className="fb-sr">{e.ready ? t.readyMark : t.noteMark}</span>
             </button>
@@ -158,6 +163,11 @@ function BatchResultView({ controller, t, result, onClose }: { controller: Flash
           )}
         </div>
       )}
+      {result.mediaFailed.map((m) => (
+        <p key={`m${m.n}`} className="fb-notice fb-notice-err" role="alert" data-fb="media-failed">
+          {t.basketItem} {m.n}: {t.mediaUploadFailed} — {m.error}
+        </p>
+      ))}
       {result.rejected.map((r) => (
         <p key={r.n} className="fb-notice fb-notice-err" role="alert">
           {t.basketItem} {r.n}: {t.batchRejected} (HTTP {r.status}) — {r.error}

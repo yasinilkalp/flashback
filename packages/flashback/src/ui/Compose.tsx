@@ -2,12 +2,13 @@
  * Seçim bilgisi, not formu (FR-UI-07) ve önizleme (FR-UI-08/09/11). "Sepete kaydet" yükü kurup sepetteki olaya
  * yazar; olay gönderime hazır olur (FR-BSK-06). Gönderim sepet şeridinden yapılır (Basket.tsx).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { hasMarker } from '@flashback/shared';
 import type { BasketEntry } from '../basket.js';
 import type { ControllerState, FlashbackController } from '../controller.js';
 import type { Exclusions, TargetCapture } from '../draft/build.js';
 import { formatBytes, type Submission } from '../draft/report.js';
+import type { MediaClip } from '../recorder/media.js';
 import type { Strings } from './i18n.js';
 import type { Box } from './Timeline.js';
 
@@ -112,6 +113,7 @@ export function Compose({ controller, t, entry, mark, resolving, primary, view, 
       <PreviewView
         t={t}
         prepared={prepared}
+        hasMedia={!!entry.media}
         mandatory={mandatory}
         exclude={exclude}
         setExclude={changeExclude}
@@ -134,6 +136,7 @@ export function Compose({ controller, t, entry, mark, resolving, primary, view, 
         </p>
       )}
       {entry.truncated && <p className="fb-notice fb-notice-info">{t.clipTruncated}</p>}
+      {controller.selected?.entry.id === entry.id && controller.selected.media && <MediaCard t={t} media={controller.selected.media} />}
       <SelectionInfo t={t} mark={mark} resolving={resolving} />
       <form
         onSubmit={(e) => {
@@ -167,6 +170,30 @@ export function Compose({ controller, t, entry, mark, resolving, primary, view, 
           </p>
         )}
       </form>
+    </div>
+  );
+}
+
+/** Olaya eklenen ekran/mikrofon kaydı (FR-REC-16): oynatıcı, boyut ve gizleme uyarısı. */
+function MediaCard({ t, media }: { t: Strings; media: MediaClip }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const u = URL.createObjectURL(media.blob);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [media.blob]);
+  const seconds = Math.round(media.durationMs / 1000);
+  return (
+    <div className="fb-card" data-fb="media-card">
+      <h3>{media.video ? t.mediaScreen : t.mediaMic}</h3>
+      {url && (media.video ? <video className="fb-media" src={url} controls muted={!media.audio} preload="metadata" /> : <audio className="fb-media" src={url} controls preload="metadata" />)}
+      <p className="fb-hint" data-fb="media-meta">
+        {`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`} · WebM {formatBytes(media.blob.size)}
+        {media.video && media.audio ? ` · ${t.withMic}` : ''}
+        {media.video ? ` · ${media.frames.length} ${t.keyframes}` : ''}
+      </p>
+      <p className="fb-hint">{t.mediaSent}</p>
+      {media.video && <p className="fb-hint fb-warn-text">{t.mediaNotRedacted}</p>}
     </div>
   );
 }
@@ -214,6 +241,8 @@ function Highlighted({ text }: { text: string }) {
 function PreviewView(props: {
   t: Strings;
   prepared: Submission;
+  /** Seçili olayın ekran/mikrofon kaydı var mı (hariç tutulmuş olsa da)? */
+  hasMedia: boolean;
   mandatory: boolean;
   exclude: Exclusions;
   setExclude: (e: Exclusions) => void;
@@ -227,6 +256,14 @@ function PreviewView(props: {
   const ex = preview.extras;
   const confidence = preview.draft.confidence ?? [];
   const redacted = Object.entries(ex.redactedByType);
+  const media = preview.draft.media;
+  const exclusions: Array<[keyof Exclusions, string]> = [
+    ['network', t.excludeNetwork],
+    ['dom', t.excludeDom],
+    ['store', t.excludeStore],
+  ];
+  // Hariç tutulan kayıt da seçenek olarak kalır: geri eklenebilsin.
+  if (props.hasMedia) exclusions.push(['media', t.excludeMedia]);
   return (
     <div className="fb-scroll" data-fb="preview-view" aria-label={t.previewTitle}>
       <h2>{t.previewTitle}</h2>
@@ -258,16 +295,19 @@ function PreviewView(props: {
           <span>{ex.network}</span>
           <span>{t.redactedValues}</span>
           <span>{redacted.length ? redacted.map(([k, v]) => `${k}: ${v}`).join(', ') : t.none}</span>
+          {media && (
+            <>
+              <span>{t.excludeMedia}</span>
+              <span data-fb="also-sent-media">
+                WebM {formatBytes(media.bytes)} · {media.keyframes?.length ?? 0} {t.keyframes}
+              </span>
+            </>
+          )}
         </div>
+        {media?.video && <p className="fb-hint fb-warn-text">{t.mediaNotRedacted}</p>}
         <fieldset className="fb-row" style={{ border: 0, padding: 0, margin: '8px 0 0', flexWrap: 'wrap' }}>
           <legend className="fb-muted">{t.exclude}</legend>
-          {(
-            [
-              ['network', t.excludeNetwork],
-              ['dom', t.excludeDom],
-              ['store', t.excludeStore],
-            ] as const
-          ).map(([key, label]) => (
+          {exclusions.map(([key, label]) => (
             <span key={key} className="fb-row">
               <input
                 id={`fb-ex-${key}`}

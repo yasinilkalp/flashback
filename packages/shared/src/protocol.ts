@@ -17,6 +17,8 @@ export const ROUTES = {
   incident: (id: string) => `/incidents/${id}`,
   messages: (id: string) => `/incidents/${id}/messages`,
   reopen: (id: string) => `/incidents/${id}/reopen`,
+  /** Olayın ekran/mikrofon kaydı: ham `.webm` gövdesi, `Content-Type: video/webm` ya da `audio/webm` (FR-REC-16). */
+  media: (id: string) => `/incidents/${id}/media`,
 } as const;
 
 export interface HealthResponse {

@@ -18,21 +18,25 @@ export interface Receiver {
   url: string;
   drafts: IncidentDraft[];
   rejected: string[];
+  /** `POST /incidents/:id/media` ile yüklenen ekran/mikrofon kayıtları (FR-REC-16). */
+  media: Array<{ id: string; type: string; bytes: number; webm: boolean }>;
   down: boolean;
   close(): Promise<void>;
 }
 
-function readBody(req: IncomingMessage): Promise<string> {
+function readRaw(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => chunks.push(c));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
   });
 }
 
+const readBody = async (req: IncomingMessage) => (await readRaw(req)).toString('utf8');
+
 /** `flashback-mcp` alıcısının HTTP sözleşmesini (FRD §9.3) taklit eder; POST'u IncidentDraftSchema ile doğrular. */
 export async function startReceiver(): Promise<Receiver> {
-  const state: Receiver = { url: '', drafts: [], rejected: [], down: false, close: async () => {} };
+  const state: Receiver = { url: '', drafts: [], rejected: [], media: [], down: false, close: async () => {} };
   const ids: string[] = [];
   const server: Server = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
     if (state.down) {
@@ -61,6 +65,14 @@ export async function startReceiver(): Promise<Receiver> {
       const id = `fb-20261027-1200${String(ids.length).padStart(2, '0')}-test`;
       ids.push(id);
       return json(201, { id });
+    }
+    const media = req.method === 'POST' ? /^\/incidents\/([^/]+)\/media$/.exec(req.url ?? '') : null;
+    if (media) {
+      const type = String(req.headers['content-type']);
+      if (!/^(video|audio)\/webm/.test(type)) return json(415, { error: 'unsupported_media_type' });
+      const data = await readRaw(req);
+      state.media.push({ id: media[1], type, bytes: data.length, webm: data.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) });
+      return json(201, { file: `media/${media[1]}.webm`, bytes: data.length });
     }
     if (req.method === 'GET' && req.url === '/incidents') {
       const list: IncidentSummary[] = state.drafts.map((d, i) => ({
@@ -271,9 +283,17 @@ export function freshBasket(): void {
   }
 }
 
-/** Kaydı başlatır (FR-REC-01: kayıt elle başlar). */
-export async function startRecording(page: Page): Promise<void> {
+/**
+ * Kaydı başlatır (FR-REC-01: kayıt elle başlar): kayıt düğmesi "Kayda başla" penceresini açar, kaynak ve mikrofon
+ * seçilip "Kaydı başlat"a basılır. Seçim sayfanın kökeninde saklandığı için her seferinde açıkça yapılır.
+ */
+export async function startRecording(page: Page, opts: { source?: 'tab' | 'screen'; mic?: boolean } = {}): Promise<void> {
   await page.locator('[data-fb="record"]').click();
+  const picker = page.locator('[data-fb="record-picker"]');
+  await picker.waitFor();
+  await picker.locator(`[data-fb="rec-source-${opts.source ?? 'tab'}"]`).check({ force: true });
+  await picker.locator('[data-fb="rec-mic"]').setChecked(opts.mic ?? false);
+  await picker.locator('[data-fb="rec-start"]').click();
   await page.locator('[data-fb="record"][aria-pressed="true"]').waitFor();
 }
 
