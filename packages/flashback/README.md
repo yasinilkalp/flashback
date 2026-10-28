@@ -93,8 +93,8 @@ Kaydedici ve rrweb üretim paketine girmez; iki katmanlı koruma vardır:
    tanımlandığını varsayar.
 
 `NODE_ENV=production` iken `enabled` verilse bile bileşen başlamaz ve konsola bir kez uyarı yazar. `allowProduction`
-(önerilmez) yalnızca kaydedicinin derlemede bulunduğu durumlarda (ör. `import.meta.env.PROD` olan ama
-`NODE_ENV=production` olmayan bir hazırlık derlemesi) çalışır ve panelde kalıcı uyarı gösterir.
+(önerilmez) yalnızca kaydedicinin derlemede bulunduğu durumlarda (ör. `NODE_ENV=production` olmayan bir hazırlık
+derlemesi) çalışır ve panelde kalıcı uyarı gösterir.
 
 ## Store takibi
 

@@ -51,4 +51,8 @@ describe('main entry without the `production` export condition (FR-CFG-08, secur
   it('the same bundle in development still contains the recorder', async () => {
     expect(await bundle('development')).toMatch(/takeFullSnapshot/);
   }, 30_000);
+
+  it('contains no `import.meta` (SyntaxError in non-module output: webpack 5.103+ script/eval, SystemJS)', async () => {
+    expect(await bundle('development')).not.toMatch(/import\.meta/);
+  }, 30_000);
 });

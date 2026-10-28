@@ -29,20 +29,18 @@ export const MEMORY_LIMIT_BYTES = 50 * 1024 * 1024;
  *
  * `process.env.NODE_ENV` bundler tarafından metin olarak değiştirildiği için `typeof process` korumasıyla
  * SARMALANMAZ (koruma değiştirmeyi etkisiz kılardı); tanımsızsa ReferenceError yakalanır.
+ *
+ * `import.meta.env` OKUNMAZ: modül olmayan çıktıda (webpack 5.103+ script/eval, SystemJS, single-spa)
+ * `import.meta` ayrıştırma anında SyntaxError verir, try/catch onu yakalayamaz. Vite 5+ `PROD`'u zaten
+ * `NODE_ENV`'den türetir.
  */
 export function isProductionEnv(): boolean {
   try {
-    if (process.env.NODE_ENV === 'production') return true;
+    return process.env.NODE_ENV === 'production';
   } catch {
     /* tarayıcıda process yok */
+    return false;
   }
-  try {
-    const env = (import.meta as unknown as { env?: { PROD?: boolean } }).env;
-    if (env?.PROD === true) return true;
-  } catch {
-    /* import.meta.env yok */
-  }
-  return false;
 }
 
 export type StartDecision =
