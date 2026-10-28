@@ -37,7 +37,8 @@ describe.runIf(process.env.FLASHBACK_E2E)('Vue 3 + Vite + Chromium smoke (FR-MAR
     await expect.poll(() => page.getByTestId('total').textContent()).toBe('750 ₺');
     await page.waitForTimeout(800);
     await openPanel(page);
-    // Zaman çizelgesi: tıklamalar ve sayfa olayları kaydedildi.
+    // Zaman çizelgesi: tıklamalar ve sayfa olayları kaydedildi. Klip sepetten eşzamansız yüklenir; çizelge sonra gelir.
+    await page.locator('[data-fb="scrubber"]').waitFor({ timeout: 15_000 });
     expect(await page.locator('[data-fb="scrubber"]').count()).toBe(1);
     expect(await pickSource(page, '[data-testid="total"]')).toBe('—');
     expect(await page.locator('[data-fb="selected-selector"]').textContent()).toBe('[data-testid="total"]');

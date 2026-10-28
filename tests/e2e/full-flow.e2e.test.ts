@@ -170,6 +170,8 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback uçtan uca: panel → MCP �
   }
 
   async function pickInReplay(page: Page, testId: string) {
+    // Klip sepetten eşzamansız yüklenir; S tuşu zaman çizelgesi bağlanmadan basılırsa kaybolur.
+    await page.locator('[data-fb="scrubber"]').waitFor({ timeout: 15_000 });
     await page.keyboard.press('s');
     await page.locator('[data-fb="pick-overlay"]').waitFor();
     const point = await page.evaluate((tid) => {
