@@ -168,21 +168,16 @@ function Launcher({
         <button
           ref={buttonRef}
           type="button"
-          className="fb-bar-btn fb-bar-expand"
+          className="fb-bar-expand"
           aria-label={`${t.expand} — ${title}${unread}`}
           title={title}
           data-fb="expand"
           data-receiver={state.receiver}
           onClick={() => flip(false)}
         >
-          <span className="fb-bar-mark">
-            <Logo className="fb-logo" />
-            {dot}
-          </span>
-          <span className="fb-bar-recv" data-receiver={state.receiver}>
-            <Icon name="plug" />
-          </span>
-          {unreadBadge}
+          {/* Küçükken yalnızca logo; kayıt sürüyorsa kırmızı nokta. Alıcı durumu ve rozetler açınca görünür. */}
+          <Logo className="fb-logo" />
+          {state.recording && dot}
         </button>
         {notice}
       </div>

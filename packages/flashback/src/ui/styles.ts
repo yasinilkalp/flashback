@@ -33,7 +33,8 @@ export const PANEL_CSS = `
 
 /* Köşedeki dikey araç çubuğu. Düğme sınıfları ".fb-root button" sıfırlamasından daha özgül olmalı. */
 .fb-bar { position: fixed; z-index: 2147483646; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 5px; background: var(--dock); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--bar-shadow); }
-.fb-bar[data-collapsed] { padding: 4px; }
+/* Küçükken yalnızca logo kalır: çubuğun zemini, kenarı ve gölgesi logoya geçer. */
+.fb-bar[data-collapsed] { padding: 0; background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .fb-pos-bottom-right { right: 16px; bottom: 16px; } .fb-pos-bottom-left { left: 16px; bottom: 16px; }
 .fb-pos-top-right { right: 16px; top: 16px; } .fb-pos-top-left { left: 16px; top: 16px; }
 .fb-bar-mark { position: relative; display: flex; padding: 3px; }
@@ -53,13 +54,13 @@ export const PANEL_CSS = `
 .fb-toast.fb-toast-warn { border-left-color: var(--warn); }
 .fb-pos-bottom-left .fb-toast, .fb-pos-top-left .fb-toast { right: auto; left: calc(100% + 10px); }
 .fb-pos-top-right .fb-toast, .fb-pos-top-left .fb-toast { bottom: auto; top: 0; }
-.fb-root button.fb-bar-expand { width: 36px; height: auto; flex-direction: column; gap: 2px; padding: 2px 0 5px; }
+.fb-root button.fb-bar-expand { position: relative; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; box-shadow: var(--bar-shadow); transition: transform .15s; }
+.fb-root button.fb-bar-expand:hover:not(:disabled) { border-color: transparent; transform: translateY(-1px); }
+.fb-bar-expand .fb-logo { width: 40px; height: 40px; }
+.fb-bar-expand .fb-dot { top: -3px; right: -3px; box-shadow: 0 0 0 2px var(--bg2); }
 .fb-bar-btn .fb-badge { position: absolute; top: -3px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px; font-weight: 700; box-shadow: 0 0 0 2px var(--dock); }
-.fb-bar-expand .fb-badge { right: auto; left: -4px; }
 .fb-bar-recv { display: flex; align-items: center; justify-content: center; width: 34px; height: 26px; }
 .fb-bar-recv .fb-ico { width: 16px; height: 16px; }
-.fb-bar-expand .fb-bar-recv { width: auto; height: auto; }
-.fb-bar-expand .fb-bar-recv .fb-ico { width: 14px; height: 14px; }
 .fb-bar-recv[data-receiver="connected"] { color: var(--ok); } .fb-bar-recv[data-receiver="disconnected"] { color: var(--err); } .fb-bar-recv[data-receiver="wrong_project"] { color: var(--warn); }
 .fb-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--err); display: inline-block; }
 /* Kayıt noktası bilerek sabit: sürekli animasyon her karede yeniden boyama yapar ve sayfanın etkileşim gecikmesini artırır (NFR-PERF-01). */
