@@ -19,15 +19,15 @@ export interface FlashbackProps {
   enabled?: boolean;
   /** `flashback-mcp` alıcısının adresi. Varsayılan `http://127.0.0.1:4747`. */
   endpoint?: string;
-  /** En az bu kadar saniyelik geçmiş tutulur (FR-REC-02). Varsayılan 60. */
-  bufferSeconds?: number;
+  /** Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve klip sepete eklenir (FR-REC-02). Varsayılan 300. */
+  maxRecordSeconds?: number;
   /** Kaydedilmeyecek istekler: metin öneki ya da RegExp (FR-REC-05). */
   ignoreUrls?: Array<string | RegExp>;
   /** Tüm girişleri maskeler. Parolalar her durumda maskelenir (FR-REC-08). */
   maskAllInputs?: boolean;
   /** Gizleme; `false` kapatır (FR-RED-08, FR-UI-11). */
   redact?: boolean | FlashbackRedactConfig;
-  /** Paneli açıp kapatan kısayol; `event.code` ile eşleştirilir. Varsayılan `alt+shift+r`. */
+  /** Kaydı başlatıp durduran kısayol; `event.code` ile eşleştirilir. Varsayılan `alt+shift+r`. */
   shortcut?: string;
   /** Flashback düğmesinin köşesi. Varsayılan `bottom-right`. */
   position?: FlashbackPosition;

@@ -1,4 +1,4 @@
-import type { IncidentStatus, Message, ReproRun } from './schema.js';
+import type { IncidentGroup, IncidentStatus, Message, ReproRun } from './schema.js';
 
 /** Tarayıcı dışı istemcilerin göndermesi gereken başlık (FR-RCV-SEC-02). */
 export const CLIENT_HEADER = 'x-flashback-client';
@@ -40,4 +40,6 @@ export interface IncidentSummary {
   runs: Array<Pick<ReproRun, 't' | 'status' | 'errorKind' | 'signature' | 'durationMs'>>;
   messages: Message[];
   resolution?: { kind: 'fixed' | 'cannot_reproduce'; summary: string; reason?: string; t: string };
+  /** Sepetten birlikte gönderildiyse grubu (FR-BSK-05). */
+  group?: IncidentGroup;
 }

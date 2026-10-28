@@ -122,6 +122,36 @@ exports[`FR-MCP-10: outputSchema + structuredContent > her aracın outputSchema'
           "null",
         ],
       },
+      "group": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "description": "Sepetten birlikte gönderilen olayların grubu: aynı oturumda sırayla kaydedildiler",
+            "properties": {
+              "id": {
+                "type": "string",
+              },
+              "index": {
+                "description": "Gruptaki sıra (1'den başlar)",
+                "type": "number",
+              },
+              "size": {
+                "type": "number",
+              },
+            },
+            "required": [
+              "id",
+              "index",
+              "size",
+            ],
+            "type": "object",
+          },
+          {
+            "type": "null",
+          },
+        ],
+        "description": "Birlikte gönderilen olayların grubu; grupsuz olayda null",
+      },
       "id": {
         "type": "string",
       },
@@ -207,6 +237,13 @@ exports[`FR-MCP-10: outputSchema + structuredContent > her aracın outputSchema'
         ],
         "description": "Kapanış bilgisi; açık olayda null",
       },
+      "siblings": {
+        "description": "Aynı gruptaki öbür olayların kimlikleri (gruptaki sırayla)",
+        "items": {
+          "type": "string",
+        },
+        "type": "array",
+      },
       "status": {
         "enum": [
           "open",
@@ -253,6 +290,8 @@ exports[`FR-MCP-10: outputSchema + structuredContent > her aracın outputSchema'
       "resolution",
       "primaryEvidence",
       "confidence",
+      "group",
+      "siblings",
       "counts",
     ],
     "type": "object",
@@ -385,6 +424,28 @@ exports[`FR-MCP-10: outputSchema + structuredContent > her aracın outputSchema'
             "expected": {
               "description": "Geliştiricinin "Ne olmalıydı?" notu",
               "type": "string",
+            },
+            "group": {
+              "additionalProperties": false,
+              "description": "Sepetten birlikte gönderilen olayların grubu: aynı oturumda sırayla kaydedildiler",
+              "properties": {
+                "id": {
+                  "type": "string",
+                },
+                "index": {
+                  "description": "Gruptaki sıra (1'den başlar)",
+                  "type": "number",
+                },
+                "size": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "id",
+                "index",
+                "size",
+              ],
+              "type": "object",
             },
             "id": {
               "type": "string",

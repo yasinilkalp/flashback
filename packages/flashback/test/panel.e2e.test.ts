@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { IncidentDraft } from '@flashback/shared';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { freePort, startReceiver, type Receiver } from './e2e-utils.js';
+import { freePort, freshBasket, saveToBasket, sendAll, startReceiver, startRecording, type Receiver } from './e2e-utils.js';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const demoDir = join(repo, 'examples/demo');
@@ -56,8 +56,10 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
+    await page.addInitScript(freshBasket);
     await page.goto(base + path);
     await page.locator('[data-fb="launcher"]').waitFor();
+    await startRecording(page);
     (page as Page & { errors: string[] }).errors = errors;
     return page;
   }
@@ -71,13 +73,14 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     await response;
   }
 
+  /** Sepeti açar: süren kayıt durur ve olay olarak sepete eklenip seçilir. */
   async function openPanel(page: Page) {
     await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 10_000 });
-    await page.keyboard.press('Alt+Shift+KeyR');
+    await page.locator('[data-fb="launcher"]').click();
     await page.locator('[data-fb="panel"]').waitFor();
   }
 
-  /** Önizlemeyi (oturumdaki ilk gönderimde zorunlu) geçip gönderir ve alıcıya ulaşan taslağı döndürür. */
+  /** Önizlemeyi (oturumdaki ilk kayıtta zorunlu) geçip olayı sepete kaydeder, gönderir ve alıcıya ulaşan taslağı döndürür. */
   async function previewAndSend(page: Page): Promise<IncidentDraft> {
     const before = receiver.drafts.length;
     await page.locator('[data-fb="save"]').click();
@@ -85,8 +88,9 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     await preview.waitFor();
     await expect.poll(() => preview.textContent()).toContain('Kanıt güveni');
     expect(await preview.textContent()).toContain('Ayrıca gönderilenler');
-    await page.locator('[data-fb="send"]').click();
-    await page.locator('[data-fb="incident-id"]').waitFor();
+    await page.locator('[data-fb="preview-save"]').click();
+    await page.locator('[data-fb="saved"]').waitFor();
+    await sendAll(page);
     expect(receiver.rejected).toEqual([]);
     expect(receiver.drafts.length).toBe(before + 1);
     return receiver.drafts[receiver.drafts.length - 1];
@@ -239,16 +243,108 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
   it('panel is unaffected by a global `* { all: unset }` rule (FR-UI-12) and the shortcut ignores text inputs (FR-UI-02)', async () => {
     const page = await openApp();
     await page.addStyleTag({ content: '* { all: unset; }' });
-    const style = await page.locator('[data-fb="launcher"]').evaluate((el) => {
+    const style = await page.locator('[data-fb="launcher-bar"]').evaluate((el) => {
       const cs = getComputedStyle(el);
-      return { position: cs.position, display: cs.display, radius: cs.borderTopLeftRadius };
+      return { position: cs.position, display: cs.display, direction: cs.flexDirection, radius: cs.borderTopLeftRadius };
     });
-    expect(style).toEqual({ position: 'fixed', display: 'flex', radius: '999px' });
+    expect(style).toEqual({ position: 'fixed', display: 'flex', direction: 'column', radius: '14px' });
+    // Odak metin girişindeyken kısayol kaydı durdurmaz.
     await page.locator('#coupon').focus();
     await page.keyboard.press('Alt+Shift+KeyR');
-    expect(await page.locator('[data-fb="panel"]').count()).toBe(0);
+    expect(await page.locator('[data-fb="record"]').getAttribute('aria-pressed')).toBe('true');
     await page.locator('[data-fb="launcher"]').click();
     expect(await page.locator('[data-fb="panel"]').evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
+    await page.close();
+  });
+
+  it('sepet (FR-BSK-01…06): iki kayıt iki olay olur, yenilemede korunur, notsuz olay gönderilmez; prompt kopyalanır ve olaylar grup olarak gider', async () => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
+    const page = await openApp();
+    const count = () => page.locator('[data-fb="basket-count"]').textContent();
+    // 1. olay: kısayol kaydı durdurur, olay sepete düşer.
+    await page.getByTestId('add-1').click();
+    await page.waitForTimeout(700);
+    await page.keyboard.press('Alt+Shift+KeyR');
+    await expect.poll(() => page.locator('[data-fb="toast"]').textContent()).toBe('Olay 1 sepete eklendi');
+    expect(await page.locator('[data-fb="record"]').getAttribute('aria-pressed')).toBe('false');
+    expect(await count()).toBe('1');
+    // 2. olay: düğmeyle başlat ve durdur.
+    await startRecording(page);
+    await page.getByTestId('add-2').click();
+    await page.waitForTimeout(700);
+    await page.locator('[data-fb="record"]').click();
+    await expect.poll(count).toBe('2');
+    // Sayfa yenilense de sepet durur (IndexedDB).
+    await page.reload();
+    await expect.poll(count, { timeout: 10_000 }).toBe('2');
+
+    // Kayıtlar düğmesi paneli o sekmede açar.
+    await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 10_000 });
+    await page.locator('[data-fb="open-incidents"]').click();
+    expect(await page.getByRole('tab', { name: /Kayıtlar/ }).getAttribute('aria-selected')).toBe('true');
+    await page.getByRole('tab', { name: /Sepet/ }).click();
+    expect(await page.locator('.fb-chip').count()).toBe(2);
+    expect(await page.locator('[data-fb="basket-status"]').textContent()).toBe('2 olay not bekliyor');
+    expect(await page.locator('[data-fb="send-all"]').isDisabled()).toBe(true);
+
+    for (const n of [1, 2]) {
+      await page.locator(`[data-fb="basket-item-${n}"]`).click();
+      await expect.poll(() => page.locator(`[data-fb="basket-item-${n}"]`).getAttribute('aria-pressed')).toBe('true');
+      await page.locator('[data-fb="page-level"]').click();
+      await saveToBasket(page, `Olay ${n} notu.`);
+    }
+    expect(await page.locator('[data-fb="basket-status"]').textContent()).toBe('Hepsi hazır');
+
+    await page.locator('[data-fb="copy-prompt"]').click();
+    await page.locator('[data-fb="prompt-delivered"][data-result="clipboard"]').waitFor();
+    // Windows panosu satır sonlarını CRLF'ye çevirir.
+    const prompt = (await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n');
+    expect(prompt.split('\n')[0]).toBe('# Flashback: 2 olay');
+    expect(prompt.indexOf('# Olay 1/2')).toBeLessThan(prompt.indexOf('# Olay 2/2'));
+    expect(prompt).toContain('> Olay 1 notu.');
+    expect(prompt).toContain('> Olay 2 notu.');
+
+    const before = receiver.drafts.length;
+    const ids = await sendAll(page);
+    expect(ids).toHaveLength(2);
+    expect(receiver.rejected).toEqual([]);
+    const sent = receiver.drafts.slice(before);
+    expect(sent.map((d) => d.note.expected)).toEqual(['Olay 1 notu.', 'Olay 2 notu.']);
+    const groupId = sent[0].group!.id;
+    expect(groupId).toMatch(/^grp-\d{8}-\d{6}-[a-z0-9]{4}$/);
+    expect(sent.map((d) => d.group)).toEqual([
+      { id: groupId, index: 1, size: 2 },
+      { id: groupId, index: 2, size: 2 },
+    ]);
+    expect(await page.locator('[data-fb="group-id"]').textContent()).toBe(groupId);
+    const agent = await page.locator('[data-fb="agent-prompt"]').textContent();
+    expect(agent).toContain(groupId);
+    for (const id of ids) expect(agent).toContain(id);
+    // Gönderilenler sepetten düşer.
+    await page.locator('[data-fb="basket-empty"]').waitFor();
+    expect(await page.locator('[data-fb="basket-count"]').count()).toBe(0);
+
+    // Küçültme yeniden yüklemede korunur; açınca seçim silinir (bağlamı paylaşan sonraki testler açık çubukla başlar).
+    await page.keyboard.press('Escape');
+    await page.locator('[data-fb="collapse"]').click();
+    expect(await page.locator('[data-fb="launcher"]').count()).toBe(0);
+    await page.reload();
+    await page.locator('[data-fb="expand"]').click();
+    await page.locator('[data-fb="launcher"]').waitFor();
+    await page.close();
+  });
+
+  it('sepet: kayıt sürerken sepeti açmak kaydı durdurup olayı ekler; çok kısa kayıt eklenmez', async () => {
+    const page = await openApp();
+    await page.waitForTimeout(700);
+    await openPanel(page);
+    await expect.poll(() => page.locator('[data-fb="basket-item-1"]').getAttribute('aria-pressed')).toBe('true');
+    expect(await page.locator('[data-fb="record"]').getAttribute('aria-pressed')).toBe('false');
+    await page.locator('[data-fb="close"]').click();
+    await page.locator('[data-fb="record"]').click();
+    await page.locator('[data-fb="record"]').click();
+    await expect.poll(() => page.locator('[data-fb="toast"]').textContent()).toBe('Kayıt çok kısa; sepete eklenmedi.');
+    expect(await page.locator('[data-fb="basket-count"]').textContent()).toBe('1');
     await page.close();
   });
 
@@ -272,7 +368,7 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     // Öbür tema da kontrast denetiminden geçmeli (açık ve koyu).
     await page.locator('[data-fb="theme"]').click();
     expect(await audit()).toEqual([]);
-    await page.getByRole('tab', { name: /Zaman çizelgesi/ }).click();
+    await page.getByRole('tab', { name: /Sepet/ }).click();
     expect(await audit()).toEqual([]);
 
     // Odak tuzağı: panel sayfayı kaplar; Tab ile görünmeyen sayfaya geçilmez.
@@ -285,31 +381,33 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     await page.close();
   });
 
-  it('receiver down: falls back to a redacted .md download and queues the incident', async () => {
+  it('receiver down: "Hepsini gönder" falls back to a redacted .md prompt download and keeps the incident in the basket', async () => {
     const page = await openApp();
     await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: undefined }));
     await page.reload();
     await page.locator('[data-fb="launcher"]').waitFor();
+    await startRecording(page);
     await fillCart(page, 'YAZ10');
     await page.waitForTimeout(500);
     await openPanel(page);
+    await page.locator('[data-fb="page-level"]').click();
+    await saveToBasket(page, 'Toplam 1380 ₺ olmalı.');
     receiver.down = true;
     try {
-      await page.locator('[data-fb="page-level"]').click();
-      await page.locator('[data-fb="expected"]').fill('Toplam 1380 ₺ olmalı.');
-      await page.locator('[data-fb="save"]').click();
-      await page.locator('[data-fb="preview-view"]').waitFor();
       const download = page.waitForEvent('download');
-      await page.locator('[data-fb="send"]').click();
+      await page.locator('[data-fb="send-all"]').click();
       const file = await download;
       expect(file.suggestedFilename()).toMatch(/^\d{8}-\d{6}\.flashback\.md$/);
       const markdown = readFileSync(await file.path(), 'utf8');
       expect(markdown).toMatch(/^# Flashback olayı\nKöken: /);
       expect(markdown).toContain('**Ne olmalıydı?**\n> Toplam 1380 ₺ olmalı.');
-      await page.locator('[data-fb="result"][data-result="download"]').waitFor();
+      await page.locator('[data-fb="batch-offline"]').waitFor();
+      expect(await page.locator('[data-fb="basket-item-1"]').getAttribute('data-ready')).toBe('true');
       const before = receiver.drafts.length;
       receiver.down = false;
-      await expect.poll(() => receiver.drafts.length, { timeout: 15_000 }).toBe(before + 1);
+      await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 15_000 });
+      await sendAll(page);
+      expect(receiver.drafts.length).toBe(before + 1);
     } finally {
       receiver.down = false;
     }

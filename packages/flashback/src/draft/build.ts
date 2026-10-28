@@ -72,8 +72,8 @@ export interface DraftInput {
   env: DraftEnv;
   redact: RedactOptions;
   /**
-   * Pakete girecek rrweb geçmişi (ms; genellikle `bufferSeconds`). Tampon 3 dilimle bunun 1,5 katına kadar
-   * olay tutar; fazlası gizlenmeden önce atılır (NFR-LAT-01: gizleme maliyeti olay sayısıyla orantılı).
+   * Pakete girecek rrweb geçmişi (ms). Verilmezse klibin tamamı girer; verilirse fazlası gizlenmeden önce atılır
+   * (NFR-LAT-01: gizleme maliyeti olay sayısıyla orantılı).
    */
   historyMs?: number;
 }

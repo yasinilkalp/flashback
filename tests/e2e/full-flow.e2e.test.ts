@@ -22,6 +22,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Incident } from '@flashback/shared';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { freshBasket, saveToBasket, sendAll, startRecording } from '../../packages/flashback/test/e2e-utils.js';
 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const demoSrc = join(repo, 'examples/demo');
@@ -139,8 +140,10 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback uçtan uca: panel → MCP �
 
   async function openApp(path = '/'): Promise<Page> {
     const page = await context.newPage();
+    await page.addInitScript(freshBasket);
     await page.goto(base + path);
     await page.locator('[data-fb="launcher"]').waitFor();
+    await startRecording(page);
     return page;
   }
 
@@ -155,22 +158,15 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback uçtan uca: panel → MCP �
 
   async function openPanel(page: Page) {
     await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 10_000 });
-    await page.keyboard.press('Alt+Shift+KeyR');
+    await page.locator('[data-fb="launcher"]').click();
     await page.locator('[data-fb="panel"]').waitFor();
   }
 
+  /** Not alanı doldurulmuş seçili olayı sepete kaydedip gönderir; alıcının verdiği kimliği döndürür. */
   async function send(page: Page): Promise<string> {
-    await page.locator('[data-fb="save"]').click();
-    const preview = page.locator('[data-fb="preview-view"]');
-    if (await preview.isVisible().catch(() => false)) await page.locator('[data-fb="send"]').click();
-    else {
-      await preview.waitFor({ timeout: 2000 }).catch(() => undefined);
-      if (await preview.isVisible()) await page.locator('[data-fb="send"]').click();
-    }
-    const idEl = page.locator('[data-fb="incident-id"]');
-    await idEl.waitFor();
-    const id = (await idEl.textContent())!.match(/fb-\d{8}-\d{6}-[a-z0-9]{4}/)![0];
-    return id;
+    await saveToBasket(page, await page.locator('[data-fb="expected"]').inputValue());
+    const [id] = await sendAll(page);
+    return id.match(/fb-\d{8}-\d{6}-[a-z0-9]{4}/)![0];
   }
 
   async function pickInReplay(page: Page, testId: string) {
@@ -286,6 +282,8 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback uçtan uca: panel → MCP �
     const login = await page.request.post(`${base}/api/login`, { data: { email: 'demo@example.com', password: 'demo1234' } });
     expect(login.ok()).toBe(true);
     await page.goto(`${base}/account`);
+    // Tam sayfa geçişi kaydı keser: hesap sayfasında yeniden başlatılır.
+    await startRecording(page);
     await expect.poll(() => page.getByTestId('order-count').textContent()).toBe('Sipariş sayısı: 5');
     await page.waitForTimeout(800);
     await openPanel(page);

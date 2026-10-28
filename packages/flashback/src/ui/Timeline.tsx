@@ -1,21 +1,21 @@
 /**
- * Zaman çizelgesi (FR-UI-04/05/06, FR-REC-12, FR-MARK-01/07/09): dondurulmuş tampon rrweb `Replayer` ile
- * oynatılır; seçim kipinde tekrar oynatmadaki öğe rrweb kimliğiyle canlı öğeye eşlenir.
+ * Zaman çizelgesi (FR-UI-04/05/06, FR-MARK-01/07/09): sepette seçili olayın klibi rrweb `Replayer` ile oynatılır;
+ * seçim kipinde tekrar oynatmadaki öğe rrweb kimliğiyle canlı öğeye eşlenir.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EventType, Replayer, type eventWithTime } from 'rrweb';
 import { isEditableTarget } from '../config.js';
+import type { BasketEntry } from '../basket.js';
 import type { ControllerState, FlashbackController } from '../controller.js';
 import { captureTarget, cloneReplayDom } from '../draft/collect.js';
 import { pathOf } from '../draft/confidence.js';
 import type { FrozenSnapshot } from '../recorder/recorder.js';
-import { PANEL_EVENT_TAG } from '../recorder/recorder.js';
 import { Compose, type Mark } from './Compose.js';
 import type { Strings } from './i18n.js';
 import { Icon } from './Icons.js';
 
 export interface Marker {
-  kind: 'network' | 'console' | 'step' | 'panel';
+  kind: 'network' | 'console' | 'step';
   time: number;
   label: string;
   seq?: number;
@@ -30,34 +30,42 @@ export function buildMarkers(s: FrozenSnapshot): Marker[] {
   }
   for (const c of s.console) if (ERROR_LEVELS.has(c.level)) out.push({ kind: 'console', time: c.time, seq: c.seq, label: `${c.level}: ${c.message.slice(0, 120)}` });
   for (const st of s.steps) out.push({ kind: 'step', time: st.time, label: `${st.type} ${st.type === 'navigate' ? st.url ?? '' : st.selector ?? ''}${st.key ? ` (${st.key})` : ''}` });
-  for (const e of s.events) {
-    if (e.type === EventType.Custom && (e.data as { tag?: string }).tag === PANEL_EVENT_TAG) {
-      const state = (e.data as { payload?: { state?: string } }).payload?.state;
-      out.push({ kind: 'panel', time: e.timestamp, label: `panel: ${state ?? ''}` });
-    }
-  }
   return out.sort((a, b) => a.time - b.time);
 }
 
+/** Sepette seçili olayın klibi; olay değişince zaman çizelgesi baştan kurulur. */
 export function TimelineTab({ controller, state, t }: { controller: FlashbackController; state: ControllerState; t: Strings }) {
-  const snapshot = controller.frozen;
-  if (!snapshot || snapshot.events.length < 2) {
+  const sel = controller.selected;
+  if (!sel || sel.entry.id !== state.selectedId) return null;
+  if (sel.snapshot.events.length < 2) {
     return (
       <div className="fb-scroll">
         <p>{t.noRecording}</p>
       </div>
     );
   }
-  return <TimelineInner controller={controller} state={state} snapshot={snapshot} t={t} />;
+  return <TimelineInner key={sel.entry.id} controller={controller} state={state} snapshot={sel.snapshot} entry={sel.entry} t={t} />;
 }
 
-type View = 'edit' | 'preview' | 'result';
+type View = 'edit' | 'preview';
 
-/** Zaman çizelgesindeki işaretçi satırı; panel açılış işaretçileri adım satırında durur. */
+/** Zaman çizelgesindeki işaretçi satırı. */
 type Lane = 'network' | 'console' | 'step';
-const laneOf = (m: Marker): Lane => (m.kind === 'panel' ? 'step' : m.kind);
+const laneOf = (m: Marker): Lane => m.kind;
 
-function TimelineInner({ controller, state, snapshot, t }: { controller: FlashbackController; state: ControllerState; snapshot: FrozenSnapshot; t: Strings }) {
+function TimelineInner({
+  controller,
+  state,
+  snapshot,
+  entry,
+  t,
+}: {
+  controller: FlashbackController;
+  state: ControllerState;
+  snapshot: FrozenSnapshot;
+  entry: BasketEntry;
+  t: Strings;
+}) {
   const events = snapshot.events;
   const t0 = events[0].timestamp;
   const total = Math.max(1, events[events.length - 1].timestamp - t0);
@@ -165,12 +173,6 @@ function TimelineInner({ controller, state, snapshot, t }: { controller: Flashba
     ['console', t.filterConsole],
     ['step', t.filterSteps],
   ];
-
-  const reset = () => {
-    setMark(null);
-    setPrimary(undefined);
-    setView('edit');
-  };
 
   return (
     <div ref={rootRef} style={{ display: 'flex', flex: 1, minWidth: 0 }}>
@@ -282,19 +284,19 @@ function TimelineInner({ controller, state, snapshot, t }: { controller: Flashba
         controller={controller}
         state={state}
         t={t}
+        entry={entry}
         mark={mark}
         resolving={resolving}
         primary={primary}
         view={view}
         setView={setView}
-        onReset={reset}
       />
     </div>
   );
 }
 
 function markerName(m: Marker, t: Strings): string {
-  return { network: t.markerNetwork, console: t.markerConsole, step: t.markerStep, panel: t.markerPanel }[m.kind];
+  return { network: t.markerNetwork, console: t.markerConsole, step: t.markerStep }[m.kind];
 }
 
 export interface Box {

@@ -72,7 +72,7 @@ export function snapshot(over: Partial<FrozenSnapshot> = {}): FrozenSnapshot {
     steps: [],
     store: [],
     windowStart: T0,
-    evicted: false,
+    lateStart: false,
     memoryWarning: false,
     frozenAt: T0 + 10_000,
     ...over,

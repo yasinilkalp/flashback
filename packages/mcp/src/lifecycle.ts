@@ -162,5 +162,6 @@ export function toSummary(inc: Incident): IncidentSummary {
     runs: inc.repros.map(({ t, status, errorKind, signature, durationMs }) => ({ t, status, errorKind, signature, durationMs })),
     messages: inc.messages,
     resolution: inc.resolution,
+    group: inc.group,
   };
 }

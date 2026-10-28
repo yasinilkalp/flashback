@@ -9,7 +9,7 @@ const SESSION_RE = /sid|session|token|auth/i;
 
 export interface ConfidenceInput {
   draft: IncidentDraftInput;
-  snapshot: Pick<FrozenSnapshot, 'steps' | 'evicted'>;
+  snapshot: Pick<FrozenSnapshot, 'steps' | 'lateStart'>;
   truncated: string[];
   excluded: string[];
   sessionHint: { cookieNames: string[]; storageKeys: string[] };
@@ -91,7 +91,7 @@ function preWindowItem(input: ConfidenceInput): ConfidenceItem {
   const reasons: string[] = [];
   const sessionNames = [...input.sessionHint.cookieNames, ...input.sessionHint.storageKeys].filter((n) => SESSION_RE.test(n));
   if (sessionNames.length) reasons.push(`oturum izi: ${sessionNames.slice(0, 3).join(', ')}`);
-  if (input.snapshot.evicted) reasons.push('kayıt penceresi sayfa yüklenişinden sonra başlıyor');
+  if (input.snapshot.lateStart) reasons.push('kayıt sayfa yüklenişinden sonra başlatıldı');
   const firstStep = input.snapshot.steps[0];
   if (firstStep && input.draft.context.startUrl && firstStep.pageUrl !== undefined && !sameUrl(firstStep.pageUrl, input.draft.context.startUrl)) {
     reasons.push('ilk adım pencere başlangıç URL\'sinde değil');

@@ -1,11 +1,11 @@
-/** Flashback düğmesi (FR-UI-01, FR-UI-10) ve panel iskeleti (FR-UI-02, FR-UI-11, FR-UI-13). */
+/** Flashback araç çubuğu (FR-UI-01, FR-UI-10, FR-REC-01) ve panel iskeleti (FR-UI-02, FR-UI-11, FR-UI-13). */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { isEditableTarget, matchesShortcut, parseShortcut } from '../config.js';
 import type { ControllerState, FlashbackController } from '../controller.js';
+import { BasketTab, clock } from './Basket.js';
 import { strings, type Strings } from './i18n.js';
 import { Icon } from './Icons.js';
 import { IncidentsTab } from './Incidents.js';
-import { TimelineTab } from './Timeline.js';
 import { Logo } from './Logo.js';
 
 type Theme = 'dark' | 'light';
@@ -49,11 +49,47 @@ function useTheme(): [Theme, () => void] {
   return [theme, toggle];
 }
 
+const COLLAPSED_KEY = 'flashback:collapsed';
+
+/** Araç çubuğu küçültüldü mü: seçim sayfanın kökeninde saklanır, kayıt küçültülmüşken de sürer. */
+function useCollapsed(): [boolean, (v: boolean) => void] {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const set = (v: boolean) => {
+    setCollapsed(v);
+    try {
+      if (v) localStorage.setItem(COLLAPSED_KEY, '1');
+      else localStorage.removeItem(COLLAPSED_KEY);
+    } catch {
+      /* depolama kapalı: seçim yalnızca bu oturumda geçerli */
+    }
+  };
+  return [collapsed, set];
+}
+
+/** `alt+shift+r` → `Alt+Shift+R` (ipucu metni için). */
+function shortcutLabel(s: string): string {
+  return s
+    .split('+')
+    .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : p))
+    .join('+');
+}
+
 export function Shell({ controller }: { controller: FlashbackController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
   const t = strings(controller.cfg.locale);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const [theme, toggleTheme] = useTheme();
+  const [tab, setTab] = useState<Tab>('basket');
+  const openOn = (next: Tab) => {
+    setTab(next);
+    controller.open();
+  };
 
   useEffect(() => {
     const shortcut = parseShortcut(controller.cfg.shortcut);
@@ -61,7 +97,7 @@ export function Shell({ controller }: { controller: FlashbackController }) {
       if (!matchesShortcut(e, shortcut) || isEditableTarget(e.composedPath()[0] ?? null)) return;
       e.preventDefault();
       e.stopPropagation();
-      controller.toggle();
+      controller.toggleRecording();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
@@ -75,62 +111,173 @@ export function Shell({ controller }: { controller: FlashbackController }) {
 
   return (
     <div className="fb-root" data-theme={theme}>
-      <Launcher buttonRef={launcherRef} controller={controller} state={state} t={t} />
-      {state.open && <Panel controller={controller} state={state} t={t} theme={theme} onToggleTheme={toggleTheme} />}
+      <Launcher buttonRef={launcherRef} controller={controller} state={state} t={t} onOpen={openOn} />
+      {state.open && <Panel controller={controller} state={state} t={t} tab={tab} onTab={setTab} theme={theme} onToggleTheme={toggleTheme} />}
     </div>
   );
 }
 
 const RECEIVER_TEXT = { connected: 'receiverConnected', disconnected: 'receiverDisconnected', wrong_project: 'receiverWrongProject' } as const;
 
-function Launcher({ controller, state, t, buttonRef }: { controller: FlashbackController; state: ControllerState; t: Strings; buttonRef: React.Ref<HTMLButtonElement> }) {
+/** Köşedeki dikey araç çubuğu: kayıt durumu, kaydet/durdur, sepet, kayıtlar, alıcı durumu ve küçültme. */
+function Launcher({
+  controller,
+  state,
+  t,
+  buttonRef,
+  onOpen,
+}: {
+  controller: FlashbackController;
+  state: ControllerState;
+  t: Strings;
+  buttonRef: React.RefObject<HTMLButtonElement | null>;
+  onOpen: (tab: Tab) => void;
+}) {
+  const [collapsed, setCollapsed] = useCollapsed();
+  // Küçült/aç düğmesi kendini kaldırır; odak yeni görünen ana düğmeye geçer.
+  const moveFocus = useRef(false);
+  useEffect(() => {
+    if (moveFocus.current) buttonRef.current?.focus();
+    moveFocus.current = false;
+  }, [collapsed, buttonRef]);
+  const flip = (v: boolean) => {
+    moveFocus.current = true;
+    setCollapsed(v);
+  };
+
   const receiver = t[RECEIVER_TEXT[state.receiver]];
-  const title = [state.open ? t.paused : t.recording, receiver, state.health ? `${t.project}: ${state.health.projectName}` : '']
-    .filter(Boolean)
-    .join(' · ');
+  const elapsed = clock(state.elapsedMs);
+  const project = state.health ? `${t.project}: ${state.health.projectName}` : '';
+  const status = state.recording ? `${t.recording} (${elapsed})` : t.notRecording;
+  const title = [status, receiver, project].filter(Boolean).join(' · ');
+  const shortcut = shortcutLabel(controller.cfg.shortcut);
+  const count = state.basket?.length ?? 0;
+  const dot = <span className={`fb-dot ${state.recording ? 'fb-rec' : 'fb-idle'}`} aria-hidden="true" />;
+  const unreadBadge = state.unread > 0 && (
+    <span className="fb-badge" aria-hidden="true">
+      {state.unread}
+    </span>
+  );
+  const unread = state.unread > 0 ? ` — ${state.unread} ${t.unread}` : '';
+  const notice = state.notice && <Toast t={t} notice={state.notice} />;
+
+  if (collapsed) {
+    return (
+      <div className={`fb-bar fb-pos-${controller.cfg.position}`} role="group" aria-label={t.launcher} data-fb="launcher-bar" data-collapsed="">
+        <button
+          ref={buttonRef}
+          type="button"
+          className="fb-bar-btn fb-bar-expand"
+          aria-label={`${t.expand} — ${title}${unread}`}
+          title={title}
+          data-fb="expand"
+          data-receiver={state.receiver}
+          onClick={() => flip(false)}
+        >
+          <span className="fb-bar-mark">
+            <Logo className="fb-logo" />
+            {dot}
+          </span>
+          <span className="fb-bar-recv" data-receiver={state.receiver}>
+            <Icon name="plug" />
+          </span>
+          {unreadBadge}
+        </button>
+        {notice}
+      </div>
+    );
+  }
+
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className={`fb-launcher fb-pos-${controller.cfg.position}`}
-      aria-label={`${t.launcherAria} — ${title}`}
-      aria-expanded={state.open}
-      title={title}
-      data-fb="launcher"
-      data-receiver={state.receiver}
-      onClick={() => controller.toggle()}
-    >
-      <span className={`fb-dot ${state.open ? 'fb-frozen' : 'fb-rec'}`} aria-hidden="true" />
-      <span>{t.launcher}</span>
-      <span className="fb-muted" data-fb="buffer-seconds">
-        {Math.floor(state.bufferMs / 1000)} {t.seconds}
+    <div className={`fb-bar fb-pos-${controller.cfg.position}`} role="group" aria-label={t.launcher} data-fb="launcher-bar" data-recording={state.recording || undefined}>
+      <span className="fb-bar-mark" title={title} aria-hidden="true">
+        <Logo className="fb-logo" />
+        {dot}
       </span>
-      <span className={`fb-recv fb-recv-${state.receiver}`} aria-hidden="true" />
-      {state.unread > 0 && (
-        <span className="fb-badge" aria-label={`${state.unread} ${t.unread}`}>
-          {state.unread}
-        </span>
-      )}
-    </button>
+      <span className="fb-bar-time" title={title} aria-hidden="true" data-fb="elapsed">
+        {state.recording ? elapsed : t.idle}
+      </span>
+      <span className="fb-bar-sep" />
+      <button
+        type="button"
+        className="fb-bar-btn fb-bar-rec"
+        aria-label={`${state.recording ? t.stopRecord : t.record} (${shortcut}) — ${title}`}
+        aria-pressed={state.recording}
+        title={`${state.recording ? t.stopRecord : t.record} · ${shortcut}`}
+        data-fb="record"
+        data-receiver={state.receiver}
+        onClick={() => controller.toggleRecording()}
+      >
+        <Icon name={state.recording ? 'stop' : 'record'} />
+      </button>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="fb-bar-btn fb-bar-main"
+        aria-label={`${t.launcherAria} — ${count} ${t.basketItem}`}
+        aria-expanded={state.open}
+        title={t.openBasket}
+        data-fb="launcher"
+        data-receiver={state.receiver}
+        onClick={() => (state.open ? controller.close() : onOpen('basket'))}
+      >
+        <Icon name="basket" />
+        {count > 0 && (
+          <span className="fb-badge" aria-hidden="true" data-fb="basket-count">
+            {count}
+          </span>
+        )}
+      </button>
+      <button type="button" className="fb-bar-btn" aria-label={`${t.tabIncidents}${unread}`} title={t.tabIncidents} data-fb="open-incidents" onClick={() => onOpen('incidents')}>
+        <Icon name="inbox" />
+        {unreadBadge}
+      </button>
+      <span className="fb-bar-sep" />
+      <span className="fb-bar-recv" data-receiver={state.receiver} title={[receiver, project].filter(Boolean).join(' · ')} aria-hidden="true">
+        <Icon name="plug" />
+      </span>
+      <button type="button" className="fb-bar-btn" aria-label={t.collapse} title={t.collapse} data-fb="collapse" onClick={() => flip(true)}>
+        <Icon name="minimize" />
+      </button>
+      {notice}
+    </div>
   );
 }
 
-type Tab = 'timeline' | 'incidents';
+/** Kayıt durdurulunca araç çubuğunun yanında beliren kısa bildirim (FR-BSK-01). */
+function Toast({ t, notice }: { t: Strings; notice: NonNullable<ControllerState['notice']> }) {
+  const text =
+    notice.kind === 'added'
+      ? `${t.basketItem} ${notice.n} ${t.addedToBasket}${notice.truncated ? ` — ${t.clipTruncated}` : ''}`
+      : notice.kind === 'tooShort'
+        ? t.tooShort
+        : notice.message;
+  return (
+    <div className={`fb-toast${notice.kind === 'added' ? '' : ' fb-toast-warn'}`} role="status" data-fb="toast">
+      {text}
+    </div>
+  );
+}
+
+type Tab = 'basket' | 'incidents';
 
 function Panel({
   controller,
   state,
   t,
+  tab,
+  onTab: setTab,
   theme,
   onToggleTheme,
 }: {
   controller: FlashbackController;
   state: ControllerState;
   t: Strings;
+  tab: Tab;
+  onTab: (tab: Tab) => void;
   theme: Theme;
   onToggleTheme: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>('timeline');
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => ref.current?.focus({ preventScroll: true }), []);
   const redactOff = controller.cfg.redact.enabled === false;
@@ -156,7 +303,7 @@ function Panel({
           {t.panelTitle}
         </span>
         <div role="tablist" aria-label={t.panelTitle} className="fb-row">
-          {(['timeline', 'incidents'] as const).map((id) => (
+          {(['basket', 'incidents'] as const).map((id) => (
             <button
               key={id}
               type="button"
@@ -167,7 +314,8 @@ function Panel({
               data-fb={`tab-${id}`}
               onClick={() => setTab(id)}
             >
-              {id === 'timeline' ? t.tabTimeline : t.tabIncidents}
+              {id === 'basket' ? t.tabBasket : t.tabIncidents}
+              {id === 'basket' && !!state.basket?.length && <span className="fb-badge">{state.basket.length}</span>}
               {id === 'incidents' && state.unread > 0 && <span className="fb-badge">{state.unread}</span>}
             </button>
           ))}
@@ -195,7 +343,6 @@ function Panel({
         </div>
       )}
       {controller.cfg.productionWarning && <div className="fb-strip fb-strip-err" role="alert">{t.productionOn}</div>}
-      {state.memoryWarning && <div className="fb-strip fb-strip-warn">{t.memoryWarn}</div>}
       {state.receiver === 'disconnected' && <div className="fb-strip fb-strip-warn">{t.receiverDownHint}</div>}
       {state.receiver === 'wrong_project' && (
         <div className="fb-strip fb-strip-warn" role="alert" data-fb="wrong-project">
@@ -204,8 +351,8 @@ function Panel({
         </div>
       )}
       {state.queueDelivered > 0 && <div className="fb-strip fb-strip-warn">{t.queueDelivered}: {state.queueDelivered}</div>}
-      <div className="fb-body" id="fb-tab-timeline" role="tabpanel" hidden={tab !== 'timeline'} style={tab !== 'timeline' ? { display: 'none' } : undefined}>
-        <TimelineTab controller={controller} state={state} t={t} />
+      <div className="fb-body" id="fb-tab-basket" role="tabpanel" hidden={tab !== 'basket'} style={tab !== 'basket' ? { display: 'none' } : undefined}>
+        <BasketTab controller={controller} state={state} t={t} />
       </div>
       {tab === 'incidents' && (
         <div className="fb-body" id="fb-tab-incidents" role="tabpanel">

@@ -208,6 +208,8 @@ function formatByType(byType: Record<string, number>): string {
 export interface ReportOptions {
   budgetTokens?: number;
   storageStateConfigured?: boolean;
+  /** Aynı gruptaki öbür olayların kimlikleri (FR-BSK-05). Rapor saf kalsın diye çağıran verir. */
+  siblings?: string[];
 }
 
 /** Bütçe aşılırsa sırayla uygulanan kırpma adımları (FR-PKG-03). Sıra sabittir. */
@@ -243,15 +245,16 @@ const CUT_STEPS: Array<{ label: (inc: Incident) => string; apply: (c: Cuts) => C
 export function buildReport(inc: Incident, opts: ReportOptions = {}): string {
   const budget = opts.budgetTokens ?? LIMITS.reportTokens;
   const storage = opts.storageStateConfigured ?? false;
+  const siblings = opts.siblings ?? [];
   let cuts = FULL;
   const cutLabels: string[] = [];
-  let out = render(inc, cuts, cutLabels, storage);
+  let out = render(inc, cuts, cutLabels, storage, siblings);
   for (const step of CUT_STEPS) {
     if (estimateTokens(out) <= budget) return out;
     if (!step.when(inc)) continue;
     cuts = step.apply(cuts);
     cutLabels.push(step.label(inc));
-    out = render(inc, cuts, cutLabels, storage);
+    out = render(inc, cuts, cutLabels, storage, siblings);
   }
   if (estimateTokens(out) <= budget) return out;
   // Son çare: sondan kes (belirlenimci).
@@ -259,7 +262,7 @@ export function buildReport(inc: Incident, opts: ReportOptions = {}): string {
   return out.slice(0, budget * 4 - note.length) + note;
 }
 
-function render(inc: Incident, cuts: Cuts, cutLabels: string[], storage: boolean): string {
+function render(inc: Incident, cuts: Cuts, cutLabels: string[], storage: boolean, siblings: string[]): string {
   const L: string[] = [];
   const t = inc.target;
 
@@ -269,6 +272,10 @@ function render(inc: Incident, cuts: Cuts, cutLabels: string[], storage: boolean
   );
   if (!inc.redaction.enabled) L.push('**⚠ Gizleme: KAPALI** — bu olaydaki veriler gizlenmeden gönderildi.');
   L.push('', `# Flashback olayı ${inc.id}`, '');
+  if (inc.group) {
+    const others = siblings.length ? ` · diğerleri: ${siblings.join(', ')}` : '';
+    L.push(`Grup ${inc.group.id} · sıra ${inc.group.index}/${inc.group.size}${others}. Bu olaylar aynı oturumda sırayla kaydedildi; birlikte oku.`, '');
+  }
 
   // 2) Dosya:satır
   L.push('## Konum');

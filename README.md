@@ -4,7 +4,7 @@
 
 🌐 [yasinilkalp.github.io/flashback](https://yasinilkalp.github.io/flashback/)
 
-Flashback, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında uygulamanın en az son 60 saniyesini arka planda kaydeder. Bir şey bozulduğunda geri sararsınız, sorunun başladığı anı bulursunuz, ekrandaki öğeye tıklarsınız (ya da öğesi olmayan bir hata için sayfa düzeyinde olay açarsınız) ve "ne olmalıydı?" sorusunu yanıtlarsınız. Ajana gidecek içeriği gizlenmiş hâliyle önizleyip gönderirsiniz.
+Flashback, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında sağ alttaki araç çubuğundan kaydı başlatıp durdurursunuz. Her durdurma o anı **sepete** bir olay olarak ekler; sayfada devam edip başka olaylar da kaydedebilirsiniz. Sepette her olayı geri sarıp sorunun başladığı anı bulursunuz, ekrandaki öğeye tıklarsınız (ya da öğesi olmayan bir hata için sayfa düzeyinde olay açarsınız) ve "ne olmalıydı?" sorusunu yanıtlarsınız. Sonra olayları MCP üzerinden ajana birlikte gönderirsiniz ya da tek bir prompt olarak kopyalarsınız. Ajana gidecek içerik gizlenmiş hâliyle önizlenir.
 
 Ajanınız (Claude Code, Cursor, Codex…) MCP üzerinden şu bilgileri içeren bir **olay paketi** alır:
 
@@ -37,11 +37,11 @@ npm run dev                # demo: http://localhost:5173
    claude mcp add flashback --scope project -- node packages/mcp/dist/cli.js
    ```
    Ya da `mcp.example.json` dosyasını `.mcp.json` olarak kopyalayın.
-2. Demoda üç ürünü sepete ekleyin ve **YAZ10** kuponunu girin. Toplam `135030 ₺` gösterir, çünkü kargo ücreti API'den metin olarak geliyor. **KIS20** kuponunda sunucu 500 döner ve kullanıcıya hiçbir şey gösterilmez. Ayrıntılar: [`examples/demo/BUGS.md`](examples/demo/BUGS.md).
-3. Sağ alttaki **Flashback** düğmesine basın ya da `Alt+Shift+R` kısayolunu kullanın. Kaydın altındaki araç takımıyla geri sarın (ya da **Boşluk** ile oynatın), **S** tuşuna basın, "Toplam" değerine tıklayın, "Ne olmalıydı?" alanını doldurun, önizlemeye bakıp gönderin. KIS20 için araç takımındaki **Sayfa düzeyi olay** düğmesini kullanın. Kapat düğmesinin yanındaki düğme paneli açık ya da koyu temaya geçirir.
-4. Ajanınıza şunu yazın: *"Flashback olaylarına bak ve düzelt."*
+2. Sağ alttaki araç çubuğunda **●** düğmesine basın (ya da `Alt+Shift+R`): kayıt başlar. Demoda üç ürünü sepete ekleyin ve **YAZ10** kuponunu girin. Toplam `135030 ₺` gösterir, çünkü kargo ücreti API'den metin olarak geliyor. **■** ile durdurun: kayıt sepete "Olay 1" olarak eklenir. Aynı yolla **KIS20** kuponunu deneyip "Olay 2"yi kaydedin; bu kuponda sunucu 500 döner ve kullanıcıya hiçbir şey gösterilmez. Ayrıntılar: [`examples/demo/BUGS.md`](examples/demo/BUGS.md).
+3. **Sepet** düğmesine basın. Her olayı seçin; kaydın altındaki araç takımıyla geri sarın (ya da **Boşluk** ile oynatın), **S** tuşuna basıp "Toplam" değerine tıklayın (KIS20 için **Sayfa düzeyi olay**), "Ne olmalıydı?" alanını doldurup **Sepete kaydet**'e basın. Sonra **Hepsini gönder (MCP)** ile olayları birlikte gönderin ya da **Prompt olarak kopyala** ile herhangi bir sohbete yapıştırın. Kapat düğmesinin yanındaki düğme paneli açık ya da koyu temaya geçirir.
+4. Panelin gösterdiği istemi ajanınıza yapıştırın; ör. *"Flashback MCP'deki grp-… grubundaki 2 olayı (…) get_incident ile oku, birlikte değerlendir ve düzelt."*
 
-> Alıcıya ulaşılamazsa olay gizlenmiş Markdown olarak panoya kopyalanır; pano kullanılamıyorsa `.md` dosyası olarak iner.
+> Sepet tarayıcıda (IndexedDB) durur; sayfa yenilense de kaybolmaz. Alıcıya ulaşılamazsa olaylar sepette kalır ve gizlenmiş Markdown prompt olarak panoya kopyalanır; pano kullanılamıyorsa `.md` dosyası olarak iner.
 
 ---
 
@@ -81,12 +81,12 @@ trackStore('redux', store.subscribe, store.getState);              // Redux
 |---|---|---|
 | `enabled` | `NODE_ENV !== 'production'` | Kaydı açar/kapatır |
 | `endpoint` | `http://127.0.0.1:4747` | `flashback-mcp` alıcısının adresi |
-| `bufferSeconds` | `60` | En az bu kadar geçmiş tutulur |
+| `maxRecordSeconds` | `300` | Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve olay sepete eklenir |
 | `ignoreUrls` | `[]` | Kaydedilmeyecek istekler (metin öneki veya RegExp) |
 | `maskAllInputs` | `false` | Tüm girişleri maskeler. Parolalar her durumda maskelenir |
 | `redact` | `true` | `{ keys, patterns, emails: true, phones: false }`. `false` her şeyi olduğu gibi gönderir ve panelde kalıcı uyarı gösterir |
-| `shortcut` | `alt+shift+r` | Paneli açıp kapatan kısayol (`event.code` ile; metin girişindeyken tetiklenmez) |
-| `position` | `bottom-right` | Düğmenin köşesi |
+| `shortcut` | `alt+shift+r` | Kaydı başlatıp durduran kısayol (`event.code` ile; metin girişindeyken tetiklenmez) |
+| `position` | `bottom-right` | Araç çubuğunun köşesi |
 | `locale` | tarayıcı dili (`tr`/`en`) | Arayüz dili |
 | `project` | — | Projenin `package.json` adı. Verilirse alıcının projesiyle karşılaştırılır: uyuşmazsa düğme "yanlış proje" gösterir ve alıcı olayı 409 ile reddeder (aynı makinede birden çok proje çalışırken önerilir). |
 
@@ -166,7 +166,7 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
  Tarayıcı (dev)                                   Ajan
 ┌──────────────────────────────┐           ┌───────────────────┐
 │ <Flashback/>                    │           │ Claude Code /     │
-│  ├ rrweb DOM kaydı (3 dilim) │           │ Cursor / Codex    │
+│  ├ rrweb DOM kaydı (klip)    │           │ Cursor / Codex    │
 │  ├ fetch/XHR yakalama        │  POST     └─────────▲─────────┘
 │  ├ console + hata yakalama   │ /incidents          │ stdio (MCP)
 │  ├ adım kaydı                │──────────► ┌────────┴──────────┐
@@ -177,7 +177,7 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
                                             └────────────────────┘
 ```
 
-- **Halka tampon:** rrweb her `bufferSeconds/2` saniyede bir tam anlık görüntü alır ve son üç dilimi tutar; böylece her an en az `bufferSeconds` geçmiş vardır.
+- **Manuel kayıt ve sepet:** Kayıt elle başlar. Durdurulunca klip (rrweb olayları, ağ, konsol, adımlar, store) sayfanın kökenindeki IndexedDB'ye yazılır. Klip 50 MB'a ya da `maxRecordSeconds`'a ulaşınca kendiliğinden durur. Sepetteki olaylar birlikte gönderilince ortak bir `group` (`grp-…`) taşır; ajan `get_incident` raporunda aynı gruptaki öbür olayları görür.
 - **Replay ile canlı öğe eşlemesi:** Tekrar oynatmada seçtiğiniz öğe, rrweb düğüm kimliği üzerinden canlı sayfadaki aynı öğeye bağlanır ve React fiber'ı buradan okunur. Öğe artık yoksa en yakın canlı ata kullanılır ve bu kanıt güveninde belirtilir.
 - **Kaynak satırları:** React 19'da `_debugStack`, React 18'de `_debugSource`; source map'ler tarayıcıda çözülür. webpack'in `eval` modüllerinin haritası yüklenen chunk'lardan, Next.js sunucu bileşenlerininki dev sunucusundan okunur. Çözülemezse ya da konum HMR yüzünden bayat olabilirse yanlış satır verilmez, `resolved: false` işaretlenir. Yalnızca sayfanın kendi kökeni ve loopback kaynakları çözülür. Mutlak dosya yollarını alıcı proje köküne göre kısaltır.
 - **Alıcı güvenliği:** `Host` başlığı doğrulanır (DNS rebinding), `Origin` izin listesine bakılır, POST'ta `application/json` zorunludur, gövde boyutu ve olay sayısı sınırlıdır.
@@ -188,6 +188,9 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 - Bileşen bilgisi yalnızca React için çıkarılır; React dışı öğelerde (Vue smoke testi) bileşen yığını boş kalır ve paket bunu belirtir. Kaynak satırı çözümlemesi Vite (React 18.3 ve 19) ile Next.js App Router'da (Turbopack ve webpack) doğrulandı ([EK-B3](spikes/ek-b3/README.md)). Sunucu bileşenlerinin (RSC) satırı en iyi çaba ile çözülür.
 - React 19'da, HMR ile değiştirilen bir bileşenin değişiklikten önce oluşmuş öğelerinin satırı doğrulanamaz. Flashback bu satırı `resolved: false` olarak işaretler ve dosya adını yine verir. Doğru satır için sayfayı yenileyip hatayı tekrarlayın.
 - Canvas, video ve çapraz kökenli iframe içerikleri tekrar oynatılmaz. WebSocket mesaj içerikleri kaydedilmez.
+- Kayıt sürerken sayfa tamamen yenilenirse ya da tam sayfa geçişi olursa (SPA olmayan gezinti) o anki kayıt kaybolur; durdurulmuş olaylar sepette korunur.
+- Sepetteki ham klipler IndexedDB'de gizlenmeden durur (giriş değerleri kayıt anında maskelenir). Gizleme, olay sepete kaydedilirken uygulanır; gönderilen olay sepetten silinir. Sepeti paneldeki çöp kutusuyla temizleyebilirsiniz.
+- Eski bir `flashback-mcp` yeni widget'tan gelen olayı kabul eder ama `group` alanını atar: olaylar ulaşır, yalnızca gruplanmaz. İki paketi aynı sürümde tutun.
 - WSL2, Docker ve uzaktan geliştirme ortamları v1.0'da desteklenmez.
 - Yalnızca geliştirme ortamı içindir.
 

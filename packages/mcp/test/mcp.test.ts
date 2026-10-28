@@ -83,6 +83,30 @@ describe('MCP sunucusu', () => {
     const rep = await call('get_incident', { id: a.id });
     expect(rep.text.startsWith('Köken: ')).toBe(true);
     expect(rep.text).toContain('## Geliştiricinin niyeti');
+    expect(rep.text).not.toContain('Grup ');
+    expect(rep.raw.structuredContent).toMatchObject({ group: null, siblings: [] });
+  });
+
+  it('gruplu olaylar: list_incidents grubu, get_incident kardeşleri gösterir (FR-BSK-05)', async () => {
+    const { ctx, store } = okContext();
+    const id = 'grp-20261028-101500-ab12';
+    const second = store.create(draft(undefined, { group: { id, index: 2, size: 2 } }), 'p');
+    const first = store.create(pageLevelDraft(), 'p');
+    store.update(first.id, (i) => {
+      i.group = { id, index: 1, size: 2 };
+    });
+    const lone = store.create(draft(), 'p');
+    const { call, close } = await connect(ctx);
+    cleanup.push(close);
+
+    const list = await call('list_incidents', {});
+    const rows = (list.raw.structuredContent as { incidents: Array<{ id: string; group?: unknown }> }).incidents;
+    expect(rows.find((r) => r.id === second.id)!.group).toEqual({ id, index: 2, size: 2 });
+    expect(rows.find((r) => r.id === lone.id)!.group).toBeUndefined();
+
+    const rep = await call('get_incident', { id: second.id });
+    expect(rep.text).toContain(`Grup ${id} · sıra 2/2 · diğerleri: ${first.id}.`);
+    expect(rep.raw.structuredContent).toMatchObject({ group: { id, index: 2, size: 2 }, siblings: [first.id] });
   });
 
   it('hata kodları §9.6 biçiminde döner (FR-MCP-11)', async () => {

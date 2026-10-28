@@ -257,10 +257,58 @@ export function summarize(results: SourceResult[]): Summary {
   return { total, correct: n('correct'), unresolved: n('unresolved'), ancestor: n('ancestor'), wrong: n('wrong'), missing: n('missing'), correctPct: total ? Math.round((n('correct') / total) * 1000) / 10 : 0 };
 }
 
+/**
+ * Sekmenin ilk yüklemesinde sepeti (IndexedDB) boşaltan başlangıç betiği. Aynı tarayıcı bağlamını paylaşan testler
+ * birbirinin olaylarını görmez; sayfa yenilenince sepet korunur (sessionStorage işareti).
+ */
+export function freshBasket(): void {
+  try {
+    if (sessionStorage.getItem('fb-test-basket')) return;
+    sessionStorage.setItem('fb-test-basket', '1');
+    indexedDB.deleteDatabase('flashback-devtools');
+  } catch {
+    /* depolama yok */
+  }
+}
+
+/** Kaydı başlatır (FR-REC-01: kayıt elle başlar). */
+export async function startRecording(page: Page): Promise<void> {
+  await page.locator('[data-fb="record"]').click();
+  await page.locator('[data-fb="record"][aria-pressed="true"]').waitFor();
+}
+
+/** Sepeti açar: kayıt sürüyorsa durur ve klip sepete eklenip seçilir. */
 export async function openPanel(page: Page): Promise<void> {
   await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 15_000 });
   await page.locator('[data-fb="launcher"]').click();
   await page.locator('[data-fb="panel"]').waitFor();
+}
+
+/** Paneli kapatır, yeni bir klip kaydeder ve sepeti yeniden açar (gönderilen olay sepetten düşer). */
+export async function recordAgain(page: Page, waitMs = 800): Promise<void> {
+  await page.locator('[data-fb="close"]').click();
+  await page.locator('[data-fb="panel"]').waitFor({ state: 'detached' });
+  await startRecording(page);
+  await page.waitForTimeout(waitMs);
+  await openPanel(page);
+}
+
+/** Seçili olayın notunu yazıp sepete kaydeder; oturumdaki ilk kayıtta önizleme zorunludur (FR-UI-08). */
+export async function saveToBasket(page: Page, expected: string): Promise<void> {
+  await page.locator('[data-fb="expected"]').fill(expected);
+  await page.locator('[data-fb="save"]').click();
+  const preview = page.locator('[data-fb="preview-view"]');
+  const saved = page.locator('[data-fb="saved"]');
+  await preview.or(saved).first().waitFor({ timeout: 15_000 });
+  if (await preview.isVisible()) await page.locator('[data-fb="preview-save"]').click();
+  await saved.waitFor({ timeout: 15_000 });
+}
+
+/** Sepetteki hazır olayları gönderir ve alıcının verdiği kimlikleri döndürür (FR-BSK-03). */
+export async function sendAll(page: Page): Promise<string[]> {
+  await page.locator('[data-fb="send-all"]').click();
+  await page.locator('[data-fb="batch-result"]').waitFor({ timeout: 15_000 });
+  return page.locator('[data-fb="incident-id"]').allTextContents();
 }
 
 /**
@@ -351,28 +399,24 @@ export function formatResults(label: string, results: SourceResult[]): string {
   return [`[EK-B3] ${label}: ${JSON.stringify(summarize(results))}`, ...rows].join('\n');
 }
 
-/** Seçili öğe için "Ne olmalıydı?" doldurulur, önizleme geçilir ve gönderilir; alıcıya ulaşan taslak döner. */
+/** Seçili öğe için "Ne olmalıydı?" doldurulur, olay sepete kaydedilip gönderilir; alıcıya ulaşan taslak döner. */
 export async function sendSelected(page: Page, receiver: Receiver, expected = 'Doğru değer gösterilmeli.'): Promise<IncidentDraft> {
   const before = receiver.drafts.length;
-  await page.locator('[data-fb="expected"]').fill(expected);
-  await page.locator('[data-fb="save"]').click();
-  // Önizleme oturumdaki ilk gönderimde zorunludur; sonrakiler doğrudan gönderilir.
-  const preview = page.locator('[data-fb="preview-view"]');
-  const sent = page.locator('[data-fb="incident-id"]');
-  await preview.or(sent).first().waitFor({ timeout: 15_000 });
-  if (await preview.isVisible()) await page.locator('[data-fb="send"]').click();
-  await sent.waitFor({ timeout: 15_000 });
+  await saveToBasket(page, expected);
+  await sendAll(page);
   if (receiver.rejected.length) throw new Error(`alıcı reddetti: ${receiver.rejected.join('\n')}`);
   if (receiver.drafts.length !== before + 1) throw new Error('taslak alıcıya ulaşmadı');
   return receiver.drafts[receiver.drafts.length - 1];
 }
 
-/** Uygulamayı açar, Flashback düğmesini ve kaydın birikmesini bekler. */
+/** Uygulamayı açar, Flashback düğmesini bekler, kaydı başlatır ve kaydın birikmesini bekler. */
 export async function openApp(page: Page, url: string, waitMs = 1500): Promise<string[]> {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(freshBasket);
   await page.goto(url);
   await page.locator('[data-fb="launcher"]').waitFor({ timeout: 60_000 });
+  await startRecording(page);
   await page.waitForTimeout(waitMs);
   return errors;
 }

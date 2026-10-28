@@ -1,9 +1,11 @@
 /**
- * Seçim bilgisi, not formu (FR-UI-07), gönderim önizlemesi (FR-UI-08/09/11) ve sonuç (FR-RCV-07/08/11).
+ * Seçim bilgisi, not formu (FR-UI-07) ve önizleme (FR-UI-08/09/11). "Sepete kaydet" yükü kurup sepetteki olaya
+ * yazar; olay gönderime hazır olur (FR-BSK-06). Gönderim sepet şeridinden yapılır (Basket.tsx).
  */
 import { useState } from 'react';
 import { hasMarker } from '@flashback/shared';
-import type { ControllerState, FlashbackController, SendResult } from '../controller.js';
+import type { BasketEntry } from '../basket.js';
+import type { ControllerState, FlashbackController } from '../controller.js';
 import type { Exclusions, TargetCapture } from '../draft/build.js';
 import { formatBytes, type Submission } from '../draft/report.js';
 import type { Strings } from './i18n.js';
@@ -16,28 +18,33 @@ export interface Mark {
   box: Box | null;
 }
 
-type View = 'edit' | 'preview' | 'result';
+type View = 'edit' | 'preview';
 
 interface ComposeProps {
   controller: FlashbackController;
   state: ControllerState;
   t: Strings;
+  /** Sepette seçili olay; daha önce kaydedildiyse notu alanlara gelir. */
+  entry: BasketEntry;
   mark: Mark | null;
   resolving: boolean;
   primary?: { kind: 'network' | 'console'; seq: number };
   view: View;
   setView: (v: View) => void;
-  onReset: () => void;
 }
 
-export function Compose({ controller, state, t, mark, resolving, primary, view, setView, onReset }: ComposeProps) {
-  const [what, setWhat] = useState('');
-  const [expected, setExpected] = useState('');
+const noteKey = (what: string, expected: string) => `${what.trim() ? what : ''}\n${expected}`;
+
+export function Compose({ controller, t, entry, mark, resolving, primary, view, setView }: ComposeProps) {
+  const [what, setWhat] = useState(entry.note?.what ?? '');
+  const [expected, setExpected] = useState(entry.note?.expected ?? '');
   const [exclude, setExclude] = useState<Exclusions>({});
   const [prepared, setPrepared] = useState<Submission | null>(null);
   const [mandatory, setMandatory] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<SendResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  /** Sepete en son kaydedilen not; alanlar sonradan değişirse olay yeniden kaydedilmelidir. */
+  const [savedNote, setSavedNote] = useState(entry.ready && entry.note ? noteKey(entry.note.what ?? '', entry.note.expected) : null);
 
   const canSave = !!mark && !resolving && expected.trim().length > 0;
 
@@ -73,36 +80,32 @@ export function Compose({ controller, state, t, mark, resolving, primary, view, 
     }
   };
 
-  const send = async (submission: Submission) => {
+  const saveDraft = async (submission: Submission) => {
     setBusy(true);
+    setError(null);
     try {
-      const r = await controller.send(submission);
-      setResult(r);
-      if (r.kind !== 'rejected') setView('result');
+      await controller.saveDraft(submission, { ...(what.trim() ? { what } : {}), expected });
+      setSavedNote(noteKey(what, expected));
+      setView('edit');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   };
 
-  const saveAndSend = async () => {
+  const save = async () => {
     if (controller.previewRequired()) return openPreview(true);
     setBusy(true);
     try {
       const p = await prepare(exclude);
-      if (p) await send(p);
+      if (p) await saveDraft(p);
     } finally {
       setBusy(false);
     }
   };
 
-  const newIncident = () => {
-    setWhat('');
-    setExpected('');
-    setExclude({});
-    setPrepared(null);
-    setResult(null);
-    onReset();
-  };
+  const saved = savedNote !== null && savedNote === noteKey(what, expected);
 
   if (view === 'preview' && prepared) {
     return (
@@ -113,23 +116,29 @@ export function Compose({ controller, state, t, mark, resolving, primary, view, 
         exclude={exclude}
         setExclude={changeExclude}
         busy={busy}
-        rejected={result?.kind === 'rejected' ? result : null}
+        error={error}
         onBack={() => setView('edit')}
-        onSend={() => void send(prepared)}
+        onSave={() => void saveDraft(prepared)}
       />
     );
-  }
-  if (view === 'result' && result) {
-    return <ResultView t={t} result={result} queued={state.queued} onNew={newIncident} />;
   }
 
   return (
     <div className="fb-side">
+      <h2>
+        {t.basketItem} {entry.n}
+      </h2>
+      {saved && (
+        <p className="fb-notice fb-notice-ok" role="status" data-fb="saved">
+          ✓ {t.savedToBasket}
+        </p>
+      )}
+      {entry.truncated && <p className="fb-notice fb-notice-info">{t.clipTruncated}</p>}
       <SelectionInfo t={t} mark={mark} resolving={resolving} />
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (canSave) void saveAndSend();
+          if (canSave) void save();
         }}
       >
         <label htmlFor="fb-what">{t.whatHappened}</label>
@@ -149,9 +158,14 @@ export function Compose({ controller, state, t, mark, resolving, primary, view, 
             {t.preview}
           </button>
           <button type="submit" className="fb-primary" disabled={!canSave || busy} data-fb="save">
-            {t.saveAndSend}
+            {t.saveToBasket}
           </button>
         </div>
+        {error && (
+          <p className="fb-notice fb-notice-err" role="alert">
+            {error}
+          </p>
+        )}
       </form>
     </div>
   );
@@ -204,9 +218,9 @@ function PreviewView(props: {
   exclude: Exclusions;
   setExclude: (e: Exclusions) => void;
   busy: boolean;
-  rejected: { status: number; error: string } | null;
+  error: string | null;
   onBack: () => void;
-  onSend: () => void;
+  onSave: () => void;
 }) {
   const { t, prepared, exclude, setExclude } = props;
   const { preview } = prepared;
@@ -278,48 +292,20 @@ function PreviewView(props: {
         </summary>
         <pre>{prepared.previewSource.length > 200_000 ? `${prepared.previewSource.slice(0, 200_000)}…` : prepared.previewSource}</pre>
       </details>
-      {props.rejected && (
-        <p className="fb-notice fb-notice-err" role="alert" data-fb="rejected">
-          {t.sendFailed}: HTTP {props.rejected.status} — {props.rejected.error}
+      {props.error && (
+        <p className="fb-notice fb-notice-err" role="alert">
+          {props.error}
         </p>
       )}
       <div className="fb-actions">
         <button type="button" onClick={props.onBack}>
           {t.backToTimeline}
         </button>
-        <button type="button" className="fb-primary" disabled={props.busy} onClick={props.onSend} data-fb="send">
-          {props.busy ? t.sending : t.send}
+        <button type="button" className="fb-primary" disabled={props.busy} onClick={props.onSave} data-fb="preview-save">
+          {t.saveToBasket}
         </button>
       </div>
     </div>
   );
 }
 
-function ResultView({ t, result, queued, onNew }: { t: Strings; result: SendResult; queued: number; onNew: () => void }) {
-  return (
-    <div className="fb-scroll" data-fb="result" data-result={result.kind}>
-      {result.kind === 'sent' && (
-        <div className="fb-notice fb-notice-ok" role="status">
-          <strong>{t.sent}</strong> · <code data-fb="incident-id">{result.id}</code>
-          <p>{t.sentHint}</p>
-        </div>
-      )}
-      {result.kind === 'clipboard' && (
-        <p className="fb-notice fb-notice-info" role="status">
-          {t.copied}
-        </p>
-      )}
-      {result.kind === 'download' && (
-        <p className="fb-notice fb-notice-info" role="status">
-          {t.downloaded} <code>{result.file}</code>
-        </p>
-      )}
-      {result.kind !== 'sent' && queued > 0 && <p className="fb-muted">{t.queued}</p>}
-      <div className="fb-actions">
-        <button type="button" onClick={onNew} data-fb="new-incident">
-          {t.newIncident}
-        </button>
-      </div>
-    </div>
-  );
-}

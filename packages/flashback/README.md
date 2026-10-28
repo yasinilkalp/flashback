@@ -2,9 +2,10 @@
 
 > **Hatayı anlatma; o ana dön, göster.**
 
-Geliştirme ortamında uygulamanın son ≥ 60 saniyesini kaydeder. Bir şey bozulduğunda panelde geri sararsınız,
-hatalı öğeye tıklarsınız (ya da sayfa düzeyi olay açarsınız), "Ne olmalıydı?" sorusunu yanıtlarsınız ve gizlenmiş,
-önizlenmiş olay paketini yerel `flashback-mcp` alıcısına gönderirsiniz. Ajan hatayı bir Playwright testiyle yeniden
+Geliştirme ortamında kaydı araç çubuğundan (ya da `Alt+Shift+R` ile) başlatıp durdurursunuz; her durdurma o anı
+sepete bir olay olarak ekler. Sepette her olayı geri sarar, hatalı öğeye tıklar (ya da sayfa düzeyi olay açar), "Ne
+olmalıydı?" sorusunu yanıtlarsınız. Gizlenmiş, önizlenmiş olayları yerel `flashback-mcp` alıcısına birlikte
+gönderirsiniz ya da tek bir prompt olarak kopyalarsınız. Ajan hatayı bir Playwright testiyle yeniden
 üretir (kırmızı), düzeltir ve aynı testi yeniden koşar (yeşil).
 
 ```bash
@@ -110,11 +111,11 @@ trackStore('redux', store.subscribe, store.getState); // Redux
 |---|---|---|
 | `enabled` | `NODE_ENV !== 'production'` | |
 | `endpoint` | `http://127.0.0.1:4747` | `flashback-mcp` alıcısı |
-| `bufferSeconds` | `60` | En az bu kadar geçmiş tutulur |
+| `maxRecordSeconds` | `300` | Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve olay sepete eklenir |
 | `ignoreUrls` | `[]` | Metin öneki ya da RegExp |
 | `maskAllInputs` | `false` | Parolalar her durumda maskelenir |
 | `redact` | `true` | `{ keys, patterns, emails: true, phones: false }`; `false` gizlemeyi kapatır |
-| `shortcut` | `alt+shift+r` | `event.code` ile eşleşir; metin girişindeyken tetiklenmez |
+| `shortcut` | `alt+shift+r` | Kaydı başlatıp durdurur; `event.code` ile eşleşir, metin girişindeyken tetiklenmez |
 | `position` | `bottom-right` | `bottom-left`, `top-right`, `top-left` |
 | `locale` | Tarayıcı diline göre `tr` / `en` | |
 | `allowProduction` | `false` | Önerilmez |

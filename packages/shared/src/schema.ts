@@ -175,6 +175,16 @@ export const MessageSchema = z.object({
 
 export const IncidentStatusSchema = z.enum(['open', 'fixed', 'fixed_unverified', 'cannot_reproduce']);
 
+/** FR-BSK-05: grup kimliği biçimi (UTC). Sepetten birlikte gönderilen olaylar aynı grubu taşır. */
+export const GROUP_ID_RE = /^grp-\d{8}-\d{6}-[a-z0-9]{4}$/;
+
+/** Aynı oturumda sırayla kaydedilip birlikte gönderilen olaylar (FR-BSK-05). `index` 1'den başlar. */
+export const IncidentGroupSchema = z.object({
+  id: z.string().regex(GROUP_ID_RE),
+  index: z.number().int().min(1),
+  size: z.number().int().min(1),
+});
+
 /** Tarayıcının alıcıya POST ettiği yük. Sunucu kimlik, durum ve projectId alanlarını kendisi ekler. */
 export const IncidentDraftSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
@@ -215,6 +225,7 @@ export const IncidentDraftSchema = z.object({
     byType: z.record(z.string(), z.number()).default({}),
   }),
   confidence: z.array(ConfidenceItemSchema).default([]),
+  group: IncidentGroupSchema.optional(),
 });
 
 export const IncidentSchema = IncidentDraftSchema.extend({
@@ -251,6 +262,7 @@ export type AssertionMatcher = (typeof ASSERTION_MATCHERS)[number];
 export type ReproRun = z.infer<typeof ReproRunSchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type IncidentStatus = z.infer<typeof IncidentStatusSchema>;
+export type IncidentGroup = z.infer<typeof IncidentGroupSchema>;
 export type IncidentDraft = z.infer<typeof IncidentDraftSchema>;
 export type IncidentDraftInput = z.input<typeof IncidentDraftSchema>;
 export type Incident = z.infer<typeof IncidentSchema>;

@@ -16,6 +16,7 @@ import {
   openPanel,
   pickSource,
   repo,
+  recordAgain,
   sendSelected,
   startNext,
   startReceiver,
@@ -86,7 +87,7 @@ for (const mode of [
       expect(t.componentStack).toContain('Shop');
       expect(draft.source.framework).toBe('react');
       expect(draft.confidence.find((c) => c.key === 'source')!.level).toBe('ok');
-      await page.locator('[data-fb="new-incident"]').click();
+      await recordAgain(page);
     });
 
     it('olay paketi: RSC öğesi asla yanlış satır vermez ve RSC olduğu belirtilir', async () => {
@@ -101,7 +102,7 @@ for (const mode of [
       expect(t.resolutionReason).toContain('React Server Component');
       // Sunucu bileşenlerinin istemci fiber'ı yoktur; yığında sunucu bileşeni adı görünmez.
       expect(t.componentStack).not.toContain('Page');
-      await page.locator('[data-fb="new-incident"]').click();
+      await recordAgain(page);
     });
 
     it('React sahip yığını sınırı (>10 000 öğe/sn): öğenin kendi satırı yok → ata öğe olarak işaretlenir, asla sessizce yanlış satır', async () => {

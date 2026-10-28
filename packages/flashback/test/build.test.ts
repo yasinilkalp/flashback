@@ -275,8 +275,8 @@ describe('buildDraft', () => {
       expect(session.confidence!.find((c) => c.key === 'preWindow')!.message).toContain('sid');
       expect(session.confidence!.find((c) => c.key === 'synthetic')).toMatchObject({ level: 'warn' });
 
-      const evicted = buildDraft(draftInput({ snapshot: snapshot({ evicted: true }) }));
-      expect(evicted.confidence!.find((c) => c.key === 'preWindow')!.level).toBe('warn');
+      const late = buildDraft(draftInput({ snapshot: snapshot({ lateStart: true }) }));
+      expect(late.confidence!.find((c) => c.key === 'preWindow')!.level).toBe('warn');
     });
   });
 

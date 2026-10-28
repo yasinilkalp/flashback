@@ -12,7 +12,7 @@ export const PAYLOAD_SCHEMA_VERSION = 1 as const;
 /** FRD §9.4 prop varsayılanları (tek doğruluk kaynağı ile birebir). */
 export const DEFAULTS = {
   endpoint: DEFAULT_ENDPOINT,
-  bufferSeconds: 60,
+  maxRecordSeconds: 300,
   ignoreUrls: [] as Array<string | RegExp>,
   maskAllInputs: false,
   redact: true,
@@ -21,7 +21,7 @@ export const DEFAULTS = {
   allowProduction: false,
 } as const;
 
-/** NFR-MEM-01: tampon üst sınırı. */
+/** NFR-MEM-01: bir kaydın (klibin) bellek üst sınırı. */
 export const MEMORY_LIMIT_BYTES = 50 * 1024 * 1024;
 
 /**
@@ -59,7 +59,7 @@ export function decideStart(props: Pick<FlashbackProps, 'enabled' | 'allowProduc
 
 export interface ResolvedConfig {
   endpoint: string;
-  bufferSeconds: number;
+  maxRecordSeconds: number;
   ignoreUrls: Array<string | RegExp>;
   maskAllInputs: boolean;
   redact: RedactOptions;
@@ -78,7 +78,7 @@ export function resolveConfig(props: FlashbackProps, productionWarning = false):
   const redact = props.redact ?? DEFAULTS.redact;
   return {
     endpoint: (props.endpoint ?? DEFAULTS.endpoint).replace(/\/+$/, ''),
-    bufferSeconds: Math.max(5, props.bufferSeconds ?? DEFAULTS.bufferSeconds),
+    maxRecordSeconds: Math.max(5, props.maxRecordSeconds ?? DEFAULTS.maxRecordSeconds),
     ignoreUrls: props.ignoreUrls ?? [...DEFAULTS.ignoreUrls],
     maskAllInputs: props.maskAllInputs ?? DEFAULTS.maskAllInputs,
     redact: redact === false ? { enabled: false } : redact === true ? { enabled: true } : { enabled: true, ...redact },
