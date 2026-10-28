@@ -19,6 +19,8 @@ export interface Marker {
   time: number;
   label: string;
   seq?: number;
+  /** Başarılı istek: bağlam olarak kısa ve gri çizilir, önceki/sonraki gezintisi atlar. Kök neden çoğu zaman yanlış bir değer döndüren başarılı bir istektir. */
+  ok?: boolean;
 }
 
 const ERROR_LEVELS = new Set(['error', 'uncaught', 'unhandledrejection']);
@@ -26,7 +28,8 @@ const ERROR_LEVELS = new Set(['error', 'uncaught', 'unhandledrejection']);
 export function buildMarkers(s: FrozenSnapshot): Marker[] {
   const out: Marker[] = [];
   for (const n of s.network) {
-    if (n.status >= 400 || n.status === 0 || n.error) out.push({ kind: 'network', time: n.time, seq: n.seq, label: `${n.method} ${pathOf(n.url)} → ${n.error ?? n.status}` });
+    const failed = n.status >= 400 || n.status === 0 || !!n.error;
+    out.push({ kind: 'network', time: n.time, seq: n.seq, label: `${n.method} ${pathOf(n.url)} → ${n.error ?? n.status}`, ...(failed ? {} : { ok: true }) });
   }
   for (const c of s.console) if (ERROR_LEVELS.has(c.level)) out.push({ kind: 'console', time: c.time, seq: c.seq, label: `${c.level}: ${c.message.slice(0, 120)}` });
   for (const st of s.steps) out.push({ kind: 'step', time: st.time, label: `${st.type} ${st.type === 'navigate' ? st.url ?? '' : st.selector ?? ''}${st.key ? ` (${st.key})` : ''}` });
@@ -166,8 +169,9 @@ function TimelineInner({
 
   const rel = (abs: number) => Math.min(total, Math.max(0, abs - t0));
   const shown = markers.filter((m) => show[laneOf(m)]);
-  const next = shown.find((m) => rel(m.time) > time + 1);
-  const prev = [...shown].reverse().find((m) => rel(m.time) < time - 1);
+  const stops = shown.filter((m) => !m.ok);
+  const next = stops.find((m) => rel(m.time) > time + 1);
+  const prev = [...stops].reverse().find((m) => rel(m.time) < time - 1);
   const lanes: Array<[Lane, string]> = [
     ['network', t.filterNetwork],
     ['console', t.filterConsole],
@@ -239,29 +243,50 @@ function TimelineInner({
             ))}
           </div>
         </ReplayView>
-        <div className="fb-controls">
-          <span className="fb-time" aria-live={playing ? 'off' : 'polite'}>
-            {(time / 1000).toFixed(1)} / {(total / 1000).toFixed(1)} {t.seconds}
-          </span>
-          <div className="fb-track">
-            <div className="fb-markers">
-              {shown.map((m, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`fb-marker fb-marker-${m.kind}`}
-                  style={{ left: `${(rel(m.time) / total) * 100}%` }}
-                  title={m.label}
-                  aria-label={`${markerName(m, t)}: ${m.label}`}
-                  data-fb={`marker-${m.kind}`}
-                  onClick={() => {
-                    seek(rel(m.time));
-                    setFocused(m);
-                  }}
-                />
-              ))}
-            </div>
-            <input type="range" min={start} max={total} step={50} value={time} aria-label={t.scrubber} data-fb="scrubber" onChange={(e) => seek(Number(e.target.value))} />
+        {/* Zaman çizelgesi kartı: olay ve süre, alttan yükselen işaretçiler, oynatma başı ve uçlarda süre. */}
+        <div className="fb-tl" data-fb="timeline">
+          <div className="fb-tl-head">
+            <span className="fb-tl-dot" aria-hidden="true" />
+            <span>
+              {t.panelTitle} · {t.basketItem} {entry.n}
+            </span>
+            <span className="fb-tl-time" aria-live={playing ? 'off' : 'polite'}>
+              {stamp(time)} / {stamp(total, false)}
+            </span>
+          </div>
+          <div className="fb-tl-track">
+            <input
+              type="range"
+              className="fb-tl-range"
+              min={start}
+              max={total}
+              step={50}
+              value={time}
+              aria-label={t.scrubber}
+              data-fb="scrubber"
+              onChange={(e) => seek(Number(e.target.value))}
+            />
+            {shown.map((m, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`fb-tick fb-tick-${m.kind}${m.ok ? ' fb-tick-ok' : ''}${focused === m ? ' fb-tick-on' : ''}`}
+                // Uçtakiler (ör. kayıttan önceki istekler) izin içinde kalır, tıklama alanı kesilmez.
+                style={{ left: `clamp(5px, ${(rel(m.time) / total) * 100}%, calc(100% - 6px))` }}
+                title={m.label}
+                aria-label={`${markerName(m, t)}: ${m.label}`}
+                data-fb={`marker-${m.kind}`}
+                onClick={() => {
+                  seek(rel(m.time));
+                  setFocused(m);
+                }}
+              />
+            ))}
+            <span className="fb-tl-playhead" style={{ left: `${(time / total) * 100}%` }} aria-hidden="true" />
+          </div>
+          <div className="fb-tl-foot" aria-hidden="true">
+            <span>{clock(0)}</span>
+            <span>{clock(total)}</span>
           </div>
         </div>
         {focused && (focused.kind === 'network' || focused.kind === 'console') && focused.seq !== undefined && (
@@ -296,7 +321,23 @@ function TimelineInner({
 }
 
 function markerName(m: Marker, t: Strings): string {
+  if (m.ok) return t.markerRequest;
   return { network: t.markerNetwork, console: t.markerConsole, step: t.markerStep }[m.kind];
+}
+
+/** `83_000` → `1:23` */
+export function clock(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** `25_040` → `00:25.0`; kesirsiz: `00:25`. Onda birlere aşağı yuvarlanır (59,96 sn `01:00.0` olmaz). */
+export function stamp(ms: number, fraction = true): string {
+  const tenths = Math.max(0, Math.floor(ms / 100));
+  const min = Math.floor(tenths / 600);
+  const rest = tenths - min * 600;
+  const sec = fraction ? (rest / 10).toFixed(1).padStart(4, '0') : String(Math.floor(rest / 10)).padStart(2, '0');
+  return `${String(min).padStart(2, '0')}:${sec}`;
 }
 
 export interface Box {

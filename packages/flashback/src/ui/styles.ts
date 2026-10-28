@@ -133,13 +133,29 @@ export const PANEL_CSS = `
 }
 
 .fb-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.fb-time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 92px; }
-.fb-track { position: relative; flex: 1; min-width: 160px; padding-top: 20px; }
-/* İşaretçiler türe göre ayrı satırlarda: aynı anda olan ağ ve konsol hatası üst üste binmez. */
-.fb-markers { position: absolute; left: 0; right: 0; top: 0; height: 18px; }
-.fb-root button.fb-marker { position: absolute; top: 0; width: 6px; height: 5px; margin-left: -3px; border-radius: 2px; padding: 0; }
-.fb-root button.fb-marker-network { background: var(--err); } .fb-root button.fb-marker-console { background: var(--warn); top: 6px; }
-.fb-root button.fb-marker-step { background: var(--info); top: 12px; }
+/* Zaman çizelgesi kartı (sitedeki tasarım): başlık, alttan yükselen işaretçiler, üçgenli oynatma başı, uçlarda süre. */
+.fb-tl { padding: 12px 14px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 11px; }
+.fb-tl-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+.fb-tl-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.fb-root .fb-tl-time { margin-left: auto; font: 500 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fb-tl-track { position: relative; height: 34px; margin-top: 10px; border-radius: 6px; background: var(--bg2); overflow: hidden; }
+.fb-tl-track:has(.fb-tl-range:focus-visible) { outline: 2px solid var(--info); outline-offset: 2px; }
+/* Kaydırıcı izin tamamını kaplar ama görünmez: tıklama ve sürükleme ile ok tuşları ondan gelir. */
+.fb-root input.fb-tl-range { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.fb-tl-range::-webkit-slider-thumb { -webkit-appearance: none; width: 2px; height: 34px; }
+.fb-tl-range::-moz-range-thumb { width: 2px; height: 34px; border: 0; }
+/* İşaretçi: 3 px'lik çizgi, tıklama alanı 11 px. Yükseklik ve renk türü söyler. */
+.fb-root button.fb-tick { position: absolute; z-index: 1; top: 0; bottom: 0; width: 11px; margin-left: -5px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.fb-root button.fb-tick:hover:not(:disabled) { border-color: transparent; }
+.fb-tick::after { content: ""; position: absolute; left: 4px; bottom: 6px; width: 3px; height: 12px; border-radius: 2px; background: var(--info); }
+.fb-tick-console::after { height: 14px; background: var(--warn); }
+.fb-tick-network::after { height: 16px; background: var(--err); }
+.fb-tick-network.fb-tick-ok::after { height: 8px; background: var(--muted); opacity: .7; }
+.fb-tick:hover::after, .fb-tick.fb-tick-on::after { opacity: 1; box-shadow: 0 0 0 2px var(--bg2), 0 0 0 3px var(--fg); }
+.fb-tl-playhead { position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+.fb-tl-playhead::before { content: ""; position: absolute; top: -1px; left: -5px; border: 6px solid transparent; border-top-color: var(--accent); }
+.fb-tl-foot { display: flex; justify-content: space-between; margin-top: 8px; }
+.fb-root .fb-tl-foot span { font: 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); }
 .fb-hint { color: var(--muted); font-size: 12px; }
 .fb-kv { display: grid; grid-template-columns: 82px 1fr; gap: 4px 8px; font-size: 12px; margin: 6px 0; }
 .fb-kv > :nth-child(odd) { color: var(--muted); }

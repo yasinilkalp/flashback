@@ -2,11 +2,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { isEditableTarget, matchesShortcut, parseShortcut } from '../config.js';
 import type { ControllerState, FlashbackController } from '../controller.js';
-import { BasketTab, clock } from './Basket.js';
+import { BasketTab } from './Basket.js';
 import { strings, type Strings } from './i18n.js';
 import { Icon } from './Icons.js';
 import { IncidentsTab } from './Incidents.js';
 import { Logo } from './Logo.js';
+import { clock } from './Timeline.js';
 
 type Theme = 'dark' | 'light';
 const THEME_KEY = 'flashback:theme';

@@ -6,13 +6,7 @@ import { useState } from 'react';
 import type { BatchResult, ControllerState, Fallback, FlashbackController } from '../controller.js';
 import type { Strings } from './i18n.js';
 import { Icon } from './Icons.js';
-import { TimelineTab } from './Timeline.js';
-
-/** `83_000` → `1:23` */
-export function clock(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
+import { clock, TimelineTab } from './Timeline.js';
 
 export function BasketTab({ controller, state, t }: { controller: FlashbackController; state: ControllerState; t: Strings }) {
   const list = state.basket ?? [];
