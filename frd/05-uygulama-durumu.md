@@ -92,7 +92,7 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 
 1. **Kırmızı takım koşusu** (FR-MCP-SEC-02). KK-5 smoke testleri tamam; README'deki kısa `npx --no-install` biçimi Windows'ta Codex ve Cursor ile ayrıca denenmeli.
 2. **Mini benchmark** (KK-11): 8–10 hata, Flashback ile ve Flashback olmadan. Sitedeki "%60" ifadesi o zamana kadar "n=1" notuyla verilmeli (FRD §2.3).
-3. **İlk CI yayını** (`v0.1.0-beta.1` etiketi): Trusted Publishing ve provenance doğrulaması (§11.3, KK-10).
+3. **İlk CI yayını** (`npm run release:bump -- beta` ve main'e push; `release.yml` CI geçince yayımlar ve `v0.1.0-beta.1` etiketini açar): Trusted Publishing ve provenance doğrulaması (§11.3, KK-10).
 4. **Ürün kararları:** AS-3 (kısayol), AS-4 (telefon), AS-5 (arayüz dili), AS-10 (önizleme olay başına mı, oturum başına mı).
 5. **Kısayol çakışma testi** (FR-UI-03, AS-3): Windows, macOS ve Linux'ta; TR-Q, TR-F ve US düzenlerinde; IME açıkken `Alt+Shift+R`. Kısayol fiziksel tuşa (`KeyboardEvent.code`) bağlı olduğu için düzen değişse de aynı tuşla tetiklenir. Asıl risk, Windows'ta `Alt+Shift` ile dil değiştirme.
 6. **`data-flashback-source` (v1.1, R13):** Derleme anında JSX'e kaynak konumu ekleyen Vite/Babel/SWC eklentisi. React 19'da HMR sonrası `resolved:false` kalan konumları kalıcı olarak çözer. EK-B3 bu işi "yedek plan"dan öncelikli işe taşıdı.

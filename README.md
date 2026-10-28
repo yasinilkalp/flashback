@@ -229,21 +229,17 @@ FRD §11.3 gereği paketler CI'dan, npm provenance ile yayımlanır. Akış: `.g
 
 Bir kerelik ayar (yapıldı): npmjs.com'da her iki paketin **Settings → Trusted Publisher** bölümünde GitHub Actions seçilir; depo `yasinilkalp/flashback`, iş akışı `release.yml`.
 
-Yeni sürüm için:
-
-1. Sürümü artırın. Şu yerler aynı sürümü taşımalı (testler denetler):
-   - `packages/flashback/package.json` ve `packages/mcp/package.json`
-   - `packages/flashback/src/config.ts` içindeki `FLASHBACK_VERSION`
-   - `examples/*/package.json` içindeki `flashback-devtools` bağımlılığı
-2. `npm install` ile `package-lock.json`'ı güncelleyip commit edin.
-3. Sürüm etiketini push edin. İş akışı derler, test eder, etiketi sürümle karşılaştırır, sürümün npm'de olmadığını denetler, yayımlar ve doğrular:
+Yeni sürüm için sürümü artırıp commit'leyin ve main'e push edin; gerisi otomatiktir:
 
 ```bash
-git tag v0.1.0-beta.1
-git push origin v0.1.0-beta.1
+npm run release:bump -- beta    # 0.1.0-beta.0 → 0.1.0-beta.1 (ya da açık sürüm: -- 0.2.0)
+git commit -am "Sürüm 0.1.0-beta.1"
+git push
 ```
 
-Ön sürümler (`-beta.N`) npm'de `beta` etiketiyle, diğerleri `latest` ile çıkar. Önce denemek için **Actions → Release → Run workflow** (varsayılan: `--dry-run`).
+Betik sürümün geçtiği her yeri birlikte günceller (testler denetler): iki paketin `package.json`'ı, `FLASHBACK_VERSION`, `examples/*` ve EK-B3 uygulamalarının bağımlılığı, `package-lock.json`.
+
+İş akışı main'e gelen her push'ta çalışır. Sürüm npm'deyse hemen biter. Değilse aynı commit'in CI'ı (`ci.yml`) geçene kadar bekler; derler, test eder, iki paketi yayımlar, npm'de görünmelerini doğrular ve `v<sürüm>` etiketiyle bir GitHub sürümü açar. CI düşerse yayın yapılmaz; düzeltmeyi push edince yeniden dener. Kararlı 1.0'a kadar ön sürümler de npm'de `latest` etiketiyle çıkar, yani `npm i -D flashback-devtools` her zaman en yeni sürümü kurar. Önce denemek için **Actions → Release → Run workflow** (varsayılan: `--dry-run`).
 
 ## Lisans
 

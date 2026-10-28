@@ -1,12 +1,13 @@
 name: Release
 
-# Sürüm etiketi (ör. v0.1.0-beta.1) push edilince iki paketi derler, test eder ve npm'e yayınlar
-# (KK-10, FRD §11.3). Kimlik: npm Trusted Publishing (GitHub OIDC). Belirteç ya da 2FA kodu gerekmez;
-# provenance imzası otomatik eklenir. npmjs.com'da her iki paketin Trusted Publisher ayarı:
-# depo yasinilkalp/flashback, iş akışı release.yml.
+# main'e gelen her push'ta paket sürümüne bakar. Sürüm npm'de yoksa aynı commit'in CI'ı geçene kadar bekler, iki
+# paketi derler, test eder, npm'e yayınlar ve v<sürüm> etiketiyle bir GitHub sürümü açar (KK-10, FRD §11.3).
+# Sürüm artırma: `npm run release:bump -- beta` (README → Yayımlama). Sürüm npm'deyse iş hemen biter.
+# Kimlik: npm Trusted Publishing (GitHub OIDC). Belirteç ya da 2FA kodu gerekmez; provenance imzası otomatik
+# eklenir. npmjs.com'da her iki paketin Trusted Publisher ayarı: depo yasinilkalp/flashback, iş akışı release.yml.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -15,7 +16,8 @@ on:
         default: true
 
 permissions:
-  contents: read
+  contents: write # v<sürüm> etiketi ve GitHub sürümü
+  actions: read # aynı commit'in CI sonucunu okumak için
   id-token: write # Trusted Publishing ve provenance için GitHub OIDC kimliği
 
 concurrency:
@@ -25,7 +27,9 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -33,15 +37,6 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
-
-      # Trusted Publishing npm 11.5.1 ve üstünü ister; Node 22 ile gelen npm daha eski.
-      - run: npm install -g npm@11
-      - run: npm --version
-
-      - run: npm ci
-      - run: npm run build
-      - run: npm run typecheck
-      - run: npm test
 
       - name: Sürümleri denetle
         id: version
@@ -53,14 +48,15 @@ jobs:
           if [ "$devtools" != "$mcp" ]; then
             echo "::error::Paket sürümleri farklı: flashback-devtools $devtools, flashback-mcp $mcp"; exit 1
           fi
-          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$devtools" ]; then
-            echo "::error::Etiket ${GITHUB_REF_NAME}, paket sürümü v$devtools ile uyuşmuyor"; exit 1
+          # Gerçek yayın: main'e push ya da dry_run kapalı elle çalıştırma. Yalnızca main'den yayınlanır.
+          real=false
+          if [ "${{ github.event_name }}" = push ] || [ "${{ inputs.dry_run }}" = false ]; then real=true; fi
+          if [ "$real" = true ] && [ "${GITHUB_REF}" != refs/heads/main ]; then
+            echo "::error::Gerçek yayın yalnızca main'den yapılır (şu an ${GITHUB_REF})"; exit 1
           fi
-          # Ön sürümler (0.1.0-beta.1) 'beta' etiketiyle, diğerleri 'latest' ile yayınlanır.
-          if [[ "$devtools" == *-* ]]; then tag=beta; else tag=latest; fi
           echo "version=$devtools" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "Sürüm $devtools, npm etiketi $tag"
+          echo "real=$real" >> "$GITHUB_OUTPUT"
+          echo "Sürüm $devtools, gerçek yayın: $real"
 
       - name: Bu sürüm npm'de var mı
         id: exists
@@ -68,27 +64,83 @@ jobs:
         run: |
           set -uo pipefail
           v="${{ steps.version.outputs.version }}"
+          missing=""
           for p in flashback-devtools flashback-mcp; do
-            if npm view "$p@$v" version >/dev/null 2>&1; then
-              echo "::error::$p@$v npm'de zaten var. Yeni sürüm için iki paketin sürümünü artırıp yeni etiket gönderin."
-              exit 1
-            fi
+            if npm view "$p@$v" version >/dev/null 2>&1; then echo "$p@$v npm'de."; else missing="$missing $p"; fi
           done
-          echo "$v henüz yayınlanmamış."
+          missing="${missing# }"
+          if [ -z "$missing" ]; then
+            echo "$v iki pakette de npm'de; yayınlanacak bir şey yok. Yeni sürüm için: npm run release:bump -- beta"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            # Yarım kalmış bir yayından sonra yalnızca eksik paket yayınlanır.
+            echo "Yayınlanacak: $missing@$v"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "packages=$missing" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bu commit'in CI'ını bekle
+        if: steps.exists.outputs.publish == 'true' && steps.version.outputs.real == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # ci.yml aynı push'la başlar (üç işletim sisteminde e2e, ~15 dk). Yalnızca başarılıysa yayınlanır.
+          for i in $(seq 1 140); do
+            run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --event push --limit 1 --json status,conclusion,url --jq '.[0] // empty')
+            if [ -n "$run" ]; then
+              status=$(jq -r .status <<<"$run")
+              conclusion=$(jq -r .conclusion <<<"$run")
+              url=$(jq -r .url <<<"$run")
+              if [ "$status" = completed ]; then
+                if [ "$conclusion" = success ]; then echo "CI geçti: $url"; exit 0; fi
+                echo "::error::CI başarısız ($conclusion), yayın yapılmadı: $url"; exit 1
+              fi
+            fi
+            sleep 30
+          done
+          echo "::error::CI 70 dakikada bitmedi; yayın yapılmadı"; exit 1
+
+      # Trusted Publishing npm 11.5.1 ve üstünü ister; Node 22 ile gelen npm daha eski.
+      - if: steps.exists.outputs.publish == 'true'
+        run: npm install -g npm@11
+      - if: steps.exists.outputs.publish == 'true'
+        run: npm --version
+
+      - if: steps.exists.outputs.publish == 'true'
+        run: npm ci
+      - if: steps.exists.outputs.publish == 'true'
+        run: npm run build
+      - if: steps.exists.outputs.publish == 'true'
+        run: npm run typecheck
+      - if: steps.exists.outputs.publish == 'true'
+        run: npm test
 
       - name: Paket içeriği
+        if: steps.exists.outputs.publish == 'true'
         run: npm pack --dry-run -w flashback-devtools -w flashback-mcp
 
+      # Kararlı 1.0'a kadar ön sürümler de 'latest' ile çıkar: belgelerdeki `npm i -D flashback-devtools`
+      # her zaman en yeni sürümü kurar.
       - name: Yayınla
-        if: github.event_name == 'push' || inputs.dry_run == false
-        run: npm publish -w flashback-devtools -w flashback-mcp --access public --tag ${{ steps.version.outputs.tag }}
+        if: steps.exists.outputs.publish == 'true' && steps.version.outputs.real == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in ${{ steps.exists.outputs.packages }}; do
+            npm publish -w "$p" --access public --tag latest
+          done
 
       - name: Yayınla (deneme)
-        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
-        run: npm publish -w flashback-devtools -w flashback-mcp --dry-run --access public --tag ${{ steps.version.outputs.tag }}
+        if: steps.exists.outputs.publish == 'true' && steps.version.outputs.real != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in ${{ steps.exists.outputs.packages }}; do
+            npm publish -w "$p" --dry-run --access public --tag latest
+          done
 
       - name: Yayını doğrula
-        if: github.event_name == 'push' || inputs.dry_run == false
+        if: steps.exists.outputs.publish == 'true' && steps.version.outputs.real == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -100,3 +152,16 @@ jobs:
             done
             echo "::error::$p@$v yayından sonra npm'de görünmüyor"; exit 1
           done
+
+      - name: Etiket ve GitHub sürümü
+        if: steps.exists.outputs.publish == 'true' && steps.version.outputs.real == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v${{ steps.version.outputs.version }}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$tag sürümü zaten var."; exit 0
+          fi
+          pre=()
+          if [[ "$tag" == *-* ]]; then pre=(--prerelease); fi
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$tag" --generate-notes "${pre[@]}"

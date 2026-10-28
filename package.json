@@ -16,6 +16,7 @@
     "mcp": "node packages/mcp/dist/cli.js",
     "setup:browsers": "playwright install chromium",
     "release:check": "npm run build && npm pack --dry-run -w flashback-devtools -w flashback-mcp",
+    "release:bump": "node scripts/release/bump.mjs",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "bench": "node scripts/bench/run-all.mjs"
