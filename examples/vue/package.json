@@ -10,7 +10,7 @@
   "dependencies": {
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "flashback-devtools": "0.1.0-beta.1",
+    "flashback-devtools": "0.1.0-beta.2",
     "vue": "3.5.44"
   },
   "devDependencies": {
