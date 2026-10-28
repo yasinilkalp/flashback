@@ -38,7 +38,7 @@ npm run dev                # demo: http://localhost:5173
    ```
    Ya da `mcp.example.json` dosyasını `.mcp.json` olarak kopyalayın.
 2. Demoda üç ürünü sepete ekleyin ve **YAZ10** kuponunu girin. Toplam `135030 ₺` gösterir, çünkü kargo ücreti API'den metin olarak geliyor. **KIS20** kuponunda sunucu 500 döner ve kullanıcıya hiçbir şey gösterilmez. Ayrıntılar: [`examples/demo/BUGS.md`](examples/demo/BUGS.md).
-3. Sağ alttaki **Flashback** düğmesine basın ya da `Alt+Shift+R` kısayolunu kullanın. Zaman çizelgesinde geri gidin, **S** tuşuna basın, "Toplam" değerine tıklayın, "Ne olmalıydı?" alanını doldurun, önizlemeye bakıp gönderin. KIS20 için **Sayfa düzeyi olay** düğmesini kullanın.
+3. Sağ alttaki **Flashback** düğmesine basın ya da `Alt+Shift+R` kısayolunu kullanın. Kaydın altındaki araç takımıyla geri sarın (ya da **Boşluk** ile oynatın), **S** tuşuna basın, "Toplam" değerine tıklayın, "Ne olmalıydı?" alanını doldurun, önizlemeye bakıp gönderin. KIS20 için araç takımındaki **Sayfa düzeyi olay** düğmesini kullanın. Kapat düğmesinin yanındaki düğme paneli açık ya da koyu temaya geçirir.
 4. Ajanınıza şunu yazın: *"Flashback olaylarına bak ve düzelt."*
 
 > Alıcıya ulaşılamazsa olay gizlenmiş Markdown olarak panoya kopyalanır; pano kullanılamıyorsa `.md` dosyası olarak iner.

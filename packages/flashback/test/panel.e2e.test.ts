@@ -269,6 +269,11 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     expect(await audit()).toEqual([]);
     await page.getByRole('tab', { name: /Kayıtlar/ }).click();
     expect(await audit()).toEqual([]);
+    // Öbür tema da kontrast denetiminden geçmeli (açık ve koyu).
+    await page.locator('[data-fb="theme"]').click();
+    expect(await audit()).toEqual([]);
+    await page.getByRole('tab', { name: /Zaman çizelgesi/ }).click();
+    expect(await audit()).toEqual([]);
 
     // Odak tuzağı: panel sayfayı kaplar; Tab ile görünmeyen sayfaya geçilmez.
     await page.locator('[data-fb="panel"]').focus();

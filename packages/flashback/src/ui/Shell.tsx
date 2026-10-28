@@ -3,14 +3,57 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { isEditableTarget, matchesShortcut, parseShortcut } from '../config.js';
 import type { ControllerState, FlashbackController } from '../controller.js';
 import { strings, type Strings } from './i18n.js';
+import { Icon } from './Icons.js';
 import { IncidentsTab } from './Incidents.js';
 import { TimelineTab } from './Timeline.js';
 import { Logo } from './Logo.js';
+
+type Theme = 'dark' | 'light';
+const THEME_KEY = 'flashback:theme';
+const LIGHT_QUERY = '(prefers-color-scheme: light)';
+
+function storedTheme(): Theme | null {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v === 'dark' || v === 'light' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function systemTheme(): Theme {
+  return typeof matchMedia === 'function' && matchMedia(LIGHT_QUERY).matches ? 'light' : 'dark';
+}
+
+/** Panel teması: kullanıcı seçmediyse sistem temasını izler; seçim sayfanın kökeninde saklanır. */
+function useTheme(): [Theme, () => void] {
+  const [chosen, setChosen] = useState<Theme | null>(storedTheme);
+  const [system, setSystem] = useState<Theme>(systemTheme);
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return;
+    const mq = matchMedia(LIGHT_QUERY);
+    const onChange = () => setSystem(mq.matches ? 'light' : 'dark');
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+  const theme = chosen ?? system;
+  const toggle = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setChosen(next);
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      /* depolama kapalı: seçim yalnızca bu oturumda geçerli */
+    }
+  };
+  return [theme, toggle];
+}
 
 export function Shell({ controller }: { controller: FlashbackController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
   const t = strings(controller.cfg.locale);
   const launcherRef = useRef<HTMLButtonElement>(null);
+  const [theme, toggleTheme] = useTheme();
 
   useEffect(() => {
     const shortcut = parseShortcut(controller.cfg.shortcut);
@@ -31,9 +74,9 @@ export function Shell({ controller }: { controller: FlashbackController }) {
   }, [state.open]);
 
   return (
-    <div className="fb-root">
+    <div className="fb-root" data-theme={theme}>
       <Launcher buttonRef={launcherRef} controller={controller} state={state} t={t} />
-      {state.open && <Panel controller={controller} state={state} t={t} />}
+      {state.open && <Panel controller={controller} state={state} t={t} theme={theme} onToggleTheme={toggleTheme} />}
     </div>
   );
 }
@@ -74,7 +117,19 @@ function Launcher({ controller, state, t, buttonRef }: { controller: FlashbackCo
 
 type Tab = 'timeline' | 'incidents';
 
-function Panel({ controller, state, t }: { controller: FlashbackController; state: ControllerState; t: Strings }) {
+function Panel({
+  controller,
+  state,
+  t,
+  theme,
+  onToggleTheme,
+}: {
+  controller: FlashbackController;
+  state: ControllerState;
+  t: Strings;
+  theme: Theme;
+  onToggleTheme: () => void;
+}) {
   const [tab, setTab] = useState<Tab>('timeline');
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => ref.current?.focus({ preventScroll: true }), []);
@@ -118,9 +173,21 @@ function Panel({ controller, state, t }: { controller: FlashbackController; stat
           ))}
         </div>
         <span className="fb-spacer" />
-        <button type="button" aria-label={t.close} onClick={() => controller.close()} data-fb="close">
-          ✕
-        </button>
+        <div className="fb-win">
+          <button
+            type="button"
+            className="fb-icon-btn"
+            aria-label={theme === 'dark' ? t.themeToLight : t.themeToDark}
+            title={theme === 'dark' ? t.themeToLight : t.themeToDark}
+            onClick={onToggleTheme}
+            data-fb="theme"
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+          </button>
+          <button type="button" className="fb-icon-btn" aria-label={t.close} title={`${t.close} (Esc)`} onClick={() => controller.close()} data-fb="close">
+            <Icon name="close" />
+          </button>
+        </div>
       </div>
       {redactOff && (
         <div className="fb-strip fb-strip-err" role="alert" data-fb="redact-off">
