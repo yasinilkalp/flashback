@@ -124,44 +124,52 @@ async function probeBundle() {
 const HYDRATION_MISMATCH = /hydrated but some attributes/;
 
 /**
- * Sayfayı fixture'ın `version` sürümüyle yükler. Önceki tarayıcının HMR aşamasından sonra fixture geri yazıldığında
- * Next.js sunucusu bir süre eski derlemeyle SSR yapabilir: istemci yeni kodla hydrate eder ama React öznitelik
+ * Sayfayı fixture'ın `version` sürümüyle yükler. Dev sunucusu yeniden derlerken açılan sayfa yarım kalabilir (lazy
+ * parça hiç gelmez) ya da Next.js eski derlemeyle SSR yapabilir: istemci yeni kodla hydrate eder ama React öznitelik
  * farkını düzeltmez, DOM'daki `data-ekb3` etiketleri (doğru yanıt) eski sürümde kalır ve doğru çözümleme `wrong`
- * sayılır (CI'da Linux + Firefox'ta görüldü). Etiketler beklenen sürümde değilse ya da hydration uyumsuzluğu
- * bildirildiyse sayfa yeniden yüklenir.
+ * sayılır (ikisi de CI'da Linux + Firefox + Next webpack'te görüldü). Sayfa hazır olmazsa, etiketler beklenen
+ * sürümde değilse ya da hydration uyumsuzluğu bildirildiyse yeniden yüklenir.
  */
 async function loadFixture(page, url, version = 1) {
   for (let attempt = 1; ; attempt++) {
     let mismatch = false;
     const onConsole = (m) => void (m.type() === 'error' && HYDRATION_MISMATCH.test(m.text()) && (mismatch = true));
     page.on('console', onConsole);
-    if (attempt === 1) await page.goto(url, { timeout: 240_000, waitUntil: 'load' });
-    else await page.reload({ timeout: 240_000, waitUntil: 'load' });
-    // Lazy parça, portal, gecikmeli içerik ve panel düğmesi hazır olana kadar bekle.
-    for (const sel of ['figure[data-ekb3]', 'aside[data-ekb3]', 'mark[data-ekb3]', '[data-fb="launcher"]']) {
-      await page.locator(sel).first().waitFor({ state: 'attached', timeout: 120_000 });
+    let problem = null;
+    try {
+      if (attempt === 1) await page.goto(url, { timeout: 240_000, waitUntil: 'load' });
+      else await page.reload({ timeout: 240_000, waitUntil: 'load' });
+      // Lazy parça, portal, gecikmeli içerik ve panel düğmesi hazır olana kadar bekle (ilk derleme uzun sürebilir).
+      for (const sel of ['figure[data-ekb3]', 'aside[data-ekb3]', 'mark[data-ekb3]', '[data-fb="launcher"]']) {
+        await page.locator(sel).first().waitFor({ state: 'attached', timeout: attempt === 1 ? 120_000 : 60_000 });
+      }
+      await page.waitForTimeout(1500);
+      const stale = await page.evaluate(
+        (v) => Array.from(document.querySelectorAll('[data-ekb3],[data-ekb3-rsc]')).some((el) => el.getAttribute('data-ekb3-v') !== v),
+        String(version),
+      );
+      if (stale) problem = 'etiketler eski sürümde';
+      else if (mismatch) problem = 'hydration uyumsuzluğu';
+    } catch (e) {
+      problem = String(e).split('\n')[0];
+    } finally {
+      page.off('console', onConsole);
     }
-    await page.waitForTimeout(1500);
-    page.off('console', onConsole);
-    const stale = await page.evaluate(
-      (v) => Array.from(document.querySelectorAll('[data-ekb3],[data-ekb3-rsc]')).some((el) => el.getAttribute('data-ekb3-v') !== v),
-      String(version),
-    );
-    if (!stale && !mismatch) return;
-    if (attempt >= 6) throw new Error(`fixture v${version} sayfaya ulaşmadı (eski etiket: ${stale}, hydration uyumsuzluğu: ${mismatch})`);
-    console.log(`  sayfa fixture v${version} ile tutarlı değil (eski etiket: ${stale}, hydration uyumsuzluğu: ${mismatch}); yeniden yükleniyor`);
+    if (!problem) return;
+    if (attempt >= 4) throw new Error(`fixture v${version} sayfaya ulaşmadı: ${problem}`);
+    console.log(`  sayfa fixture v${version} ile hazır değil (${problem}); yeniden yükleniyor`);
     await page.waitForTimeout(3000);
   }
 }
 
-/** HMR uygulanana kadar bekler: tüm etiketli öğeler fixture'ın 2. sürümünden. */
-async function waitForHmr(page) {
+/** HMR uygulanana kadar bekler: tüm etiketli öğeler fixture'ın `version` sürümünden. */
+async function waitForVersion(page, version) {
   await page.waitForFunction(
-    () => {
+    (v) => {
       const els = document.querySelectorAll('[data-ekb3],[data-ekb3-rsc]');
-      return els.length > 0 && Array.from(els).every((el) => el.getAttribute('data-ekb3-v') === '2');
+      return els.length > 0 && Array.from(els).every((el) => el.getAttribute('data-ekb3-v') === v);
     },
-    undefined,
+    String(version),
     { timeout: 120_000, polling: 500 },
   );
   await page.waitForTimeout(1000);
@@ -333,13 +341,17 @@ for (const setup of SETUPS.filter((s) => !only || only.includes(s.name))) {
         if (withHmr) {
           try {
             writeFixture(setup.app, 2);
-            await waitForHmr(page);
+            await waitForVersion(page, 2);
             run.hmr = await probeRun(page);
             run.summary.hmr = summarizeProbe(run.hmr);
             await panelPhase(page, run, run.hmr, 'panelHmr');
           } catch (e) {
             run.hmrError = String(e).split('\n')[0];
           }
+          // Sıradaki tarayıcı derlemesi bitmiş v1 sayfasıyla başlasın: geri yazılan fixture bu sayfaya HMR ile ulaşana
+          // kadar beklenir (sunucu yeniden derlerken açılan sayfa yarım kalabiliyordu).
+          writeFixture(setup.app, 1);
+          await waitForVersion(page, 1).catch(() => {});
         }
         run.pageErrors = pageErrors.slice(0, 20);
         const s = run.summary;

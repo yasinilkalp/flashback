@@ -6,7 +6,7 @@
  * Sürüm 2 (HMR ölçümü): ilk satırın (`'use client'` ya da yorum) ardına gerçekçi bir düzenleme gibi 3 satır kod
  * eklenir. Dışa aktarım eklenmez; Fast Refresh sınırı bozulmasın, sayfa yeniden yüklenmesin.
  */
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,7 +36,10 @@ export function writeFixture(app, version = 1, clean = false) {
     if (clean) rmSync(dest, { recursive: true, force: true });
     mkdirSync(dest, { recursive: true });
     for (const name of readdirSync(join(here, from))) {
-      writeFileSync(join(dest, name), label(readFileSync(join(here, from, name), 'utf8'), `${to}/${name}`, version));
+      const file = join(dest, name);
+      const content = label(readFileSync(join(here, from, name), 'utf8'), `${to}/${name}`, version);
+      // Aynı içerik yeniden yazılmaz: dosya izleyicisi gereksiz bir yeniden derleme başlatmasın.
+      if (!existsSync(file) || readFileSync(file, 'utf8') !== content) writeFileSync(file, content);
     }
   }
 }
