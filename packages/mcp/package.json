@@ -1,6 +1,6 @@
 {
   "name": "flashback-mcp",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "Flashback MCP sunucusu: tarayıcıdan gelen hata olaylarını AI kodlama ajanına iletir ve düzeltmeyi kırmızı→yeşil Playwright testiyle doğrular.",
   "type": "module",
   "license": "MIT",
