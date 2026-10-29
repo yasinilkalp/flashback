@@ -284,6 +284,37 @@ export function freshBasket(): void {
 }
 
 /**
+ * Başlangıç betiği (FR-REC-16): başsız tarayıcıda ekran seçme penceresi ve mikrofon yok. Ekran hareketli bir tuvalden
+ * (`captureStream`), mikrofon bir osilatörden gelir; MediaRecorder ve anahtar kare yolu gerçek kalır.
+ */
+export function fakeScreenAndMic(): void {
+  const md = navigator.mediaDevices;
+  md.getDisplayMedia = async () => {
+    const c = document.createElement('canvas');
+    c.width = 1280;
+    c.height = 720;
+    const ctx = c.getContext('2d')!;
+    let n = 0;
+    setInterval(() => {
+      ctx.fillStyle = `hsl(${(n * 25) % 360} 60% 40%)`;
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 96px sans-serif';
+      ctx.fillText(`Ekran ${n++}`, 80, 360);
+    }, 100);
+    return c.captureStream(15);
+  };
+  md.getUserMedia = async () => {
+    const ac = new AudioContext();
+    const osc = ac.createOscillator();
+    const dest = ac.createMediaStreamDestination();
+    osc.connect(dest);
+    osc.start();
+    return dest.stream;
+  };
+}
+
+/**
  * Kaydı başlatır (FR-REC-01: kayıt elle başlar): kayıt düğmesi "Kayda başla" penceresini açar, kaynak ve mikrofon
  * seçilip "Kaydı başlat"a basılır. Seçim sayfanın kökeninde saklandığı için her seferinde açıkça yapılır.
  */

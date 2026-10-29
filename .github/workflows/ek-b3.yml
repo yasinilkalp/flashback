@@ -1,0 +1,48 @@
+name: EK-B3
+
+# EK-B3 (FRD §3.5): JSX kaynak satırı çözümleme ölçümü. 4 kurulum (Vite + React 19/18, Next.js 16 Turbopack/webpack)
+# × Chromium ve Firefox; ilk yükleme, HMR sonrası ve panelden seçim. Ölçüt sağlanmazsa (sessizce yanlış satır > 0,
+# ilk yüklemede doğru < %90, kurulum hatası) iş düşer. Özet tablo iş özetinde; ham sonuçlar ve sunucu günlükleri
+# yapıt olarak saklanır. Haftalık, elle ve çözümleme kodu main'de değişince çalışır. Yayını bekletmez.
+on:
+  schedule:
+    - cron: '0 4 * * 1' # Pazartesi 04:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/flashback/src/source/**'
+      - 'packages/flashback/src/dom/fiber.ts'
+      - 'spikes/ek-b3/**'
+      - '.github/workflows/ek-b3.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ek-b3
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node spikes/ek-b3/prepare.mjs
+      - run: npx playwright install --with-deps chromium firefox
+      - run: node spikes/ek-b3/measure.mjs --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ek-b3-results
+          path: |
+            spikes/ek-b3/results/
+            spikes/ek-b3/.logs/
+          if-no-files-found: ignore

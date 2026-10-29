@@ -2,7 +2,11 @@
  * EK-B3 ölçümü (FRD §3.5): her kurulumda etiketli her öğe için dosya:satır çözümlemesini panelin kendi koduyla dener.
  *
  *   node spikes/ek-b3/prepare.mjs
- *   node spikes/ek-b3/measure.mjs [--only=vite-r19,next-webpack] [--browsers=chromium,firefox] [--no-panel] [--no-hmr]
+ *   node spikes/ek-b3/measure.mjs [--only=vite-r19,next-webpack] [--browsers=chromium,firefox] [--no-panel] [--no-hmr] [--check]
+ *
+ * `--check` (CI, `.github/workflows/ek-b3.yml`): ölçüt sağlanmazsa çıkış kodu 1. Ölçüt: hiçbir aşamada `wrong` yok,
+ * ilk yüklemede istemci öğeleri ve 20'lik örnek ≥ %90 doğru, hiçbir kurulum ya da tarayıcı hata vermemiş ya da
+ * atlanmamış. `GITHUB_STEP_SUMMARY` varsa özet tablo iş özetine de yazılır.
  *
  * İki ölçüm yapılır:
  *  - probe: `probe.ts` sayfaya enjekte edilir; tüm `data-ekb3` / `data-ekb3-rsc` öğeleri `locateSource` ile çözülür.
@@ -168,7 +172,17 @@ const fmt = (s) => s && `${s.correct}/${s.n} doğru, ${s.unresolved} çözüleme
 
 async function panelRun(page, probeResults) {
   const candidates = probeResults.filter((r) => r.expected && r.tag !== 'input' && r.tag !== 'img');
-  await page.keyboard.press('Alt+Shift+KeyR');
+  // Kayıt elle başlar (FRD v1.2/v1.3): "Kayda başla" → Bu sekme → Kaydı başlat. Durunca olay sepete girer ve
+  // olay ekranı açılır.
+  await page.locator('[data-fb="record"]').click();
+  const picker = page.locator('[data-fb="record-picker"]');
+  await picker.waitFor({ timeout: 15_000 });
+  await picker.locator('[data-fb="rec-source-tab"]').check({ force: true });
+  await picker.locator('[data-fb="rec-mic"]').setChecked(false);
+  await picker.locator('[data-fb="rec-start"]').click();
+  await page.locator('[data-fb="record"][aria-pressed="true"]').waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(1500);
+  await page.locator('[data-fb="record"]').click();
   await page.locator('[data-fb="panel"]').waitFor({ timeout: 15_000 });
   await page.waitForTimeout(800);
   // Tekrar oynatma görünümünde görünen öğeler.
@@ -196,23 +210,24 @@ async function panelRun(page, probeResults) {
   }, candidates.map((r) => r.expected));
   const results = [];
   for (const target of sample(visible, PANEL_SAMPLE, 7)) {
-    const overlay = page.locator('[data-fb="pick-overlay"]');
-    if (!(await overlay.isVisible())) await page.locator('[data-fb="select"]').click();
-    await overlay.waitFor({ timeout: 5000 });
-    const before = (await page.locator('[data-fb="selected-source"]').textContent({ timeout: 500 }).catch(() => null)) ?? null;
+    // Önceki seçim sayfa düzeyine çekilir; böylece okunan konum bu tıklamanındır.
+    await page.locator('[data-fb="page-level"]').click();
+    await page.locator('[data-fb="selected-source"]').waitFor({ state: 'detached', timeout: 5000 });
+    await page.locator('[data-fb="select"]').click();
+    await page.locator('[data-fb="pick-overlay"]').waitFor({ timeout: 5000 });
     await page.mouse.click(target.x, target.y);
     const selected = await page.locator('[data-fb="selected-selector"]').textContent({ timeout: 10_000 }).catch(() => null);
     let text = null;
     for (let i = 0; i < 40; i++) {
       text = await page.locator('[data-fb="selected-source"]').textContent().catch(() => null);
-      if (text && text !== before && text !== '—') break;
+      if (text && text !== '—') break;
       await page.waitForTimeout(250);
     }
     const m = text && /^(.*):(\d+)(?: \((.*)\))?$/.exec(text.trim());
     const loc = m ? { file: m[1], line: Number(m[2]), resolved: !m[3], reason: m[3] } : null;
     results.push({ expected: target.expected, selector: selected, text, loc, verdict: classify(target.expected, loc) });
   }
-  // Paneli kapat (odak metin alanındayken kısayol çalışmaz): kayıt sürer, sonraki aşama canlı sayfada yapılır.
+  // Paneli kapat: sonraki aşama (HMR) canlı sayfada yapılır ve yeni bir kayıtla ölçülür.
   await page.locator('[data-fb="close"]').click();
   await page.locator('[data-fb="panel"]').waitFor({ state: 'detached', timeout: 10_000 });
   return results;
@@ -365,6 +380,36 @@ function serialize(r) {
   return json.replace(/"@@rows(\d+)@@"/g, (_, i) => `[\n${rows[Number(i)].map((row) => `        ${JSON.stringify(row)}`).join(',\n')}\n      ]`);
 }
 
+/** FRD §3.5 ölçütünü karşılamayan her durum için bir satır; boşsa ölçüt sağlandı. */
+function failures() {
+  const out = [];
+  for (const s of report.setups) {
+    if (s.error) out.push(`${s.label}: ${s.error.split('\n')[0]}`);
+    for (const r of s.runs) {
+      const at = `${s.label} / ${r.browser}`;
+      if (r.skipped || r.error || !r.summary) {
+        out.push(`${at}: ${r.skipped ?? r.error ?? 'sonuç yok'}`);
+        continue;
+      }
+      for (const key of ['panelError', 'hmrError', 'panelHmrError']) if (r[key]) out.push(`${at}: ${key} ${r[key]}`);
+      const u = r.summary;
+      const phases = { istemci: u.client, '20 rastgele': u.sample20, RSC: u.rsc, panel: u.panel, 'HMR istemci': u.hmr?.client, 'HMR RSC': u.hmr?.rsc, 'HMR panel': u.panelHmr };
+      for (const [name, sum] of Object.entries(phases)) if (sum?.wrong) out.push(`${at}: ${name} ${sum.wrong} YANLIŞ`);
+      for (const [name, sum] of Object.entries({ istemci: u.client, '20 rastgele': u.sample20 })) {
+        if (sum && sum.rate < 0.9) out.push(`${at}: ${name} %${Math.round(sum.rate * 100)} doğru (ölçüt ≥ %90)`);
+      }
+    }
+  }
+  return out;
+}
+
 writeFileSync(join(here, 'results/results.json'), scrub(serialize(report)));
 writeFileSync(join(here, 'results/summary.md'), scrub(summaryMarkdown()));
 console.log('\nSonuçlar: spikes/ek-b3/results/results.json, summary.md');
+if (process.argv.includes('--check')) {
+  const failed = failures();
+  const verdict = failed.length ? `\n**Ölçüt sağlanmadı:**\n\n${failed.map((f) => `- ${f}`).join('\n')}\n` : '\n**Ölçüt sağlandı.**\n';
+  if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, scrub(summaryMarkdown() + verdict), { flag: 'a' });
+  console.log(verdict);
+  if (failed.length) process.exitCode = 1;
+}

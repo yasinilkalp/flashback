@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { IncidentDraft } from '@flashback/shared';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { freePort, freshBasket, saveToBasket, sendAll, startReceiver, startRecording, type Receiver } from './e2e-utils.js';
+import { fakeScreenAndMic, freePort, freshBasket, saveToBasket, sendAll, startReceiver, startRecording, type Receiver } from './e2e-utils.js';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const demoDir = join(repo, 'examples/demo');
@@ -394,32 +394,7 @@ describe.runIf(process.env.FLASHBACK_E2E)('Flashback panel e2e (Vite demo + Chro
     page.on('pageerror', (e) => errors.push(e.message));
     await page.addInitScript(freshBasket);
     // Başsız Chromium'da ekran seçme penceresi yok: ekran hareketli bir tuvalden, mikrofon bir osilatörden gelir.
-    await page.addInitScript(() => {
-      const md = navigator.mediaDevices;
-      md.getDisplayMedia = async () => {
-        const c = document.createElement('canvas');
-        c.width = 1280;
-        c.height = 720;
-        const ctx = c.getContext('2d')!;
-        let n = 0;
-        setInterval(() => {
-          ctx.fillStyle = `hsl(${(n * 25) % 360} 60% 40%)`;
-          ctx.fillRect(0, 0, c.width, c.height);
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 96px sans-serif';
-          ctx.fillText(`Ekran ${n++}`, 80, 360);
-        }, 100);
-        return c.captureStream(15);
-      };
-      md.getUserMedia = async () => {
-        const ac = new AudioContext();
-        const osc = ac.createOscillator();
-        const dest = ac.createMediaStreamDestination();
-        osc.connect(dest);
-        osc.start();
-        return dest.stream;
-      };
-    });
+    await page.addInitScript(fakeScreenAndMic);
     await page.goto(base + '/');
     await page.locator('[data-fb="launcher"][data-receiver="connected"]').waitFor({ timeout: 15_000 });
 

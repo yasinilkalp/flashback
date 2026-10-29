@@ -1,6 +1,6 @@
 # EK-B3 ölçüm özeti
 
-2026-10-27 · win32 · Node v25.8.2. Hücreler: **doğru/n · çözülemedi · yanlış**. "Yanlış" = `resolved:true` ama yanlış dosya:satır (ölçüt: 0).
+2026-10-29 · win32 · Node v25.8.2. Hücreler: **doğru/n · çözülemedi · yanlış**. "Yanlış" = `resolved:true` ama yanlış dosya:satır (ölçüt: 0).
 
 | Kurulum | Tarayıcı | İstemci (tümü) | 20 rastgele | RSC | Panel seçimi | HMR sonrası istemci | HMR sonrası RSC | HMR sonrası panel |
 |---|---|---|---|---|---|---|---|---|

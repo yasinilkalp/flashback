@@ -28,6 +28,7 @@
 | v1.3 | 28.10.2026 | **Kayıt akışı kararları.** `maxRecordSeconds` varsayılanı 300 → 60 sn (FR-REC-02, §9.4). Kayıt düğmesi ve kısayol "Kayda başla" penceresini açar: "Bu sekme" ya da "Ekran / pencere", isteğe bağlı mikrofon (FR-REC-01). Kayıt durunca (elle ya da sınırda) olay sepete girer ve o olayın ekranı (not ve öğe seçimi) hemen açılır (FR-BSK-01). Yeni FR-REC-16: ekran/pencere videosu ve mikrofon sesi olaya `.webm` olarak eklenir; ajana dosya yolu ve videodan alınmış anahtar kareler gider (şemada `media`, alıcıda `POST /incidents/:id/media`, §9.1, §9.3). |
 | v1.3.1 | 29.10.2026 | **Ürün kararları.** AS-3: varsayılan kısayol `Alt+Shift+R` kalır; çakışma görülen ortamda `shortcut` prop'uyla değiştirilir. AS-4: telefon numaraları varsayılan olarak gizlenmez (FR-RED-05 aynen). AS-5: arayüz dili tarayıcı diline uyar (FR-UI-14 aynen). AS-10: gönderim önizlemesi her tarayıcı oturumunun ilk gönderiminde zorunludur; FR-UI-08'in kabul kriteri buna göre düzeltildi (D-5 kapandı). |
 | v1.4 | 29.10.2026 | **Kaynak eklentisi (R13).** `flashback-devtools/vite` geliştirme sunucusunda HTML/SVG JSX öğelerine `data-flashback-source="dosya:satır:sütun"` yazar. Panel önce bu özniteliği okur: canlı öğede güncel koddan, canlı karşılığı yoksa kayıttaki değerden. Satır, modülün güncel kaynağında `<etiket` ile açılıyorsa doğrulanmış sayılır; açılmıyorsa `resolved:false` (FR-MARK-04, FR-MARK-11). Öznitelik olay paketinden çıkarılır. `vite build` ve Vitest'te çalışmaz (FR-CFG-08). Next.js (SWC/Turbopack) için eklenti yok; orada fiber yolu ve R13 sınırı sürer. |
+| v1.4.1 | 29.10.2026 | **Firefox kayıt tarafı "Doğrulandı"** (§3.3, NFR-COMP-01): kayıt akışı (bu sekme; ekran + mikrofon, `ImageCapture` olmadan) CI'ın `firefox` işinde uçtan uca sınanıyor ve iş artık CI'ı düşürebiliyor. **EK-B3 ölçümü CI'da:** haftalık, elle ve çözümleme kodu değişince (`ek-b3.yml`); ölçüt sağlanmazsa iş düşer. |
 
 ### Bu belgede kullanılan etiketler
 
@@ -145,7 +146,7 @@ Bu belge v1.0 sürümünün **ne yapması gerektiğini** tanımlar. Uygulamaya a
 | React | 18.3, 19.x (canary CI'da izlenir)³ | — | < 18.3 |
 | Geliştirme sunucusu | Vite, Next.js App Router (Turbopack ve webpack)¹ | webpack-dev-server, Next Pages Router | — |
 | Kaynak satırı: sunucu bileşenleri (RSC) | — | Next.js App Router (Turbopack ve webpack)¹ | Next.js dışındaki RSC çerçeveleri (`resolved:false`) |
-| Kayıt tarayıcısı | Chrome, Edge (Chromium) | Firefox², Safari | — |
+| Kayıt tarayıcısı | Chrome, Edge (Chromium), Firefox² | Safari | — |
 | Repro tarayıcısı | Chromium (Playwright) | — | Firefox/WebKit ile repro (YH) |
 | Ajan | Claude Code (otomatik e2e), Cursor, Codex (sürüm öncesi elle smoke test) | MCP stdio destekleyen diğer ajanlar | — |
 | İşletim sistemi | Linux, Windows, macOS (CI) | — | — |
@@ -155,7 +156,7 @@ Bu belge v1.0 sürümünün **ne yapması gerektiğini** tanımlar. Uygulamaya a
 
 ¹ **EK-B3 sonucu (27.10.2026, Next.js 16.4.3, React 19.3.1):** Turbopack'te ve webpack'te istemci bileşenlerinin 66 öğesinin tamamı ilk yüklemede doğru `dosya:satır`'a çözüldü (Chromium ve Firefox). Panelden yapılan gerçek seçimlerde de sonuç aynı. Ölçüt (≥ %90, sessizce yanlış satır yok) sağlandı; Next.js App Router "Doğrulandı" sütununda kalır. Sunucu bileşenleri (RSC) de 6/6 çözüldü. Ancak çözümleme Next.js dev sunucusunun belgelenmemiş `/__nextjs_source-map` ucuna dayandığı için "En iyi çaba" sayılır. Ayrıntı: `spikes/ek-b3/README.md`.
 
-² Firefox'ta yığın ayrıştırma dört kurulumda da Chromium ile aynı sonucu verdi (EK-B3). Firefox, kayıt tarafının uçtan uca testi CI'a eklenince "Doğrulandı" sütununa çıkar.
+² Firefox'ta yığın ayrıştırma dört kurulumda da Chromium ile aynı sonucu verdi (EK-B3). Kayıt akışı (bu sekme; ekran + mikrofon, anahtar kareler `ImageCapture` olmadan `<video>` yedeğiyle) 29.10.2026'dan beri CI'ın `firefox` işinde uçtan uca sınanıyor; iş düşerse CI düşer. Gerçek ekran paylaşma ve mikrofon izin pencereleri elle denenir (başsız tarayıcıda taklit edilir).
 
 ³ **HMR (EK-B3):** React 19, bir öğenin konumunu (`_debugStack`) yalnızca fiber oluşturulurken yazar; güncellemelerde yenilemez. Fast Refresh ile değişen bir bileşende, değişiklikten önce mount edilmiş öğelerin satırı bu yüzden doğrulanamaz. Flashback bu öğeleri `resolved:false` olarak işaretler ve dosya adını verir. Sayfa yenilenince konum yine doğru çözülür. React 18'de `_debugSource` her uzlaştırmada yenilendiği için HMR sonrası da doğru çözülür; yalnızca iki fiber kopyası çeliştiğinde `resolved:false` döner. Vite'ta kalıcı çözüm `flashback-devtools/vite` eklentisinin `data-flashback-source` özniteliği (v1.4); eklentiyle HMR sonrası da doğru satır verilir (R1, R13).
 
@@ -730,7 +731,7 @@ Bir olayda birden fazla beklenti kullanılabilir; IR bu durumda bir dizi olur.
 | NFR-REPRO-01 | `run_repro` varsayılan zaman aşımı 60 sn, en fazla 300 sn. Tarayıcının başlatılması bu süreye dahildir. | M | Test |
 | NFR-PERF-01 | Kayıt açıkken referans sayfada INP p75 artışı ≤ 20 ms. Tam anlık görüntü (checkout) dışında kayıttan kaynaklanan > 50 ms'lik long task olmaz. 5.000 düğümde tam anlık görüntü ≤ 100 ms sürer. Checkout'lar etkileşim içinde değil, tarayıcı boştayken alınır. **Ölçüm profili:** hedefler kısmasız (1x) Chromium'da bağlayıcıdır; 4x CPU kısma bilgi amaçlı raporlanır (rrweb'in tam görüntüsü 4x'te tek başına ~200 ms sürer). Ölçüm düzeneği: `scripts/bench`, sonuçlar: `07-nfr-olcumleri.md`. | S | Sürüm öncesi Playwright trace ölçümü; sonuç sürüm notuna yazılır |
 | NFR-LAT-01 | Panel ≤ 500 ms'de açılır. Kaydetten alıcı onayına p95 ≤ 2 sn. Ajanın sorusu panelde ≤ 5 sn içinde görünür. | S | Sürüm öncesi ölçüm |
-| NFR-COMP-01 | Node.js ≥ 22. React 18.3+ ve 19.x. Kayıt tarafında Chromium tabanlı tarayıcılar "Doğrulandı", Firefox ve Safari "en iyi çaba". Repro yalnızca Chromium ile yapılır. | M | CI matrisi ve §3.3 |
+| NFR-COMP-01 | Node.js ≥ 22. React 18.3+ ve 19.x. Kayıt tarafında Chromium tabanlı tarayıcılar ve Firefox "Doğrulandı", Safari "en iyi çaba". Repro yalnızca Chromium ile yapılır. | M | CI matrisi ve §3.3 |
 | NFR-AGNOSTIC-01 | Yalnızca standart MCP (stdio) kullanılır. Claude Code otomatik e2e testleriyle, Cursor ve Codex sürüm öncesi elle yapılan smoke testleriyle doğrulanır. | M | KK-5 |
 
 ## 11. Kalite güvencesi ve yayın

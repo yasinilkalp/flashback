@@ -53,8 +53,8 @@ Chromium 153 ve Firefox 155 her hücrede aynı sonucu verdi. **Sessizce yanlış
 
 - **React 19 + HMR (R13):** Fast Refresh ile değişen bir bileşenin değişiklikten önce mount edilmiş öğeleri, sayfa yenilenene kadar `resolved:false` kalır. Gerekçe panelde ve raporda görünür, dosya adı verilir. Bu durum React'in kendi tasarımından geliyor; tarayıcı tarafında güvenilir bir çözümü yok. Önerilen kalıcı çözüm, derleme anında konum ekleyen `data-flashback-source` eklentisi (v1.1).
 - **RSC:** Next.js'in belgelenmemiş ucuna dayanıyor. Sayfa yüklendikten sonra RSC yükü bir kez bile yenilenirse (HMR, istemci gezinmesi) sunucu öğeleri `resolved:false` olur. Bu tutucu bir kural: gezinmeden sonra taze mount edilen öğeleri de kapsar.
-- **Ölçülmeyenler:** Next.js Pages Router, Next.js 15, webpack-dev-server (CRA vb.), Safari, React canary (CI'daki canary işi yalnızca panel e2e'sini çalıştırıyor), Linux ve macOS (bu ölçüm Windows 11'de yapıldı; birim testleri CI'da üç işletim sisteminde koşuyor).
-- **Firefox:** Kaynak çözümleme Chromium ile aynı sonucu verdi. Kayıt tarafı CI'da Firefox'ta test edilmediği için matriste "en iyi çaba"da kalıyor.
+- **Ölçülmeyenler:** Next.js Pages Router, Next.js 15, webpack-dev-server (CRA vb.), Safari, React canary (CI'daki canary işi yalnızca panel e2e'sini çalıştırıyor), macOS. Bu tablodaki ölçüm Windows 11'de yapıldı; 29.10.2026'dan beri aynı ölçüm CI'da Linux'ta haftalık koşuyor (aşağıda).
+- **Firefox:** Kaynak çözümleme Chromium ile aynı sonucu verdi. Kayıt akışı 29.10.2026'dan beri CI'ın `firefox` işinde uçtan uca sınanıyor (`record-firefox.e2e.test.ts`); Firefox kayıt tarafında "Doğrulandı" (FRD §3.3).
 
 ## Yeniden çalıştırma
 
@@ -62,7 +62,9 @@ Chromium 153 ve Firefox 155 her hücrede aynı sonucu verdi. **Sessizce yanlış
 npm run build                         # depo kökünde
 node spikes/ek-b3/prepare.mjs         # tgz paketleri, etiketli fixture, uygulama bağımlılıkları
 npx playwright install chromium firefox
-node spikes/ek-b3/measure.mjs         # tümü; --only=vite-r19,next-webpack --browsers=chromium --no-hmr --no-panel
+node spikes/ek-b3/measure.mjs         # tümü; --only=vite-r19,next-webpack --browsers=chromium --no-hmr --no-panel --check
 ```
+
+`--check` ölçütü denetler: herhangi bir aşamada sessizce yanlış satır, ilk yüklemede %90'ın altında doğru ya da bir kurulum/tarayıcı hatası varsa çıkış kodu 1 olur. **CI:** [`.github/workflows/ek-b3.yml`](../../.github/workflows/ek-b3.yml) ölçümü Linux'ta `--check` ile çalıştırır: her pazartesi, elle (Actions → EK-B3 → Run workflow) ve main'de çözümleme kodu (`packages/flashback/src/source/`, `dom/fiber.ts`) ya da bu klasör değişince. Özet tablo iş özetine yazılır; `results/` ve `.logs/` yapıt olarak saklanır. Yayını bekletmez.
 
 Bir koşu yaklaşık 10 dakika sürer. Next.js uygulaması her bundler'dan önce `.next` klasörünü siler. Sunucu günlükleri `.logs/` klasörüne yazılır (git'e girmez).

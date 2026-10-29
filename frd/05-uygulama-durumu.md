@@ -2,9 +2,9 @@
 
 | Alan | Değer |
 |---|---|
-| Tarih | 29.10.2026 (ürün kararları ve kaynak eklentisi, FRD v1.4) |
+| Tarih | 29.10.2026 (ürün kararları, kaynak eklentisi, Firefox ve EK-B3 CI'da; FRD v1.4.1) |
 | Kod tabanı | Sıfırdan kuruldu. GitHub deposu boştu ve yerel klasörde yalnızca README ile yapılandırma dosyaları vardı. Bu nedenle FRD'deki "Durum" sütunu (README'ye göre "Mevcut") artık geçerli değil. Bu belge onun yerini alır; AS-9 kapandı. |
-| Doğrulama | 493 birim testi yeşil. 42 uçtan uca testin (gerçek Chromium) 40'ı yeşil; kalan 2'si `portable.e2e.test.ts`'deki symlink EPERM hatası (Windows'ta Developer Mode kapalı, ortamdan kaynaklı). Tip denetimi temiz (29.10.2026, Windows). CI üç işletim sisteminde yeşil (birleştirmeden önceki son koşu). EK-B3 ölçümü: 4 kurulum × 2 tarayıcı, sessizce yanlış satır 0 (`spikes/ek-b3/results/summary.md`). |
+| Doğrulama | 493 birim testi yeşil. 44 uçtan uca testin (gerçek Chromium ve Firefox) 42'si yeşil; kalan 2'si `portable.e2e.test.ts`'deki symlink EPERM hatası (Windows'ta Developer Mode kapalı, ortamdan kaynaklı). Tip denetimi temiz (29.10.2026, Windows). CI üç işletim sisteminde yeşil (birleştirmeden önceki son koşu). EK-B3 ölçümü: 4 kurulum × 2 tarayıcı, sessizce yanlış satır 0 (`spikes/ek-b3/results/summary.md`). |
 | Bağımsız güvenlik incelemesi | 9 bulgu çıktı: 3 High, 3 Medium, 3 Low. Bulguların 8'i exploit ile doğrulandı, 1'i kısmen doğrulandı. **Dokuzu da düzeltildi** ve her biri için regresyon testi eklendi (§4). |
 | FRD | §3'teki D-1…D-10 sapmaları [`08-FRD-v1.1.md`](08-FRD-v1.1.md) belgesine işlendi. |
 
@@ -19,7 +19,7 @@
 | KK-5 | ✓ | Codex ve Cursor (Windows) ile elle smoke testi geçti (27.10.2026). **Codex**, 2. koşu (`fb-20261027-214711-2pns`): ❌ 135030 ₺ → ✅ → ✅ → `fixed`, `verified: true`. **Cursor** (`fb-20261027-220533-5fwm`): aynı sonuç. Cursor şemayı `GetDynamicTools` ile keşfetti; bu Cursor'un kendi katmanı. İki ajan da doğru dosyayı ilk okumada buldu; araç ya da şema hatası olmadı. **Bulgular ve düzeltmeler:** (1) Codex 1. koşu yanlış kırmızı verdi (❌ → ❌ ❌): boş alana yapılan tıklama kapsayıcının ortasına oynatılmış, "Sepete ekle"ye denk gelmişti. Kapsayıcı tıklamaları artık göreli noktayla kaydedilip oynatılıyor (e2e testi var). (2) Rapordaki yol monorepoda `src/Cart.tsx` kaldı; aynı yol `react18` örneğinde de var. Hedefin kod parçasıyla doğru paket seçiliyor (`examples/demo/src/Cart.tsx`). Düzeltme Cursor olayının kod parçasıyla test edildi; Cursor koşusunda sunucu düzeltmeden önceki derlemeyle çalışıyordu. (3) Codex örneğine `tool_timeout_sec` ve Windows notu eklendi. |
 | KK-6 | ✅ | Gizleme fixture seti (173 test) geçiyor. Bilinen sır biçimlerinde duyarlılık %100. Korunan 91 değerde yanlış pozitif 0. |
 | KK-7 | ✅ | NFR-SIZE-01, NFR-TOK-01, NFR-REPRO-01 ve NFR-PRIV-01 testli. NFR-PERF-01, NFR-LAT-01 ve NFR-MEM-01 iki tur ölçüldü ([`07-nfr-olcumleri.md`](07-nfr-olcumleri.md) §0). MEM ve LAT geçti. PERF bağlayıcı profilde (1x) yalnızca 5.000 düğümdeki INP maddesinde kaldı (+32 ms, hedef ≤ 20 ms). Bu sonuç `v0.1.0-beta.2` sürüm notunda "Bilinen sınırlar" altında yazılı. |
-| KK-8 | ✅ | EK-B3 yapıldı (`spikes/ek-b3/`): Vite + React 18.3 ve 19, Next.js 16 App Router + Turbopack ve webpack; Chromium ve Firefox. İlk yüklemede %100 doğru, sessizce yanlış satır 0. Sonuçlar FRD §3.3, R1 ve R13'e işlendi. `examples/next-app`, `examples/react18` ve `examples/vue` uçtan uca testleri regresyon olarak koşar; Vue smoke testi geçti. |
+| KK-8 | ✅ | EK-B3 yapıldı (`spikes/ek-b3/`): Vite + React 18.3 ve 19, Next.js 16 App Router + Turbopack ve webpack; Chromium ve Firefox. İlk yüklemede %100 doğru, sessizce yanlış satır 0. Sonuçlar FRD §3.3, R1 ve R13'e işlendi. `examples/next-app`, `examples/react18` ve `examples/vue` uçtan uca testleri regresyon olarak koşar; Vue smoke testi geçti. Ölçüm 29.10.2026'dan beri CI'da haftalık (`ek-b3.yml`); aynı gün yeniden ölçüldü, sonuç değişmedi. |
 | KK-9 | ◐ | M ve M🔒 gereksinimlerin büyük çoğunluğunun testi var. Test kimliği eşlemesi tablo olarak çıkarılmadı. |
 | KK-10 | ✓ | `flashback-devtools` ve `flashback-mcp` `0.1.0-beta.3` npm'de (`latest`, 29.10.2026). beta.1, beta.2 ve beta.3 CI'dan, Trusted Publishing ile (belirteçsiz, GitHub OIDC) yayımlandı; üçünde de SLSA provenance imzası var. `v0.1.0-beta.1`…`v0.1.0-beta.3` GitHub ön sürümleri açık. beta.2'nin notunda kayıt akışı, 60 sn varsayılanı, yükseltme uyarısı, INP sonucu ve HMR sınırı (R13); beta.3'ün notunda kaynak eklentisi (`flashback-devtools/vite`), ürün kararları ve Next.js sınırı yazılı. İlk sürüm `0.1.0-beta.0` elle, 2FA ile ve provenance olmadan çıkmıştı. Ona bakan eski `beta` etiketi elle kaldırıldı; artık yalnızca `latest` var. Trusted Publishing yalnızca `npm publish` için geçerli olduğundan etiket işleri elle yapılır (R8). |
 | KK-11 | ○ | Mini benchmark yapılmadı. "%60" iddiası README'den çıkarıldı. |
@@ -39,6 +39,12 @@
 | LIFE | 01–06 | — |
 | CFG | 01–11 | 12 (v1.1) |
 | NFR | PRIV-01, SIZE-01, TOK-01, REPRO-01, COMP-01, MEM-01, LAT-01 | PERF-01: 5.000 düğümde INP +32 ms (1x) |
+
+### 29.10.2026: EK-B3 CI'da, Firefox kayıt tarafı "Doğrulandı" (FRD v1.4.1)
+
+- **EK-B3 iş akışı** (`.github/workflows/ek-b3.yml`): ölçüm Linux'ta, 4 kurulum × Chromium ve Firefox, `measure.mjs --check` ile koşar. Her pazartesi, elle ve main'de çözümleme kodu (`src/source/`, `dom/fiber.ts`) ya da `spikes/ek-b3` değişince çalışır. Ölçüt sağlanmazsa (herhangi bir aşamada yanlış satır, ilk yüklemede < %90, kurulum hatası) düşer. Özet iş özetine yazılır; sonuçlar ve sunucu günlükleri yapıt. Yayını bekletmez.
+- **Ölçüm betiği yeni kayıt akışına uyarlandı:** panel aşaması eskiden kısayolla açılan, sayfa açılınca kendiliğinden başlayan kayda dayanıyordu ve v1.2'den beri zaman aşımına düşüyordu. Artık "Kayda başla" → Bu sekme → durdur ile olay açılır. Yeniden ölçüm (29.10.2026, Windows, beta.3): dört kurulum, iki tarayıcı; ilk yükleme 66/66, panel 12/12, RSC 6/6, hiçbir aşamada yanlış 0. HMR sonuçları 27.10'dakiyle aynı (R13).
+- **Firefox kayıt e2e** (`record-firefox.e2e.test.ts`): bu sekme kaydı → olay ekranı → tekrar oynatmada öğe seçimi → gönderim (adımlar, ağ, store, kaynak satırı); ekran + mikrofon kaydı (`.webm` yüklenir, `ImageCapture` olmadığı için anahtar kareler `<video>` yedeğinden). Yerelde üç koşuda da yeşil. CI'ın `firefox` işi (eski `firefox-source`) bunu ve EK-B3 kaynak matrisini çalıştırır; artık `continue-on-error` değil, düşerse CI düşer. FRD §3.3'te Firefox kayıt tarafında "Doğrulandı".
 
 ### 29.10.2026: kaynak eklentisi (R13, FRD v1.4)
 
@@ -114,5 +120,4 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 2. **Mini benchmark** (KK-11): 8–10 hata, Flashback ile ve Flashback olmadan. Sitedeki "%60" ifadesi o zamana kadar "n=1" notuyla verilmeli (FRD §2.3).
 3. **Kısayol çakışma testi** (FR-UI-03): Windows, macOS ve Linux'ta; TR-Q, TR-F ve US düzenlerinde; IME açıkken `Alt+Shift+R`. Kısayol fiziksel tuşa (`KeyboardEvent.code`) bağlı olduğu için düzen değişse de aynı tuşla tetiklenir. Asıl risk, Windows'ta `Alt+Shift` ile dil değiştirme. Varsayılan değişmeyecek (AS-3); test yalnızca README'deki çakışma notu için.
 4. **`data-flashback-source` Next.js için (R13):** Vite eklentisi geldi (v1.4). Next.js'te (SWC/Turbopack) aynı özniteliği yazan bir eklenti yok; orada React 19 HMR sonrası konumlar `resolved:false` kalır.
-5. **EK-B3 ölçümünü CI'a almak:** `spikes/ek-b3` haftalık ya da sürüm öncesi bir işte çalışsın. Firefox kayıt e2e'si de eklensin (Firefox → "Doğrulandı").
-6. **Ekran kaydını gerçek tarayıcılarda elle denemek (FR-REC-16):** Chrome, Edge ve Firefox'ta gerçek izin pencereleri; başka bir pencereyi paylaşırken sekme arka plandayken anahtar kareler; tarayıcının "Paylaşımı durdur" çubuğu (kaydı durdurmalı); Firefox'ta `ImageCapture` yok, `<video>` yedeği kullanılır.
+5. **Ekran kaydını gerçek tarayıcılarda elle denemek (FR-REC-16):** Chrome, Edge ve Firefox'ta gerçek izin pencereleri; başka bir pencereyi paylaşırken sekme arka plandayken anahtar kareler; tarayıcının "Paylaşımı durdur" çubuğu (kaydı durdurmalı); Firefox'ta `ImageCapture` yok, `<video>` yedeği kullanılır.
