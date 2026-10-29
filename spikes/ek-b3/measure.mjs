@@ -121,13 +121,37 @@ async function probeBundle() {
   return out.outputFiles[0].text;
 }
 
-async function loadFixture(page, url) {
-  await page.goto(url, { timeout: 240_000, waitUntil: 'load' });
-  // Lazy parça, portal, gecikmeli içerik ve panel düğmesi hazır olana kadar bekle.
-  for (const sel of ['figure[data-ekb3]', 'aside[data-ekb3]', 'mark[data-ekb3]', '[data-fb="launcher"]']) {
-    await page.locator(sel).first().waitFor({ state: 'attached', timeout: 120_000 });
+const HYDRATION_MISMATCH = /hydrated but some attributes/;
+
+/**
+ * Sayfayı fixture'ın `version` sürümüyle yükler. Önceki tarayıcının HMR aşamasından sonra fixture geri yazıldığında
+ * Next.js sunucusu bir süre eski derlemeyle SSR yapabilir: istemci yeni kodla hydrate eder ama React öznitelik
+ * farkını düzeltmez, DOM'daki `data-ekb3` etiketleri (doğru yanıt) eski sürümde kalır ve doğru çözümleme `wrong`
+ * sayılır (CI'da Linux + Firefox'ta görüldü). Etiketler beklenen sürümde değilse ya da hydration uyumsuzluğu
+ * bildirildiyse sayfa yeniden yüklenir.
+ */
+async function loadFixture(page, url, version = 1) {
+  for (let attempt = 1; ; attempt++) {
+    let mismatch = false;
+    const onConsole = (m) => void (m.type() === 'error' && HYDRATION_MISMATCH.test(m.text()) && (mismatch = true));
+    page.on('console', onConsole);
+    if (attempt === 1) await page.goto(url, { timeout: 240_000, waitUntil: 'load' });
+    else await page.reload({ timeout: 240_000, waitUntil: 'load' });
+    // Lazy parça, portal, gecikmeli içerik ve panel düğmesi hazır olana kadar bekle.
+    for (const sel of ['figure[data-ekb3]', 'aside[data-ekb3]', 'mark[data-ekb3]', '[data-fb="launcher"]']) {
+      await page.locator(sel).first().waitFor({ state: 'attached', timeout: 120_000 });
+    }
+    await page.waitForTimeout(1500);
+    page.off('console', onConsole);
+    const stale = await page.evaluate(
+      (v) => Array.from(document.querySelectorAll('[data-ekb3],[data-ekb3-rsc]')).some((el) => el.getAttribute('data-ekb3-v') !== v),
+      String(version),
+    );
+    if (!stale && !mismatch) return;
+    if (attempt >= 6) throw new Error(`fixture v${version} sayfaya ulaşmadı (eski etiket: ${stale}, hydration uyumsuzluğu: ${mismatch})`);
+    console.log(`  sayfa fixture v${version} ile tutarlı değil (eski etiket: ${stale}, hydration uyumsuzluğu: ${mismatch}); yeniden yükleniyor`);
+    await page.waitForTimeout(3000);
   }
-  await page.waitForTimeout(1500);
 }
 
 /** HMR uygulanana kadar bekler: tüm etiketli öğeler fixture'ın 2. sürümünden. */
