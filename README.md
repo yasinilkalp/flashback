@@ -127,7 +127,7 @@ tool_timeout_sec = 180 # run_repro tarayıcı başlattığı için varsayılan a
 ```
 
 - `npx --no-install` paketi sunucunun başlatıldığı klasörde arar. Codex sunucuyu proje dışında başlatıyorsa (ya da Windows'ta `npx` başlatılamıyorsa) paketi doğrudan çalıştırın: `command = "node"`, `args = ['C:\yol\projeniz\node_modules\flashback-mcp\dist\cli.js']`. Windows yollarını TOML'da tek tırnakla yazın.
-- Codex ekran görüntüsünü görüntü olarak göstermiyorsa `env` içine `FLASHBACK_NO_IMAGES = "1"` ekleyin; `run_repro` görüntü yerine dosya yolu döndürür.
+- Codex ekran görüntüsünü görüntü olarak göstermiyorsa `env` içine `FLASHBACK_NO_IMAGES = "1"` ekleyin; `run_repro` ve `get_incident` görüntü yerine dosya yolu döndürür.
 
 Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mcp/README.md`](packages/mcp/README.md). Oturum gerektiren uygulamalar için `FLASHBACK_STORAGE_STATE` ile bir Playwright `storageState` dosyası verin; verilmezse oturum eksikliği **kırmızı sayılmaz**, `precondition` hatası olarak bildirilir.
 

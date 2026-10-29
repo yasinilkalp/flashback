@@ -37,7 +37,7 @@ tool_timeout_sec = 180 # run_repro tarayıcı başlattığı için varsayılan a
 ```
 
 - `npx --no-install` paketi sunucunun başlatıldığı klasörde arar. Codex sunucuyu proje dışında başlatıyorsa (ya da Windows'ta `npx` başlatılamıyorsa) paketi doğrudan çalıştırın: `command = "node"`, `args = ['C:\yol\projeniz\node_modules\flashback-mcp\dist\cli.js']`. Windows yollarını TOML'da tek tırnakla yazın.
-- Codex ekran görüntüsünü görüntü olarak göstermiyorsa `env` içine `FLASHBACK_NO_IMAGES = "1"` ekleyin; `run_repro` görüntü yerine dosya yolu döndürür.
+- Codex ekran görüntüsünü görüntü olarak göstermiyorsa `env` içine `FLASHBACK_NO_IMAGES = "1"` ekleyin; `run_repro` ve `get_incident` görüntü yerine dosya yolu döndürür.
 
 ## Komutlar
 
@@ -65,7 +65,7 @@ tool_timeout_sec = 180 # run_repro tarayıcı başlattığı için varsayılan a
 | `FLASHBACK_RETENTION_DAYS` | `30` | Kapalı olayların saklanma süresi. |
 | `FLASHBACK_REPRO_TIMEOUT_S` | `60` | En fazla 300. Tarayıcının başlatılması bu süreye dahildir. |
 | `FLASHBACK_RATE_LIMIT_PER_MIN` | `30` | Dakika başına kabul edilen en fazla olay sayısı. Aşılırsa 429 döner. `0` verilirse sınır kalkar. |
-| `FLASHBACK_NO_IMAGES` | (kapalı) | `1` verilirse `run_repro` ekran görüntüsünü görüntü olarak değil, dosya yolu olarak döndürür. |
+| `FLASHBACK_NO_IMAGES` | (kapalı) | `1` verilirse `run_repro` ekran görüntüsünü ve `get_incident` ekran kaydının anahtar karelerini görüntü olarak değil, dosya yolu olarak döndürür. |
 
 ## Araçlar
 
