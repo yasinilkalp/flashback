@@ -382,6 +382,11 @@ export function buildDraft(input: DraftInput): IncidentDraftInput {
     count += n;
   }
   draft.redaction = { enabled: r.enabled, count, byType };
-  draft.confidence = confidenceItems({ draft, snapshot, truncated, excluded, sessionHint: env, sourceFromAncestor: !!input.target?.location?.fromAncestor });
+  const loc = input.target?.location;
+  draft.confidence = confidenceItems({
+    draft, snapshot, truncated, excluded, sessionHint: env,
+    sourceFromAncestor: !!loc?.fromAncestor,
+    sourceFromAttribute: !!loc?.fromAttribute,
+  });
   return draft;
 }

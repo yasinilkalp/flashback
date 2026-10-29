@@ -15,6 +15,8 @@ export interface ConfidenceInput {
   sessionHint: { cookieNames: string[]; storageKeys: string[] };
   /** Kaynak satırı öğenin değil en yakın atanın JSX'i (EK-B3). */
   sourceFromAncestor?: boolean;
+  /** Kaynak satırı derleme eklentisinin `data-flashback-source` özniteliğinden (R13). */
+  sourceFromAttribute?: boolean;
 }
 
 const ok = (key: string, message: string): ConfidenceItem => ({ key, level: 'ok', message });
@@ -54,13 +56,20 @@ export function pathOf(url: string): string {
   }
 }
 
-function sourceItem(draft: IncidentDraftInput, fromAncestor = false): ConfidenceItem {
+function sourceItem(draft: IncidentDraftInput, fromAncestor = false, fromAttribute = false): ConfidenceItem {
   const t = draft.target;
   if (!t) return ok('source', 'kaynak: sayfa düzeyi olay — hedef öğe yok');
   if (!t.file) {
     return warn('source', 'kaynak: bulunamadı (React fiber/kaynak bilgisi yok)', 'Dosya:satır yok; seçici ve bileşen yığınıyla dosyayı ara.');
   }
   const where = `${t.file}:${t.line}`;
+  if (fromAttribute) {
+    if (!t.resolved) {
+      return warn('source', `kaynak: ${where} — derleme eklentisinin konumu doğrulanamadı (dosya kayıttan sonra değişmiş olabilir)`, 'Satır kaymış olabilir; öğeyi dosyada seçici ve HTML ile bul.');
+    }
+    if (t.snippet) return ok('source', `kaynak: ${where} (derleme eklentisinin özniteliği, ±3 satır kod parçası ve dosya özeti var)`);
+    return ok('source', `kaynak: ${where} (derleme eklentisinin özniteliği, canlı öğeden; kod parçası yok)`);
+  }
   if (!t.resolved) {
     return warn('source', `kaynak: source map çözülemedi — derlenmiş konum (${where})`, 'Bu satıra güvenme; bileşen yığını ve seçiciyle orijinal dosyayı bul.');
   }
@@ -128,7 +137,7 @@ export function confidenceItems(input: ConfidenceInput): ConfidenceItem[] {
   const { draft, truncated, excluded } = input;
   const cut = [...truncated, ...excluded.map((e) => `${e} (geliştirici hariç tuttu)`)];
   return [
-    sourceItem(draft, input.sourceFromAncestor),
+    sourceItem(draft, input.sourceFromAncestor, input.sourceFromAttribute),
     elementItem(draft),
     warn('propsState', 'props/state: canlı (geçmiş değil)', 'Geçmişteki değerler için store değişikliklerine ve ağ yanıtlarına bak.'),
     preWindowItem(input),

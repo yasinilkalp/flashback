@@ -32,6 +32,34 @@ createRoot(document.getElementById('root')!).render(
 );
 ```
 
+### Kaynak eklentisi (önerilir)
+
+```ts
+// vite.config.ts
+import react from '@vitejs/plugin-react';
+import flashbackSource from 'flashback-devtools/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [flashbackSource(), react()],
+});
+```
+
+Eklenti, geliştirme sunucusunda JSX'teki HTML ve SVG öğelerine `data-flashback-source="src/Cart.tsx:42:7"` özniteliğini yazar. İşaretlenen öğenin satırı önce bu öznitelikten okunur:
+
+- Kod düzenlenip sayfa HMR ile güncellendikten sonra da satır doğru kalır. React 19'da eklenti olmadan bu satır doğrulanamaz ve `resolved: false` olarak işaretlenir.
+- Satır, dosyanın güncel içeriğiyle karşılaştırılır. Tutmazsa (ör. kayıttan sonra dosya değiştiyse) satır verilir ama doğrulanmamış olarak işaretlenir.
+- Öznitelik yoksa (bağımlılıklardaki bileşenlerin öğeleri, eklenti kurulmamışsa) eski yola, fiber ve source map çözümüne düşülür.
+
+Eklenti yalnızca `vite` geliştirme sunucusunda çalışır. `vite build` ve Vitest (`mode: 'test'`) çıktısına girmez, anlık görüntü testleri etkilenmez. `node_modules` dönüştürülmez. Öznitelik ajana giden olay paketinden çıkarılır; yalnızca paneldeki tekrar oynatmada kalır. Seçenekler:
+
+| Seçenek | Varsayılan | Açıklama |
+|---|---|---|
+| `include` | `/\.[jt]sx$/` | Dönüştürülecek dosyalar |
+| `exclude` | — | Dışarıda bırakılacak dosyalar (ör. react-three-fiber sahneleri: `/\/scene\//`) |
+
+Öznitelik yalnızca bilinen HTML/SVG etiketlerine ve özel öğelere (`my-element`) yazılır; `<mesh>` gibi DOM dışı küçük harfli etiketlere dokunulmaz.
+
 ## Next.js (App Router)
 
 ```tsx
@@ -117,7 +145,7 @@ trackStore('redux', store.subscribe, store.getState); // Redux
 | `ignoreUrls` | `[]` | Metin öneki ya da RegExp |
 | `maskAllInputs` | `false` | Parolalar her durumda maskelenir |
 | `redact` | `true` | `{ keys, patterns, emails: true, phones: false }`; `false` gizlemeyi kapatır |
-| `shortcut` | `alt+shift+r` | Kaydı başlatıp durdurur; `event.code` ile eşleşir, metin girişindeyken tetiklenmez |
+| `shortcut` | `alt+shift+r` | Kaydı başlatıp durdurur; `event.code` ile eşleşir, metin girişindeyken tetiklenmez. Windows'ta `Alt+Shift` klavye dilini değiştiriyorsa başka bir kısayol verin |
 | `position` | `bottom-right` | `bottom-left`, `top-right`, `top-left` |
 | `locale` | Tarayıcı diline göre `tr` / `en` | |
 | `allowProduction` | `false` | Önerilmez |

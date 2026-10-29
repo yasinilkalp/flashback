@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import react from '@vitejs/plugin-react';
+import flashbackSource from 'flashback-devtools/vite';
 import { defineConfig, type Connect, type Plugin } from 'vite';
 
 /**
  * Demo API'si: Vite ile aynı süreçte çalışan ara katman. Kasıtlı hatalar için bkz. BUGS.md.
  * `FLASHBACK_DEMO_DETERMINISTIC=1` sunucuyu belirlenimci yapar (sabit oturum kimliği), e2e testleri bunu kullanır.
+ * `FLASHBACK_DEMO_SOURCE_ATTR=0` kaynak eklentisini kapatır; EK-B3 matrisi fiber yolunu bu şekilde ölçer.
  */
 const PRODUCTS = [
   { id: 1, name: 'Seramik kupa', price: 250 },
@@ -91,7 +93,8 @@ function demoApi(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), demoApi()],
+  // flashbackSource: JSX öğelerine kaynak konumu yazar, HMR'den sonra da doğru satır (R13). Yalnızca `vite` dev sunucusu.
+  plugins: [...(process.env.FLASHBACK_DEMO_SOURCE_ATTR === '0' ? [] : [flashbackSource()]), react(), demoApi()],
   resolve: { dedupe: ['react', 'react-dom'] },
   // flashback-devtools çalışma alanından (dist) gelir; bağımlılıkları baştan ön paketlensin ki ilk açılışta yeniden yükleme olmasın.
   optimizeDeps: { include: ['rrweb', 'source-map-js', 'zustand', 'react', 'react-dom/client', 'react/jsx-dev-runtime'] },

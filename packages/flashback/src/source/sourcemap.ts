@@ -13,6 +13,7 @@
  */
 import { SourceMapConsumer, type RawSourceMap } from 'source-map-js';
 import { hashContent } from '../hash.js';
+import type { SourceAttr } from './attr.js';
 import { serverComponentFile, type StackFrame } from './stack.js';
 
 export interface Snippet {
@@ -32,6 +33,8 @@ export interface ResolvedLocation {
   fromAncestor?: boolean;
   /** Konum bir React Server Component çerçevesinden (sunucuda oluşturulan öğe). */
   serverComponent?: boolean;
+  /** Konum derleme eklentisinin `data-flashback-source` özniteliğinden (R13). */
+  fromAttribute?: boolean;
 }
 
 type FetchText = (url: string) => Promise<string | null>;
@@ -171,6 +174,15 @@ export function matchModuleUrl(file: string, urls: Iterable<string>): string | n
   return best;
 }
 
+/** Satır `column`'dan itibaren `<etiket` ile açılıyor mu? (rrweb etiket adlarını küçük harfe çevirir.) */
+export function opensElement(text: string, column: number, tag: string): boolean {
+  const rest = text.slice(column - 1);
+  return rest.slice(0, tag.length + 1).toLowerCase() === `<${tag.toLowerCase()}` && !/^[\w.:-]/.test(rest.slice(tag.length + 1));
+}
+
+const ATTR_CHANGED = 'kaynak dosya, öznitelik yazıldıktan sonra değişmiş (kayıttan sonra düzenlenmiş olabilir); satır doğrulanamaz';
+const ATTR_UNVERIFIED = 'öğe canlı sayfada yok ve kaynak dosya getirilemedi; kayıttaki öznitelik doğrulanamaz';
+
 async function snippetOf(content: string, line: number): Promise<Snippet> {
   const lines = content.split(/\r?\n/);
   const start = Math.max(1, line - 3);
@@ -301,20 +313,47 @@ export class SourceResolver {
    */
   async fromDebugSource(fileName: string, line: number, column?: number): Promise<ResolvedLocation> {
     const out: ResolvedLocation = { file: fileName, line, column: column ?? 1, resolved: true };
+    const found = await this.moduleSource(fileName, false);
+    if (!found) return out;
+    out.file = found.file;
+    if (found.content !== null) out.snippet = await snippetOf(found.content, line);
+    return out;
+  }
+
+  /**
+   * `data-flashback-source` (derleme eklentisi, R13): satır zaten kaynak dosyada. Modül önbelleksiz getirilir (HMR'den
+   * sonra eski harita kalmasın); kod parçası haritadaki güncel içerikten alınır ve satırın gerçekten `<etiket` ile
+   * açıldığı denetlenir. Tutmazsa dosya öznitelik yazıldıktan sonra değişmiştir: satır verilir ama `resolved:false`.
+   * İçerik getirilemezse canlı öğenin özniteliği güncel sayılır; kayıttaki öğeninki (`live: false`) doğrulanamaz.
+   */
+  async fromSourceAttr(attr: SourceAttr, tag: string, live: boolean): Promise<ResolvedLocation> {
+    const out: ResolvedLocation = { ...attr, resolved: true, fromAttribute: true };
+    const found = await this.moduleSource(attr.file, true);
+    if (found) out.file = found.file;
+    if (!found || found.content === null) return live ? out : { ...out, resolved: false, reason: ATTR_UNVERIFIED };
+    const text = found.content.split(/\r?\n/)[attr.line - 1] ?? '';
+    if (!opensElement(text, attr.column, tag)) return { ...out, resolved: false, reason: ATTR_CHANGED };
+    out.snippet = await snippetOf(found.content, attr.line);
+    return out;
+  }
+
+  /**
+   * Dosyayı sunan, sayfada yüklü modül (Vite) ve haritasındaki kaynak içerik. Yol dev sunucusu köküne göreli yazılır
+   * (`/@fs/` mutlak yolları olduğu gibi kalır). `fresh`: önbellek atlanır (HMR sonrası güncel içerik).
+   */
+  private async moduleSource(fileName: string, fresh: boolean): Promise<{ file: string; content: string | null } | null> {
     const scripts = (this.opts.listScripts?.() ?? []).filter((u) => this.isAllowed(u));
     const scriptUrl = matchModuleUrl(fileName, scripts);
-    if (!scriptUrl) return out;
+    if (!scriptUrl) return null;
     const urlPath = decodeURIComponent(new URL(scriptUrl).pathname);
-    if (!urlPath.startsWith('/@fs/')) out.file = urlPath.slice(1);
-    const entry = await this.load(scriptUrl);
-    if (typeof entry === 'string') return out;
+    const file = urlPath.startsWith('/@fs/') ? fileName : urlPath.slice(1);
+    const entry = fresh ? await this.loadUncached(scriptUrl).catch(() => 'source map okunamadı') : await this.load(scriptUrl);
+    if (typeof entry === 'string') return { file, content: null };
     const norm = fileName.replace(/\\/g, '/');
     const source = entry.consumer.sources.find((src) => {
       const p = toProjectPath(src, entry.mapUrl, scriptUrl);
-      return p === out.file || p === norm || norm.endsWith(`/${p}`);
+      return p === file || p === norm || norm.endsWith(`/${p}`);
     });
-    const content = source ? entry.consumer.sourceContentFor(source, true) : null;
-    if (content !== null) out.snippet = await snippetOf(content, line);
-    return out;
+    return { file, content: source ? entry.consumer.sourceContentFor(source, true) : null };
   }
 }

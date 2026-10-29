@@ -1,6 +1,7 @@
 /**
  * EK-B3 (FRD §3.5): React 19 + Vite 8 demo — Chromium ve (kuruluysa) Firefox. Firefox'ta yığın biçimi
  * `fn@url:satır:sütun`'dur. Firefox Playwright tarayıcısı yoksa (`npx playwright install firefox`) o kısım atlanır.
+ * Demo kaynak eklentisi olmadan açılır: ölçülen yol fiber/source map yoludur (eklentili yol: source-attr.e2e.test.ts).
  * Önkoşul: `npm run build`.
  */
 import { existsSync } from 'node:fs';
@@ -66,10 +67,12 @@ describe.runIf(process.env.FLASHBACK_E2E)('React 19 + Vite demo: JSX kaynak çö
     receiver = await startReceiver();
     process.env.VITE_FLASHBACK_ENDPOINT = receiver.url;
     process.env.FLASHBACK_DEMO_DETERMINISTIC = '1';
+    process.env.FLASHBACK_DEMO_SOURCE_ATTR = '0';
     vite = await startVite(demoDir);
   });
 
   afterAll(async () => {
+    delete process.env.FLASHBACK_DEMO_SOURCE_ATTR;
     await vite?.close();
     await receiver?.close();
   });

@@ -64,6 +64,15 @@ root.render(
 );
 ```
 
+Vite kullanıyorsanız kaynak eklentisini de ekleyin. Kod düzenlendikten (HMR) sonra da işaretlenen öğenin satırı doğru kalır:
+
+```ts
+// vite.config.ts
+import flashbackSource from 'flashback-devtools/vite';
+
+export default defineConfig({ plugins: [flashbackSource(), react()] });
+```
+
 `enabled` varsayılan olarak `process.env.NODE_ENV !== 'production'` değerini alır. Üretim build'inde kaydedici koda hiç girmez: paket `production` export koşulunda boş bir sürüme çözülür, koşulu desteklemeyen bundler'larda da `NODE_ENV` dalı sayesinde kaydedici elenir. Next.js App Router kurulumu için [`packages/flashback/README.md`](packages/flashback/README.md).
 
 ### Store takibi (isteğe bağlı)
@@ -85,7 +94,7 @@ trackStore('redux', store.subscribe, store.getState);              // Redux
 | `ignoreUrls` | `[]` | Kaydedilmeyecek istekler (metin öneki veya RegExp) |
 | `maskAllInputs` | `false` | Tüm girişleri maskeler. Parolalar her durumda maskelenir |
 | `redact` | `true` | `{ keys, patterns, emails: true, phones: false }`. `false` her şeyi olduğu gibi gönderir ve panelde kalıcı uyarı gösterir |
-| `shortcut` | `alt+shift+r` | Kaydı başlatıp durduran kısayol (`event.code` ile; metin girişindeyken tetiklenmez) |
+| `shortcut` | `alt+shift+r` | Kaydı başlatıp durduran kısayol (`event.code` ile; metin girişindeyken tetiklenmez). Windows'ta `Alt+Shift` klavye dilini değiştiriyorsa başka bir kısayol verin |
 | `position` | `bottom-right` | Araç çubuğunun köşesi |
 | `locale` | tarayıcı dili (`tr`/`en`) | Arayüz dili |
 | `project` | — | Projenin `package.json` adı. Verilirse alıcının projesiyle karşılaştırılır: uyuşmazsa düğme "yanlış proje" gösterir ve alıcı olayı 409 ile reddeder (aynı makinede birden çok proje çalışırken önerilir). |
@@ -179,14 +188,14 @@ Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mc
 
 - **Manuel kayıt ve sepet:** Kayıt elle başlar. Durdurulunca klip (rrweb olayları, ağ, konsol, adımlar, store) sayfanın kökenindeki IndexedDB'ye yazılır. Klip 50 MB'a ya da `maxRecordSeconds`'a ulaşınca kendiliğinden durur. Sepetteki olaylar birlikte gönderilince ortak bir `group` (`grp-…`) taşır; ajan `get_incident` raporunda aynı gruptaki öbür olayları görür.
 - **Replay ile canlı öğe eşlemesi:** Tekrar oynatmada seçtiğiniz öğe, rrweb düğüm kimliği üzerinden canlı sayfadaki aynı öğeye bağlanır ve React fiber'ı buradan okunur. Öğe artık yoksa en yakın canlı ata kullanılır ve bu kanıt güveninde belirtilir.
-- **Kaynak satırları:** React 19'da `_debugStack`, React 18'de `_debugSource`; source map'ler tarayıcıda çözülür. webpack'in `eval` modüllerinin haritası yüklenen chunk'lardan, Next.js sunucu bileşenlerininki dev sunucusundan okunur. Çözülemezse ya da konum HMR yüzünden bayat olabilirse yanlış satır verilmez, `resolved: false` işaretlenir. Yalnızca sayfanın kendi kökeni ve loopback kaynakları çözülür. Mutlak dosya yollarını alıcı proje köküne göre kısaltır.
+- **Kaynak satırları:** Vite'ta kaynak eklentisi varsa öğenin `data-flashback-source` özniteliği (dosyanın güncel içeriğiyle doğrulanır). Yoksa React 19'da `_debugStack`, React 18'de `_debugSource`; source map'ler tarayıcıda çözülür. webpack'in `eval` modüllerinin haritası yüklenen chunk'lardan, Next.js sunucu bileşenlerininki dev sunucusundan okunur. Çözülemezse ya da konum HMR yüzünden bayat olabilirse yanlış satır verilmez, `resolved: false` işaretlenir. Yalnızca sayfanın kendi kökeni ve loopback kaynakları çözülür. Mutlak dosya yollarını alıcı proje köküne göre kısaltır.
 - **Alıcı güvenliği:** `Host` başlığı doğrulanır (DNS rebinding), `Origin` izin listesine bakılır, POST'ta `application/json` zorunludur, gövde boyutu ve olay sayısı sınırlıdır.
 
 ## Bilinen sınırlar
 
 - Props/state değerleri işaretleme anında canlı uygulamadan okunur; geçmişteki ana ait değildir. Rapor bunu açıkça belirtir.
 - Bileşen bilgisi yalnızca React için çıkarılır; React dışı öğelerde (Vue smoke testi) bileşen yığını boş kalır ve paket bunu belirtir. Kaynak satırı çözümlemesi Vite (React 18.3 ve 19) ile Next.js App Router'da (Turbopack ve webpack) doğrulandı ([EK-B3](spikes/ek-b3/README.md)). Sunucu bileşenlerinin (RSC) satırı en iyi çaba ile çözülür.
-- React 19'da, HMR ile değiştirilen bir bileşenin değişiklikten önce oluşmuş öğelerinin satırı doğrulanamaz. Flashback bu satırı `resolved: false` olarak işaretler ve dosya adını yine verir. Doğru satır için sayfayı yenileyip hatayı tekrarlayın.
+- React 19'da, HMR ile değiştirilen bir bileşenin değişiklikten önce oluşmuş öğelerinin satırı, kaynak eklentisi (`flashback-devtools/vite`) olmadan doğrulanamaz. Flashback bu satırı `resolved: false` olarak işaretler ve dosya adını yine verir. Vite'ta eklentiyi kurun; Next.js'te doğru satır için sayfayı yenileyip hatayı tekrarlayın.
 - Canvas, video ve çapraz kökenli iframe içerikleri tekrar oynatılmaz. WebSocket mesaj içerikleri kaydedilmez.
 - Kayıt sürerken sayfa tamamen yenilenirse ya da tam sayfa geçişi olursa (SPA olmayan gezinti) o anki kayıt kaybolur; durdurulmuş olaylar sepette korunur.
 - Sepetteki ham klipler IndexedDB'de gizlenmeden durur (giriş değerleri kayıt anında maskelenir). Gizleme, olay sepete kaydedilirken uygulanır; gönderilen olay sepetten silinir. Sepeti paneldeki çöp kutusuyla temizleyebilirsiniz.

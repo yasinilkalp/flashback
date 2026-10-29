@@ -241,3 +241,65 @@ describe('matchModuleUrl (React 18 _debugSource → Vite modülü)', () => {
     expect(matchModuleUrl('/home/u/app/src/Other.tsx', urls)).toBeNull();
   });
 });
+
+describe('data-flashback-source (R13, derleme eklentisi)', () => {
+  const CART = ['export function Cart() {', '  return (', '    <section className="cart">', '      <dd data-testid="total">x</dd>', '    </section>', '  );', '}'];
+  const moduleUrl = 'http://localhost:5173/src/Cart.tsx';
+  const scripts = [`${moduleUrl}?t=2`, 'http://localhost:5173/src/main.tsx'];
+  /** Vite modülü: satır içi haritada `Cart.tsx` kaynağı. */
+  const moduleFor = (lines: string[]) => {
+    const gen = new SourceMapGenerator({ file: 'Cart.tsx' });
+    gen.addMapping({ generated: { line: 1, column: 0 }, original: { line: 1, column: 0 }, source: 'Cart.tsx' });
+    gen.setSourceContent('Cart.tsx', lines.join('\n'));
+    return `x\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(gen.toString()).toString('base64')}`;
+  };
+  const attr = { file: 'src/Cart.tsx', line: 4, column: 7 };
+
+  it('parseSourceAttr: satır ve sütun sağdan ayrılır (Windows yolu); bozuk değer → null', async () => {
+    const { parseSourceAttr } = await import('../src/source/attr.js');
+    expect(parseSourceAttr('src/Cart.tsx:12:5')).toEqual({ file: 'src/Cart.tsx', line: 12, column: 5 });
+    expect(parseSourceAttr('C:/Users/u/app/src/Cart.tsx:3:1')).toEqual({ file: 'C:/Users/u/app/src/Cart.tsx', line: 3, column: 1 });
+    for (const v of ['src/Cart.tsx', 'src/Cart.tsx:0:1', 'src/Cart.tsx:3:x', '', null]) expect(parseSourceAttr(v)).toBeNull();
+  });
+
+  it('satır güncel dosyada öğeyi açıyorsa çözülür; kod parçası güncel içerikten ve her seferinde yeniden getirilir (HMR)', async () => {
+    const files: Record<string, string> = { [moduleUrl]: moduleFor(CART) };
+    const { resolver, fetched } = resolverFor(files, undefined, { listScripts: () => scripts });
+    const first = await resolver.fromSourceAttr(attr, 'dd', true);
+    expect(first).toMatchObject({ file: 'src/Cart.tsx', line: 4, column: 7, resolved: true, fromAttribute: true });
+    expect(first.snippet?.lines).toContain('      <dd data-testid="total">x</dd>');
+    // Dosya düzenlendi: iki satır eklendi, öğe 6. satıra kaydı (canlı öğenin özniteliği de yeni satırı gösterir).
+    const edited = ['// a', '// b', ...CART];
+    files[moduleUrl] = moduleFor(edited);
+    const after = await resolver.fromSourceAttr({ ...attr, line: 6 }, 'dd', true);
+    expect(after).toMatchObject({ line: 6, resolved: true });
+    expect(after.snippet?.startLine).toBe(3);
+    expect(fetched.filter((u) => u === moduleUrl)).toHaveLength(2);
+  });
+
+  it('dosya öznitelik yazıldıktan sonra değiştiyse satır verilir ama resolved:false (sessizce yanlış satır yok)', async () => {
+    const { resolver } = resolverFor({ [moduleUrl]: moduleFor(['// a', ...CART]) }, undefined, { listScripts: () => scripts });
+    const loc = await resolver.fromSourceAttr(attr, 'dd', false);
+    expect(loc).toMatchObject({ file: 'src/Cart.tsx', line: 4, resolved: false, fromAttribute: true });
+    expect(loc.reason).toMatch(/değişmiş/);
+    expect(loc.snippet).toBeUndefined();
+  });
+
+  it('modül bulunamazsa canlı öğenin özniteliği güvenilir, kayıttaki doğrulanamaz', async () => {
+    const { resolver } = resolverFor({}, undefined, { listScripts: () => scripts.slice(1) });
+    expect(await resolver.fromSourceAttr(attr, 'dd', true)).toEqual({ ...attr, resolved: true, fromAttribute: true });
+    const replay = await resolver.fromSourceAttr(attr, 'dd', false);
+    expect(replay).toMatchObject({ resolved: false });
+    expect(replay.reason).toMatch(/doğrulanamaz/);
+  });
+
+  it('opensElement: etiket sınırı ve rrweb küçük harfli SVG adları', async () => {
+    const { opensElement } = await import('../src/source/sourcemap.js');
+    expect(opensElement('  <linearGradient id="g">', 3, 'lineargradient')).toBe(true);
+    expect(opensElement('<dd>', 1, 'dd')).toBe(true);
+    expect(opensElement('<dd', 1, 'dd')).toBe(true);
+    expect(opensElement('<dd2>', 1, 'dd')).toBe(false);
+    expect(opensElement('<dd.x>', 1, 'dd')).toBe(false);
+    expect(opensElement(' <dd>', 1, 'dd')).toBe(false);
+  });
+});

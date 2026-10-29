@@ -67,3 +67,33 @@ describe('withoutOwnUi (FR-REC-10)', () => {
     expect(s.data.node).toBe(snap.data.node);
   });
 });
+
+describe('withoutOwnUi: data-flashback-source (R13)', () => {
+  it('özniteliği tam görüntüden, eklenen düğümlerden ve öznitelik mutasyonlarından çıkarır; öznitelikli olmayan alt ağaçlar aynı nesne', () => {
+    const snap = full();
+    const body = snap.data.node.childNodes[0].childNodes[1];
+    Object.assign(body.childNodes[0], { attributes: { class: 'list', 'data-flashback-source': 'src/A.tsx:3:5' } });
+    Object.assign(body.childNodes[0].childNodes[0], { attributes: { 'data-flashback-source': 'C:/Users/u/lib/B.tsx:1:1' } });
+    const before = JSON.stringify(snap);
+    const mutation = {
+      type: 3,
+      timestamp: 2,
+      data: {
+        source: 0,
+        texts: [],
+        adds: [{ parentId: 6, nextId: null, node: { id: 10, type: 2, tagName: 'li', attributes: { 'data-flashback-source': 'src/A.tsx:4:7' }, childNodes: [] } }],
+        removes: [],
+        attributes: [{ id: 7, attributes: { 'data-flashback-source': 'src/A.tsx:5:7' } }, { id: 6, attributes: { class: 'y', 'data-flashback-source': 'src/A.tsx:3:5' } }],
+      },
+    };
+    const [s, m] = withoutOwnUi([snap, mutation] as never) as unknown as [ReturnType<typeof full>, typeof mutation];
+    expect(JSON.stringify(snap)).toBe(before);
+    expect(JSON.stringify([s, m])).not.toContain('data-flashback-source');
+    const ul = s.data.node.childNodes[0].childNodes[1].childNodes[0] as { attributes?: object; childNodes: Array<{ attributes?: object }> };
+    expect(ul.attributes).toEqual({ class: 'list' });
+    expect(ul.childNodes[0].attributes).toEqual({});
+    expect(s.data.node.childNodes[0].childNodes[0]).toBe(snap.data.node.childNodes[0].childNodes[0]);
+    expect(m.data.adds[0].node).toEqual({ id: 10, type: 2, tagName: 'li', attributes: {}, childNodes: [] });
+    expect(m.data.attributes).toEqual([{ id: 6, attributes: { class: 'y' } }]);
+  });
+});

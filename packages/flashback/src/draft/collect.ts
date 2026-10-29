@@ -6,7 +6,8 @@ import { record } from 'rrweb';
 import { componentStack, getFiber, nearestComponent, propsAndState } from '../dom/fiber.js';
 import { buildSelectors } from '../dom/selector.js';
 import type { ConsoleRecord } from '../recorder/console.js';
-import { locateSource } from '../source/locate.js';
+import { SOURCE_ATTR } from '../source/attr.js';
+import { locateFromAttribute, locateSource } from '../source/locate.js';
 import type { SourceResolver } from '../source/sourcemap.js';
 import { isDependencyPath, parseStack, userFrames } from '../source/stack.js';
 import type { DraftEnv, TargetCapture } from './build.js';
@@ -21,10 +22,12 @@ const REPLAYER_CLASSES = new Set([':hover', 'rrweb-paused']);
 
 /**
  * Tekrar oynatma DOM'unun işaretlenen andaki kopyası; Replayer yapıtları (`:hover`/`rrweb-paused` sınıfları,
- * boş kural stili) çıkarılır. Sonradan zaman çizelgesinde gezinmek kopyayı değiştirmez.
+ * boş kural stili) ve derleme eklentisinin `data-flashback-source` öznitelikleri (konum hedefte ayrıca gider; kök
+ * dışı dosyalarda mutlak yol taşır) çıkarılır. Sonradan zaman çizelgesinde gezinmek kopyayı değiştirmez.
  */
 export function cloneReplayDom(el: Element): Element {
   const clone = el.cloneNode(true) as Element;
+  for (const node of [clone, ...Array.from(clone.querySelectorAll(`[${SOURCE_ATTR}]`))]) node.removeAttribute(SOURCE_ATTR);
   for (const node of [clone, ...Array.from(clone.querySelectorAll('[class]'))]) {
     const cls = node.getAttribute('class');
     if (cls === null) continue;
@@ -99,20 +102,26 @@ export async function captureTarget(replayNode: Element, replayMirror: ReplayMir
   const live = liveNodeFor(replayNode, replayMirror);
   let fiberNode: Element | null = live;
   let resolution: TargetCapture['resolution'] = 'exact';
-  let resolutionReason: string | undefined;
   if (!live) {
     for (let p = replayNode.parentElement; p && !fiberNode; p = p.parentElement) fiberNode = liveNodeFor(p, replayMirror);
     resolution = fiberNode ? 'ancestor' : 'unresolved';
-    resolutionReason = fiberNode
-      ? 'öğe canlı sayfada yok (unmount ya da sayfa geçişi); bileşen ve kaynak en yakın canlı atadan'
-      : 'öğenin ve atalarının canlı karşılığı yok; yalnızca anlık görüntü';
   }
   const selectors = live ? buildSelectors(live, live.ownerDocument) : buildSelectors(replayNode, replayNode.ownerDocument);
   const fiber = fiberNode ? getFiber(fiberNode) : null;
   const component = nearestComponent(fiber);
   const { props, state } = propsAndState(component);
   const framework = fiber ? 'react' : (detectFramework(fiberNode) ?? (fiberNode ? detectPageFramework(fiberNode.ownerDocument) : undefined));
-  const location = fiberNode ? await locateSource(fiberNode, resolver) : undefined;
+  // Derleme eklentisinin özniteliği (R13) önce: canlı öğede güncel koddan, canlı karşılığı yoksa kayıttan.
+  const attrNode = live?.hasAttribute(SOURCE_ATTR) ? live : replayNode.hasAttribute(SOURCE_ATTR) ? replayNode : null;
+  const location =
+    (attrNode ? await locateFromAttribute(attrNode, resolver, attrNode === live) : undefined) ??
+    (fiberNode ? await locateSource(fiberNode, resolver) : undefined);
+  const fromRecording = !live && location?.fromAttribute ? '; kaynak satırı öğenin kayıttaki data-flashback-source özniteliğinden' : '';
+  const resolutionReason = live
+    ? undefined
+    : fiberNode
+      ? `öğe canlı sayfada yok (unmount ya da sayfa geçişi); bileşen${fromRecording ? '' : ' ve kaynak'} en yakın canlı atadan${fromRecording}`
+      : `öğenin ve atalarının canlı karşılığı yok; yalnızca anlık görüntü${fromRecording}`;
   const notes = [resolutionReason];
   if (location?.fromAncestor) {
     notes.push("öğenin kendi JSX konumu yok (bağımlılık kodunda ya da React'in sahip yığını sınırı aşılınca oluşturulmuş); kaynak satırı en yakın atanın JSX'i");

@@ -2,9 +2,9 @@
 
 | Alan | Değer |
 |---|---|
-| Tarih | 28.10.2026 (kayıt akışı kararları, FRD v1.3) |
+| Tarih | 29.10.2026 (ürün kararları ve kaynak eklentisi, FRD v1.4) |
 | Kod tabanı | Sıfırdan kuruldu. GitHub deposu boştu ve yerel klasörde yalnızca README ile yapılandırma dosyaları vardı. Bu nedenle FRD'deki "Durum" sütunu (README'ye göre "Mevcut") artık geçerli değil. Bu belge onun yerini alır; AS-9 kapandı. |
-| Doğrulama | 479 birim testi yeşil. 40 uçtan uca testin (gerçek Chromium) 38'i yeşil; kalan 2'si `portable.e2e.test.ts`'deki symlink EPERM hatası (Windows'ta Developer Mode kapalı, ortamdan kaynaklı). Tip denetimi temiz (28.10.2026, Windows). CI üç işletim sisteminde yeşil (birleştirmeden önceki son koşu). EK-B3 ölçümü: 4 kurulum × 2 tarayıcı, sessizce yanlış satır 0 (`spikes/ek-b3/results/summary.md`). |
+| Doğrulama | 493 birim testi yeşil. 42 uçtan uca testin (gerçek Chromium) 40'ı yeşil; kalan 2'si `portable.e2e.test.ts`'deki symlink EPERM hatası (Windows'ta Developer Mode kapalı, ortamdan kaynaklı). Tip denetimi temiz (29.10.2026, Windows). CI üç işletim sisteminde yeşil (birleştirmeden önceki son koşu). EK-B3 ölçümü: 4 kurulum × 2 tarayıcı, sessizce yanlış satır 0 (`spikes/ek-b3/results/summary.md`). |
 | Bağımsız güvenlik incelemesi | 9 bulgu çıktı: 3 High, 3 Medium, 3 Low. Bulguların 8'i exploit ile doğrulandı, 1'i kısmen doğrulandı. **Dokuzu da düzeltildi** ve her biri için regresyon testi eklendi (§4). |
 | FRD | §3'teki D-1…D-10 sapmaları [`08-FRD-v1.1.md`](08-FRD-v1.1.md) belgesine işlendi. |
 
@@ -29,16 +29,24 @@
 | Alan | Uygulanan | Atlanan veya kısmi |
 |---|---|---|
 | REC | 01–08, 10, 11, 14; S: 09, 12, 13, 16 (ekran/mikrofon kaydı) | 15 (YH) |
-| UI | 01, 02, 04, 06, 07, 08, 10, 11, 12, 15, 16; S: 05, 09, 10 (yanlış proje göstergesi), 13 (axe denetiminde kritik/ciddi ihlal 0, odak tuzağı), 14, 17, 18 | 03 (kısayol çakışma testi: işletim sistemi ve giriş dili bazında elle denenmeli, AS-3), 19 (YH) |
-| MARK | 01–05, 07, 08, 10, 11, 12; S: 06 (Vue smoke testi), 09. 04 EK-B3 ile doğrulandı; 05'teki eski fiber kopyası hatası düzeltildi (§3, D-11) | 13 (YH) |
+| UI | 01, 02, 04, 06, 07, 08, 10, 11, 12, 15, 16; S: 05, 09, 10 (yanlış proje göstergesi), 13 (axe denetiminde kritik/ciddi ihlal 0, odak tuzağı), 14, 17, 18 | 03 (kısayol çakışma testi: işletim sistemi ve giriş dili bazında elle denenmeli; AS-3 kapandı, varsayılan kalıyor), 19 (YH) |
+| MARK | 01–05, 07, 08, 10, 11, 12; S: 06 (Vue smoke testi), 09. 04 EK-B3 ile doğrulandı; 05'teki eski fiber kopyası hatası düzeltildi (§3, D-11). 04/11: Vite'ta `data-flashback-source` eklentisi (R13, FRD v1.4) | 13 (YH) |
 | PKG | 01–08, SEC-01–03 | SEC-04 (YH) |
-| RED | 01–15 | Telefon numarası varsayılan olarak kapalı (AS-4) |
+| RED | 01–15 | Telefon numarası varsayılan olarak kapalı (AS-4 kapandı: böyle kalıyor) |
 | RCV | 01–11, SEC-01–06, SEC-08 | SEC-07 (YH) |
 | MCP | 01–15, SEC-01, SEC-03 | 16 (YH), SEC-02 (kırmızı takım koşusu elle yapılacak) |
 | REPRO | 01–22, SEC-01, SEC-03, SEC-04, SEC-05 | SEC-02 (C, `unsafe` mod), 23 (YH) |
 | LIFE | 01–06 | — |
 | CFG | 01–11 | 12 (v1.1) |
 | NFR | PRIV-01, SIZE-01, TOK-01, REPRO-01, COMP-01, MEM-01, LAT-01 | PERF-01: 5.000 düğümde INP +32 ms (1x) |
+
+### 29.10.2026: kaynak eklentisi (R13, FRD v1.4)
+
+- **`flashback-devtools/vite`:** Geliştirme sunucusunda `.jsx`/`.tsx` dosyalarındaki HTML ve SVG öğelerine (ve özel öğelere) `data-flashback-source="dosya:satır:sütun"` yazar. `@babel/parser` ile ayrıştırır, `magic-string` ile yalnızca satır içine ekler (satır numaraları ve kaynak haritası korunur). `enforce: 'pre'`; `vite build` ve `mode: 'test'` (Vitest) dışarıda, `node_modules` ve sorgulu modüller atlanır. react-three-fiber gibi DOM dışı küçük harfli etiketler (`<mesh>`) bilinen etiket listesi sayesinde atlanır.
+- **Panel:** İşaretlenen öğede öznitelik varsa konum ondan gelir: canlı öğede güncel koddan, canlı karşılığı yoksa tekrar oynatmadaki kayıtlı değerden. Modülün güncel kaynağı önbelleksiz getirilir; satır `<etiket` ile açılıyorsa konum doğrulanmış sayılır ve ±3 satır kod parçası eklenir, açılmıyorsa `resolved:false`. Öznitelik yoksa fiber yolu aynen çalışır.
+- **Yük:** Öznitelik olaylardan, öğe HTML'inden ve DOM anlık görüntüsünden çıkarılır (kök dışı dosyada mutlak yol taşır). Kanıt güveni "derleme eklentisinin özniteliği" der.
+- **Kanıt:** Demo artık eklentiyle açılır (`FLASHBACK_DEMO_SOURCE_ATTR=0` kapatır). Yeni `source-attr.e2e.test.ts`: 9 hedefin 9'u doğru; `Cart.tsx`'in başına iki satır eklenince (Fast Refresh) HMR'den önceki klipte ve yeni klipte satır +2 ile doğru, gönderilen pakette öznitelik yok. Eklentisiz aynı senaryo (elle denendi) `src/Cart.tsx:65 (çözülemedi)` verir; doğru satır 67. EK-B3 matrisi eklentisiz koşmaya devam eder (Chromium ve Firefox 24/24).
+- **Açık:** Next.js (SWC/Turbopack) için eklenti yok; orada R13 sınırı sürer.
 
 ### 28.10.2026: kayıt akışı (FRD v1.3)
 
@@ -67,7 +75,7 @@ Kullanıcının 28.10.2026 kararları uygulandı. Sürekli açık 60 sn tampon z
 
 ## 3. FRD'den sapmalar
 
-Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı). D-5 açık bir karar olarak AS-10'a taşındı.
+Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı). D-5 AS-10'a taşınmıştı; AS-10 29.10.2026'da oturum başına önizleme olarak kapandı ve FR-UI-08 düzeltildi.
 
 | # | Konu | Uygulama | Öneri |
 |---|---|---|---|
@@ -75,7 +83,7 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 | D-2 | Hata kodları (§9.6) | Yeni kodlar: `base_url_rejected`, `invalid_transition`, `selector`, `internal`. | §9.6'ya eklenmeli. |
 | D-3 | Ortam değişkenleri (§9.4) | Yeni değişkenler: `FLASHBACK_NO_IMAGES`, `FLASHBACK_RATE_LIMIT_PER_MIN` (30), `FLASHBACK_INPUT_<ALAN>`. | §9.4'e eklenmeli. |
 | D-4 | FR-CFG-09 `allowProduction` | `NODE_ENV=production` olan bir build'de kaydedici pakete hiç girmez (FR-CFG-08 🔒). Bu yüzden `allowProduction` yalnızca `NODE_ENV`'nin production olmadığı build'lerde (ör. staging) işe yarar. | Kilitli FR-CFG-08 öncelikli kabul edilsin. FR-CFG-09 metni buna göre düzeltilmeli. |
-| D-5 | FR-UI-08 önizleme | Önizleme her **tarayıcı oturumunun** ilk gönderiminde zorunlu. FRD'nin kabul kriteri "her olayın ilk gönderiminde" diyor. | Karar verilmeli. Her olayda zorunlu önizleme daha güvenli, ama daha fazla sürtünme yaratır. |
+| D-5 | FR-UI-08 önizleme | Önizleme her **tarayıcı oturumunun** ilk gönderiminde zorunlu. FRD'nin kabul kriteri "her olayın ilk gönderiminde" diyor. | ✅ Kapandı (AS-10): oturum başına kalıyor; FR-UI-08'in kabul kriteri düzeltildi. |
 | D-6 | Kanıt güveni (FR-PKG-08) | Güvenlik incelemesinden sonra sunucu, maddelerin metnini sabit şablonlardan yeniden kuruyor. Tarayıcıdan yalnızca anahtar ve seviye alınıyor. Olaydan gelen metin ayrı ve çitli bir "Kanıt ayrıntıları" bloğunda gösteriliyor. | FR-PKG-08'e eklenmeli (prompt injection önlemi). |
 | D-7 | `get_incident` raporu (FR-PKG-02) | Bölüm 6'ya "İşaretlenen andan önceki son başarılı istekler" alt bölümü eklendi. YAZ10'daki `"fee": "30"` gibi hata olmayan ama yanlış değer taşıyan yanıtlar ajana ilk turda ulaşsın diye. | FR-PKG-02'ye eklenmeli. |
 | D-8 | Ortam değişkeniyle doldurulan alanlar | Ajan, `FLASHBACK_PASSWORD` gibi ortam değişkeninden doldurulan bir alanın değerini `toHaveValue` ile okuyamaz. Okumaya çalışırsa `assertion_rejected` döner. Belirsiz semantik konumlayıcılarla yazılan değer okumaları da reddedilir. | FR-REPRO-SEC-01'e eklenmeli (parola sızıntısı önlemi). |
@@ -104,8 +112,7 @@ Aşağıdakilerin hepsi FRD v1.1'e işlendi (D-11…D-14, v1.0.1'den taşındı)
 
 1. **Kırmızı takım koşusu** (FR-MCP-SEC-02). KK-5 smoke testleri tamam; README'deki kısa `npx --no-install` biçimi Windows'ta Codex ve Cursor ile ayrıca denenmeli.
 2. **Mini benchmark** (KK-11): 8–10 hata, Flashback ile ve Flashback olmadan. Sitedeki "%60" ifadesi o zamana kadar "n=1" notuyla verilmeli (FRD §2.3).
-3. **Ürün kararları:** AS-3 (kısayol), AS-4 (telefon), AS-5 (arayüz dili), AS-10 (önizleme olay başına mı, oturum başına mı).
-4. **Kısayol çakışma testi** (FR-UI-03, AS-3): Windows, macOS ve Linux'ta; TR-Q, TR-F ve US düzenlerinde; IME açıkken `Alt+Shift+R`. Kısayol fiziksel tuşa (`KeyboardEvent.code`) bağlı olduğu için düzen değişse de aynı tuşla tetiklenir. Asıl risk, Windows'ta `Alt+Shift` ile dil değiştirme.
-5. **`data-flashback-source` (v1.1, R13):** Derleme anında JSX'e kaynak konumu ekleyen Vite/Babel/SWC eklentisi. React 19'da HMR sonrası `resolved:false` kalan konumları kalıcı olarak çözer. EK-B3 bu işi "yedek plan"dan öncelikli işe taşıdı.
-6. **EK-B3 ölçümünü CI'a almak:** `spikes/ek-b3` haftalık ya da sürüm öncesi bir işte çalışsın. Firefox kayıt e2e'si de eklensin (Firefox → "Doğrulandı").
-7. **Ekran kaydını gerçek tarayıcılarda elle denemek (FR-REC-16):** Chrome, Edge ve Firefox'ta gerçek izin pencereleri; başka bir pencereyi paylaşırken sekme arka plandayken anahtar kareler; tarayıcının "Paylaşımı durdur" çubuğu (kaydı durdurmalı); Firefox'ta `ImageCapture` yok, `<video>` yedeği kullanılır.
+3. **Kısayol çakışma testi** (FR-UI-03): Windows, macOS ve Linux'ta; TR-Q, TR-F ve US düzenlerinde; IME açıkken `Alt+Shift+R`. Kısayol fiziksel tuşa (`KeyboardEvent.code`) bağlı olduğu için düzen değişse de aynı tuşla tetiklenir. Asıl risk, Windows'ta `Alt+Shift` ile dil değiştirme. Varsayılan değişmeyecek (AS-3); test yalnızca README'deki çakışma notu için.
+4. **`data-flashback-source` Next.js için (R13):** Vite eklentisi geldi (v1.4). Next.js'te (SWC/Turbopack) aynı özniteliği yazan bir eklenti yok; orada React 19 HMR sonrası konumlar `resolved:false` kalır.
+5. **EK-B3 ölçümünü CI'a almak:** `spikes/ek-b3` haftalık ya da sürüm öncesi bir işte çalışsın. Firefox kayıt e2e'si de eklensin (Firefox → "Doğrulandı").
+6. **Ekran kaydını gerçek tarayıcılarda elle denemek (FR-REC-16):** Chrome, Edge ve Firefox'ta gerçek izin pencereleri; başka bir pencereyi paylaşırken sekme arka plandayken anahtar kareler; tarayıcının "Paylaşımı durdur" çubuğu (kaydı durdurmalı); Firefox'ta `ImageCapture` yok, `<video>` yedeği kullanılır.

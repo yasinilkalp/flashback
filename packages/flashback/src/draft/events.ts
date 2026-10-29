@@ -1,11 +1,12 @@
 /**
  * rrweb ham olaylarının yük için hazırlanması (FR-REC-10, FR-RED-09):
- * - Flashback arayüz düğümleri çıkarılır.
+ * - Flashback arayüz düğümleri ve derleme eklentisinin `data-flashback-source` öznitelikleri çıkarılır.
  * - Meta `href`, anlık görüntü/mutasyon öznitelikleri (URL ve kardeş-anahtar kuralları), metinler ve giriş
  *   değerleri alana uygun yöntemle gizlenir; geri kalan her şey derin `Redactor.value`'dan geçer.
  */
 import type { Redactor } from '@flashback/shared';
 import { EventType, IncrementalSource, type eventWithTime } from 'rrweb';
+import { SOURCE_ATTR } from '../source/attr.js';
 import { redactAttributes } from './html.js';
 
 /** Flashback arayüz kökünün etiketi; rrweb'de bloklu yer tutucu olarak görünür. */
@@ -20,15 +21,26 @@ interface SnNode {
   childNodes?: SnNode[];
 }
 
-/** rrweb ham olaylarından Flashback arayüz düğümlerini (yer tutucu ve mutasyonları) çıkarır (FR-REC-10). */
+/** `data-flashback-source` olmadan öznitelikler; öznitelik yoksa aynı nesne. */
+function withoutSourceAttr<T extends Record<string, unknown> | undefined>(attrs: T): T {
+  if (!attrs || !(SOURCE_ATTR in attrs)) return attrs;
+  const { [SOURCE_ATTR]: _dropped, ...rest } = attrs;
+  return rest as T;
+}
+
+/**
+ * rrweb ham olaylarından Flashback'in kendi izlerini çıkarır: arayüz düğümleri (yer tutucu ve mutasyonları, FR-REC-10)
+ * ve `data-flashback-source` öznitelikleri (R13). Öznitelik paneldeki tekrar oynatmada kalır (kayıttan konum);
+ * yükte gereksizdir, konum hedefte ayrıca gider ve kök dışı dosyalarda mutlak yol (kullanıcı adı) taşır.
+ */
 export function withoutOwnUi(events: eventWithTime[]): eventWithTime[] {
   const ids = new Set<number>();
   // Değişmeyen alt ağaçlar kopyalanmaz (5.000 düğümlük tam görüntüde kaydet yolunun belirgin bir payıydı).
   const strip = (node: SnNode): SnNode => {
-    if (!node.childNodes) return node;
-    let changed = false;
+    const attributes = withoutSourceAttr(node.attributes);
+    let changed = attributes !== node.attributes;
     const childNodes: SnNode[] = [];
-    for (const c of node.childNodes) {
+    for (const c of node.childNodes ?? []) {
       if (c.tagName === OWN_TAG) {
         ids.add(c.id);
         changed = true;
@@ -38,7 +50,8 @@ export function withoutOwnUi(events: eventWithTime[]): eventWithTime[] {
       if (s !== c) changed = true;
       childNodes.push(s);
     }
-    return changed ? { ...node, childNodes } : node;
+    if (!changed) return node;
+    return { ...node, ...(node.attributes ? { attributes } : {}), ...(node.childNodes ? { childNodes } : {}) };
   };
   return events.map((e) => {
     if (e.type === EventType.FullSnapshot) {
@@ -46,11 +59,17 @@ export function withoutOwnUi(events: eventWithTime[]): eventWithTime[] {
     }
     if (e.type === EventType.IncrementalSnapshot && e.data.source === IncrementalSource.Mutation) {
       const d = e.data;
-      const adds = d.adds.filter((a) => ((a.node as SnNode).tagName === OWN_TAG ? (ids.add(a.node.id), false) : true));
-      return {
-        ...e,
-        data: { ...d, adds, removes: d.removes.filter((r) => !ids.has(r.id)), attributes: d.attributes.filter((a) => !ids.has(a.id)) },
-      } as eventWithTime;
+      const adds = d.adds
+        .filter((a) => ((a.node as SnNode).tagName === OWN_TAG ? (ids.add(a.node.id), false) : true))
+        .map((a) => {
+          const node = strip(a.node as SnNode);
+          return node === a.node ? a : { ...a, node: node as never };
+        });
+      const attributes = d.attributes
+        .filter((a) => !ids.has(a.id))
+        .map((a) => ({ ...a, attributes: withoutSourceAttr(a.attributes) }))
+        .filter((a) => Object.keys(a.attributes).length > 0);
+      return { ...e, data: { ...d, adds, removes: d.removes.filter((r) => !ids.has(r.id)), attributes } } as eventWithTime;
     }
     return e;
   });
