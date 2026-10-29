@@ -1,7 +1,7 @@
 import { SourceMapConsumer, type RawSourceMap } from 'source-map-js';
 import { describe, expect, it } from 'vitest';
 import { parseSourceAttr } from '../src/source/attr.js';
-import flashbackSource, { addSourceAttributes, isHostTag } from '../src/vite.js';
+import flashback, { addSourceAttributes, isHostTag } from '../src/vite.js';
 
 const APP = [
   "import { Foo } from './Foo';",
@@ -71,9 +71,9 @@ describe('addSourceAttributes (R13, flashback-devtools/vite)', () => {
   });
 });
 
-describe('flashbackSource eklentisi', () => {
-  const plugin = (options?: Parameters<typeof flashbackSource>[0]) => {
-    const p = flashbackSource(options);
+describe('flashback eklentisi', () => {
+  const plugin = (options?: Parameters<typeof flashback>[0]) => {
+    const p = flashback(options);
     (p.configResolved as (c: { root: string }) => void)({ root: '/r' });
     const transform = (code: string, id: string) => (p.transform as (code: string, id: string) => ReturnType<typeof addSourceAttributes>)(code, id);
     return { p, transform };

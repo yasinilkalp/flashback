@@ -1,31 +1,22 @@
-import { DEFAULT_ENDPOINT, type RedactOptions } from '@flashback/shared';
-import type { FlashbackLocale, FlashbackPosition, FlashbackProps } from './types.js';
+import type { RedactOptions } from './redact.js';
+import type { FlashbackLocale, FlashbackProps } from './types.js';
 
 export const FLASHBACK_VERSION = '0.1.0-beta.3';
 
-/**
- * Gönderilen olayın şema sürümü. `@flashback/shared` içindeki `SCHEMA_VERSION` ile aynıdır (birim testi denetler);
- * oradan içe aktarılmaz, çünkü o modül zod şemasını da yükler ve tarayıcı paketine zod girmesin.
- */
-export const PAYLOAD_SCHEMA_VERSION = 1 as const;
-
-/** FRD §9.4 prop varsayılanları (tek doğruluk kaynağı ile birebir). */
+/** Prop varsayılanları. */
 export const DEFAULTS = {
-  endpoint: DEFAULT_ENDPOINT,
-  maxRecordSeconds: 60,
-  ignoreUrls: [] as Array<string | RegExp>,
-  maskAllInputs: false,
+  shortcut: 'alt+shift+f',
   redact: true,
-  shortcut: 'alt+shift+r',
-  position: 'bottom-right' as FlashbackPosition,
-  allowProduction: false,
 } as const;
 
-/** NFR-MEM-01: bir kaydın (klibin) bellek üst sınırı. */
-export const MEMORY_LIMIT_BYTES = 50 * 1024 * 1024;
+/**
+ * Hiç kaydedilmeyen istekler: Flashback'in kendi ucu ve geliştirme sunucularının HMR istekleri. Kullanıcının
+ * `ignoreUrls` listesi bunlara eklenir.
+ */
+export const BUILTIN_IGNORE: RegExp[] = [/\/__flashback\//, /\/@vite\//, /\/__vite_ping/, /\/_next\/webpack-hmr/, /\/__nextjs/];
 
 /**
- * Üretim ortamı mı? (FR-CFG-02)
+ * Üretim ortamı mı?
  *
  * `process.env.NODE_ENV` bundler tarafından metin olarak değiştirildiği için `typeof process` korumasıyla
  * SARMALANMAZ (koruma değiştirmeyi etkisiz kılardı); tanımsızsa ReferenceError yakalanır.
@@ -43,48 +34,29 @@ export function isProductionEnv(): boolean {
   }
 }
 
-export type StartDecision =
-  | { start: true; productionWarning: boolean }
-  | { start: false; reason: 'disabled' | 'production' };
-
-/** FR-CFG-02 / FR-CFG-09: bileşen başlamalı mı? */
-export function decideStart(props: Pick<FlashbackProps, 'enabled' | 'allowProduction'>, production = isProductionEnv()): StartDecision {
-  const enabled = props.enabled ?? !production;
-  if (!enabled) return { start: false, reason: 'disabled' };
-  if (production && !props.allowProduction) return { start: false, reason: 'production' };
-  return { start: true, productionWarning: production };
+/** Bileşen başlamalı mı? Üretimde `enabled` verilse de başlamaz. */
+export function shouldStart(props: Pick<FlashbackProps, 'enabled'>, production = isProductionEnv()): boolean {
+  return !production && (props.enabled ?? true);
 }
 
 export interface ResolvedConfig {
-  endpoint: string;
-  maxRecordSeconds: number;
   ignoreUrls: Array<string | RegExp>;
-  maskAllInputs: boolean;
   redact: RedactOptions;
   shortcut: string;
-  position: FlashbackPosition;
   locale: FlashbackLocale;
-  productionWarning: boolean;
-  project?: string;
 }
 
 export function detectLocale(language = typeof navigator === 'undefined' ? '' : navigator.language): FlashbackLocale {
   return language.toLowerCase().startsWith('tr') ? 'tr' : 'en';
 }
 
-export function resolveConfig(props: FlashbackProps, productionWarning = false): ResolvedConfig {
+export function resolveConfig(props: FlashbackProps): ResolvedConfig {
   const redact = props.redact ?? DEFAULTS.redact;
   return {
-    endpoint: (props.endpoint ?? DEFAULTS.endpoint).replace(/\/+$/, ''),
-    maxRecordSeconds: Math.max(5, props.maxRecordSeconds ?? DEFAULTS.maxRecordSeconds),
-    ignoreUrls: props.ignoreUrls ?? [...DEFAULTS.ignoreUrls],
-    maskAllInputs: props.maskAllInputs ?? DEFAULTS.maskAllInputs,
+    ignoreUrls: [...BUILTIN_IGNORE, ...(props.ignoreUrls ?? [])],
     redact: redact === false ? { enabled: false } : redact === true ? { enabled: true } : { enabled: true, ...redact },
     shortcut: props.shortcut ?? DEFAULTS.shortcut,
-    position: props.position ?? DEFAULTS.position,
     locale: props.locale ?? detectLocale(),
-    productionWarning,
-    project: props.project?.trim() || undefined,
   };
 }
 
@@ -96,7 +68,7 @@ export interface Shortcut {
   meta: boolean;
 }
 
-/** `alt+shift+r` → `{ code: 'KeyR', alt, shift }` (FR-UI-02: `event.code` ile eşleşme). */
+/** `alt+shift+f` → `{ code: 'KeyF', alt, shift }` (`event.code` ile eşleşir; klavye düzeninden bağımsız). */
 export function parseShortcut(s: string): Shortcut {
   const out: Shortcut = { code: '', alt: false, shift: false, ctrl: false, meta: false };
   for (const raw of s.toLowerCase().split('+')) {
@@ -117,7 +89,15 @@ export function matchesShortcut(e: Pick<KeyboardEvent, 'code' | 'altKey' | 'shif
   return e.code === s.code && e.altKey === s.alt && e.shiftKey === s.shift && e.ctrlKey === s.ctrl && e.metaKey === s.meta;
 }
 
-/** Odak metin girişinde mi? (kısayol ve S tuşu orada tetiklenmez) */
+/** `alt+shift+f` → `Alt+Shift+F` (ipucu metni için). */
+export function shortcutLabel(s: string): string {
+  return s
+    .split('+')
+    .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : p))
+    .join('+');
+}
+
+/** Odak metin girişinde mi? (kısayol orada tetiklenmez) */
 export function isEditableTarget(t: EventTarget | null): boolean {
   if (!t || typeof (t as Element).tagName !== 'string') return false;
   const el = t as HTMLElement;

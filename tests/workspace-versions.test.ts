@@ -12,7 +12,7 @@ const read = (p: string) => JSON.parse(readFileSync(join(root, p), 'utf8')) as R
 
 describe('çalışma alanı sürümleri', () => {
   const versions: Record<string, string> = {};
-  for (const dir of ['packages/flashback', 'packages/mcp', 'packages/shared']) {
+  for (const dir of ['packages/flashback', 'packages/mcp']) {
     const pkg = read(`${dir}/package.json`);
     versions[pkg.name] = pkg.version;
   }

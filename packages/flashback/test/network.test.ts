@@ -1,4 +1,4 @@
-import { LIMITS } from '@flashback/shared';
+import { LIMITS } from '../src/limits.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { NetworkCapture } from '../src/recorder/network.js';
 

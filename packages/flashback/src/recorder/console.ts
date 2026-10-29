@@ -1,12 +1,13 @@
-/** console.error/warn, yakalanmamış istisna ve işlenmemiş Promise reddi kaydı (FR-REC-06). */
-import type { ConsoleEntry } from '@flashback/shared';
+/** console.error/warn, yakalanmamış istisna ve işlenmemiş Promise reddi kaydı. */
 import { formatConsoleArgs } from '../serialize.js';
 import { firstUserFrame } from '../source/stack.js';
+
+export type ConsoleLevel = 'error' | 'warn' | 'uncaught' | 'unhandledrejection';
 
 export interface ConsoleRecord {
   seq: number;
   time: number;
-  level: ConsoleEntry['level'];
+  level: ConsoleLevel;
   message: string;
   stack?: string;
   source?: string;

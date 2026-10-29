@@ -13,7 +13,7 @@ describe('flashback-devtools/noop (FR-CFG-08)', () => {
     expect(subscribe).not.toHaveBeenCalled();
   });
 
-  it('imports nothing at runtime (no recorder or rrweb code can enter a production bundle)', () => {
+  it('imports nothing at runtime (no capture code can enter a production bundle)', () => {
     const source = readFileSync(new URL('../src/noop.ts', import.meta.url), 'utf8');
     const imports = source.split('\n').filter((l) => /^\s*(import|export)\s.*from\s/.test(l));
     expect(imports.length).toBeGreaterThan(0);
@@ -22,7 +22,7 @@ describe('flashback-devtools/noop (FR-CFG-08)', () => {
 });
 
 describe('main entry without the `production` export condition (FR-CFG-08, security #9)', () => {
-  const RECORDER_SIGNATURES = /rrweb|takeFullSnapshot|checkoutEveryNms|flashbackFetch|SourceMapConsumer|flashback-devtools-ui|data-flashback-ui/;
+  const RECORDER_SIGNATURES = /flashbackFetch|SourceMapConsumer|__flashback|data-flashback-ui/;
 
   async function bundle(nodeEnv: string): Promise<string> {
     const { build } = await import('esbuild');
@@ -35,21 +35,20 @@ describe('main entry without the `production` export condition (FR-CFG-08, secur
       minify: true,
       conditions: [],
       define: { 'process.env.NODE_ENV': JSON.stringify(nodeEnv) },
-      alias: { '@flashback/shared': fileURLToPath(new URL('../../shared/src/index.ts', import.meta.url)) },
       external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'],
       logLevel: 'silent',
     });
     return result.outputFiles.map((f) => f.text).join('\n');
   }
 
-  it('a plain bundler with NODE_ENV=production drops the recorder, panel and rrweb', async () => {
+  it('a plain bundler with NODE_ENV=production drops capture and the UI', async () => {
     const code = await bundle('production');
     expect(code).not.toMatch(RECORDER_SIGNATURES);
     expect(code.length).toBeLessThan(10_000);
   }, 30_000);
 
-  it('the same bundle in development still contains the recorder', async () => {
-    expect(await bundle('development')).toMatch(/takeFullSnapshot/);
+  it('the same bundle in development still contains capture and the UI', async () => {
+    expect(await bundle('development')).toMatch(RECORDER_SIGNATURES);
   }, 30_000);
 
   it('contains no `import.meta` (SyntaxError in non-module output: webpack 5.103+ script/eval, SystemJS)', async () => {

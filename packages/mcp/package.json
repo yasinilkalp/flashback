@@ -1,7 +1,7 @@
 {
   "name": "flashback-mcp",
   "version": "0.1.0-beta.3",
-  "description": "Flashback MCP sunucusu: tarayıcıdan gelen hata olaylarını AI kodlama ajanına iletir ve düzeltmeyi kırmızı→yeşil Playwright testiyle doğrular.",
+  "description": "Flashback MCP sunucusu: tarayıcıda işaretlenen hata raporlarını (.flashback/*.md) AI kodlama ajanına verir. \"Son hatayı düzelt\" demeniz yeter.",
   "type": "module",
   "license": "MIT",
   "bin": {
@@ -30,17 +30,6 @@
     "@modelcontextprotocol/sdk": "1.32.2",
     "zod": "^4.1.0"
   },
-  "peerDependencies": {
-    "@playwright/test": ">=1.45.0"
-  },
-  "peerDependenciesMeta": {
-    "@playwright/test": {
-      "optional": true
-    }
-  },
-  "devDependencies": {
-    "@flashback/shared": "0.1.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yasinilkalp/flashback.git",
@@ -54,10 +43,11 @@
     "mcp",
     "ai",
     "debugging",
-    "playwright",
-    "rrweb",
     "react",
-    "devtools"
+    "vite",
+    "devtools",
+    "claude-code",
+    "cursor"
   ],
   "publishConfig": {
     "access": "public",

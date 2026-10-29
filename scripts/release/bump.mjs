@@ -5,8 +5,8 @@
  *   npm run release:bump -- beta            # 0.1.0-beta.0 → 0.1.0-beta.1
  *   npm run release:bump -- 0.2.0           # açık sürüm
  *
- * Güncellenenler: iki paketin package.json'ı, FLASHBACK_VERSION, örneklerin flashback-devtools bağımlılığı,
- * EK-B3 uygulamalarının tgz adı ve package-lock.json. Commit'leyip main'e push edince release.yml aynı
+ * Güncellenenler: iki paketin package.json'ı, FLASHBACK_VERSION, örneklerin flashback-devtools bağımlılığı ve
+ * package-lock.json. Commit'leyip main'e push edince release.yml aynı
  * commit'in CI'ı geçtikten sonra yayınlar ve v<sürüm> etiketini açar.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -81,18 +81,6 @@ for (const dir of readdirSync(join(root, 'examples'))) {
   const pkg = readJson(p);
   if (bumpDeps(pkg)) {
     writeJson(p, pkg);
-    changed.push(p);
-  }
-}
-
-const spikeApps = 'spikes/ek-b3/apps';
-for (const dir of existsSync(join(root, spikeApps)) ? readdirSync(join(root, spikeApps)) : []) {
-  const p = `${spikeApps}/${dir}/package.json`;
-  if (!existsSync(join(root, p))) continue;
-  const before = read(p);
-  const after = before.replaceAll(`flashback-devtools-${current}.tgz`, `flashback-devtools-${next}.tgz`);
-  if (after !== before) {
-    write(p, after);
     changed.push(p);
   }
 }

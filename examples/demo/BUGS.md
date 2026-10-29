@@ -1,18 +1,17 @@
 # Demo: kasıtlı hatalar
 
-Bu demo, Flashback akışını (geri sar → göster → ajan kırmızı → düzelt → yeşil) uçtan uca denemek için üç kasıtlı hata içerir.
+Bu demo, Flashback akışını (öğeye tıkla → bir cümle yaz → ajana yapıştır) denemek için üç kasıtlı hata içerir.
 Her hatanın düzeltmesi **tek satırlık** bir değişikliktir ve satır `// BUG(<AD>)` yorumuyla işaretlidir.
-E2E testleri düzeltmeyi uygulamak için işaretli satırı aşağıdaki "Düzeltilmiş satır" ile değiştirir.
 
 ## Çalıştırma
 
 ```bash
 npm install
-npm run build -w @flashback/shared && npm run build -w flashback-devtools   # demo paketi dist'ten kullanır
-npm run dev                                                          # http://localhost:5173
+npm run build -w flashback-devtools   # demo paketi dist'ten kullanır
+npm run dev                          # http://localhost:5173
 ```
 
-- Alıcı adresi varsayılan `http://127.0.0.1:4747`; değiştirmek için `VITE_FLASHBACK_ENDPOINT=http://127.0.0.1:5858 npm run dev`.
+- Raporlar depo kökündeki `.flashback/` klasörüne yazılır.
 - `FLASHBACK_DEMO_DETERMINISTIC=1` sunucuyu belirlenimci yapar (sabit oturum kimliği `sid=demo-session`).
 - Demo kullanıcısı: `demo@example.com` / `demo1234` (sayfada gösterilmez; gizleme testinde sızmaması için).
 
@@ -41,22 +40,18 @@ Kargo, indirimli tutar 1500 ₺ ve üzerindeyse ücretsizdir; bu yüzden hata ya
 + const total = discounted + Number(shipping);
 ```
 
-- **Assertion:** `await expect(target).toHaveText('1380 ₺');`
-
 ## KIS20 — hiçbir şey olmuyor (öğesiz hata)
 
 - **Adımlar:** Üç ürünü sepete ekle → kupon `KIS20` → Uygula.
 - **Belirti:** Sunucu 500 döner, kullanıcıya hiçbir şey gösterilmez (konsola `Kupon isteği başarısız` yazılır).
 - **Beklenen:** `role="alert"` ile "Kupon uygulanamadı" mesajı.
 - **Kök neden:** `catch` bloğu hatayı yutar; mesaj durumunu `null` yapar.
-- **Dosya:** `src/Cart.tsx`, `// BUG(KIS20)` satırı. Flashback'te **sayfa düzeyi olay** olarak açılır; birincil kanıt `POST /api/coupon → 500` olur.
+- **Dosya:** `src/Cart.tsx`, `// BUG(KIS20)` satırı. Flashback'te öğe seçmeden **Enter** ile sayfa geneli rapor açılır; raporda `POST /api/coupon → 500` görünür.
 
 ```diff
 - setCouponError(null); // BUG(KIS20): …
 + setCouponError('Kupon uygulanamadı');
 ```
-
-- **Assertion:** `await expect(page.getByRole('alert')).toHaveText('Kupon uygulanamadı');`
 
 ## ACCOUNT — sipariş sayısı yanlış (oturum gerektirir)
 
@@ -64,8 +59,7 @@ Kargo, indirimli tutar 1500 ₺ ve üzerindeyse ücretsizdir; bu yüzden hata ya
 - **Belirti:** `[data-testid="order-count"]` → `Sipariş sayısı: 5`.
 - **Beklenen:** `Sipariş sayısı: 4`.
 - **Kök neden:** Sayım `reduce` başlangıç değeri `1` ile yapılır.
-- **Dosya:** `src/Account.tsx`, `// BUG(ACCOUNT)` satırı. Oturum olmadan `/account` → `/login`'e yönlendirir; repro için
-  `storageState` (ya da `FLASHBACK_PASSWORD` ile sentetik parola) gerekir. E-posta ve parola girişleri kayıtta
+- **Dosya:** `src/Account.tsx`, `// BUG(ACCOUNT)` satırı. Oturum olmadan `/account` → `/login`'e yönlendirir. E-posta ve parola girişleri raporda
   `[REDACTED:email]` / `[REDACTED:password]` olarak görünür.
 
 ```diff
@@ -73,4 +67,3 @@ Kargo, indirimli tutar 1500 ₺ ve üzerindeyse ücretsizdir; bu yüzden hata ya
 + const count = orders.reduce((n) => n + 1, 0);
 ```
 
-- **Assertion:** `await expect(page.getByTestId('order-count')).toHaveText('Sipariş sayısı: 4');`

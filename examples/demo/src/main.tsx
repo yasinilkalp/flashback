@@ -10,6 +10,6 @@ trackStore('cart', useCartStore.subscribe, useCartStore.getState);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
-    <Flashback enabled={import.meta.env.DEV} endpoint={import.meta.env.VITE_FLASHBACK_ENDPOINT} />
+    <Flashback />
   </StrictMode>,
 );

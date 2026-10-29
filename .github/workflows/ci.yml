@@ -11,7 +11,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -25,36 +25,3 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run build -w demo
-
-  react-canary:
-    # R1: React iç API'leri (_debugStack) değişirse erken haber ver. Kırılırsa build'i kırmaz.
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm install react@canary react-dom@canary -w demo -w flashback-devtools
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npx vitest run --config vitest.e2e.config.ts packages/flashback
-
-  firefox:
-    # Firefox kayıt tarafı "Doğrulandı" (FRD §3.3, NFR-COMP-01): yığın biçimiyle (fn@url:satır:sütun) JSX kaynak
-    # çözümleme matrisi (EK-B3) ve kayıt akışı (bu sekme; ekran + mikrofon, ImageCapture yok). Düşerse CI düşer.
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium firefox
-      - run: npx vitest run --config vitest.e2e.config.ts packages/flashback/test/source-demo.e2e.test.ts packages/flashback/test/record-firefox.e2e.test.ts

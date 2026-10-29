@@ -1,12 +1,12 @@
 /**
- * fetch + XMLHttpRequest yakalama (FR-REC-03, FR-REC-04, FR-REC-05, FR-REC-10, FR-REC-13).
+ * fetch + XMLHttpRequest yakalama. Sayfa yüklenirken kurulur; tampon son 2 dakikayı ve en fazla 500 isteği tutar.
  *
  * - Gövdeler `LIMITS.bodyBytes` ile kırpılır; özgün boyut ve `truncated` saklanır. İkili gövdeler saklanmaz.
  * - Akış yanıtları bozulmaz: `response.clone()` yalnızca akış olmayan metinsel içerik türlerinde okunur;
  *   `text/event-stream`, ndjson vb. hiç okunmaz.
  * - Flashback'in kendi `endpoint`'i ve `ignoreUrls` kayda girmez.
  */
-import { LIMITS, truncateText } from '@flashback/shared';
+import { LIMITS, truncateText } from '../limits.js';
 
 export interface NetworkRecord {
   seq: number;
@@ -43,9 +43,9 @@ const STREAMING_RE = /event-stream|ndjson|stream\+json|x-mixed-replace/i;
 const TEXTUAL_RE = /^(?:text\/|application\/(?:[\w.+-]*\+)?(?:json|xml|javascript|ecmascript|x-www-form-urlencoded|graphql)|image\/svg\+xml)/i;
 /** Bu boyutun üstündeki yanıtlar hiç okunmaz (yalnızca boyut kaydedilir). */
 const MAX_READ_BYTES = 8 * 1024 * 1024;
-/** Bileşen monte edilmeden önce (erken yakalama) tutulan en fazla süre ve kayıt sayısı. */
+/** Tamponda tutulan en fazla süre ve kayıt sayısı. */
 const EARLY_MAX_AGE_MS = 120_000;
-const MAX_ENTRIES = 2000;
+const MAX_ENTRIES = 500;
 
 export function isReadableTextual(contentType: string | null | undefined): boolean {
   if (!contentType) return false;
@@ -119,7 +119,7 @@ export class NetworkCapture {
   private originalFetch: FetchFn | null = null;
   private wrappedFetch: FetchFn | null = null;
   private xhrOriginals: { open: XMLHttpRequest['open']; send: XMLHttpRequest['send']; setRequestHeader: XMLHttpRequest['setRequestHeader'] } | null = null;
-  /** Bileşene bağlanana kadar (erken yakalama) yaşa göre budanır. */
+  /** `true` iken yaşa göre budanmaz (yalnızca kayıt sayısı sınırı). */
   attached = false;
 
   get installed(): boolean {

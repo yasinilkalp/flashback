@@ -1,20 +1,31 @@
 /**
- * Kullanıcı adımları: tıklama, giriş, tuş, sayfa geçişi (FR-REC-07).
+ * Kullanıcı adımları: tıklama, giriş, tuş, sayfa geçişi.
  * Her adım zaman damgası, birincil seçici ve en az bir yedek seçici taşır. Giriş değerleri kayıt anında
- * maskelenir (FR-REC-08); maskelenen adım `valueRedactedAs` alanını taşır.
+ * maskelenir; maskelenen adım `valueRedactedAs` alanını taşır.
  */
-import type { Step } from '@flashback/shared';
 import { buildSelectors } from '../dom/selector.js';
 import type { InputMasker } from './mask.js';
 
-export interface StepRecord extends Omit<Step, 't' | 'fallbackSelectors'> {
-  fallbackSelectors: string[];
-  /** Adımın atıldığı sayfanın URL'si (yalnızca Kanıt güveni hesabı için; yüke girmez). */
-  pageUrl: string;
+export interface StepRecord {
   time: number;
+  type: 'click' | 'input' | 'key' | 'navigate';
+  selector?: string;
+  fallbackSelectors: string[];
+  /** Tıklanan öğenin görünen metni (kısaltılmış); raporu okunur kılar. */
+  label?: string;
+  value?: string;
+  /** Değer gizlendiyse türü (ör. "email", "password"). */
+  valueRedactedAs?: string;
+  key?: string;
+  url?: string;
+  /** Eylem öğesi olmayan kapsayıcıya yapılan tıklamanın öğe kutusundaki göreli konumu (0–1). */
+  at?: { x: number; y: number };
+  /** Adımın atıldığı sayfanın URL'si. */
+  pageUrl: string;
 }
 
 const KEYS = new Set(['Enter', 'Escape', 'Tab']);
+const MAX_LABEL = 40;
 const MAX_ENTRIES = 2000;
 const ACTIONABLE =
   'button, a[href], input, select, textarea, label, summary, [role="button"], [role="link"], [role="tab"], [role="checkbox"], [role="menuitem"], [role="option"], [data-testid]';
@@ -122,14 +133,20 @@ export class StepCapture {
       const raw = this.target(e);
       if (!raw) return;
       this.flush();
-      const el = raw.closest(ACTIONABLE) ?? raw;
+      // Sayfanın boş alanına tıklamak bir adım değildir.
+      if (raw === doc.documentElement || raw === doc.body) return;
+      const actionable = raw.closest(ACTIONABLE);
+      const el = actionable ?? raw;
       // <label> tıklaması kontrolüne ikinci bir tıklama gönderir; tekrar oynatmada çift tıklama olmasın.
       const now = Date.now();
       if (labelClick && labelClick.control === el && now - labelClick.time < 100) return;
       const control = el.tagName === 'LABEL' ? (el as HTMLLabelElement).control : null;
       labelClick = control ? { control, time: now } : null;
-      const at = raw.closest(ACTIONABLE) ? null : clickOffset(el, e);
-      this.push({ time: now, type: 'click', ...this.selectorsFor(el), ...(at ? { at } : {}) });
+      const at = actionable ? null : clickOffset(el, e);
+      // Görünen metin yalnızca eylem öğelerinde anlamlı; kapsayıcının metni uzun ve gürültülüdür.
+      const text = actionable ? (el.textContent ?? '').replace(/\s+/g, ' ').trim() || el.getAttribute('aria-label') || '' : '';
+      const label = text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL - 1)}…` : text;
+      this.push({ time: now, type: 'click', ...this.selectorsFor(el), ...(label ? { label } : {}), ...(at ? { at } : {}) });
     });
 
     const navigate = () => this.push({ time: Date.now(), type: 'navigate', url: win.location.href });

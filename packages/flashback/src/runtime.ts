@@ -1,19 +1,18 @@
 /**
- * Kaydedici + panel çalışma zamanı. Ana giriş bunu yalnızca üretim dışı dalda dinamik `import()` ile yükler;
- * bundler `process.env.NODE_ENV`'i "production" yaptığında bu modül (ve rrweb) pakete hiç girmez (FR-CFG-08).
+ * Yakalama + arayüz çalışma zamanı. Ana giriş bunu yalnızca üretim dışı dalda dinamik `import()` ile yükler;
+ * bundler `process.env.NODE_ENV`'i "production" yaptığında bu modül pakete hiç girmez.
  */
 import { resolveConfig } from './config.js';
 import { FlashbackController } from './controller.js';
 import type { FlashbackProps } from './types.js';
 import { createUiHost } from './ui/mount.js';
 
-/** Etkin bir Flashback örneği; yalnızca biri çalışır (rrweb kaydı sayfa başına tektir). */
+/** Etkin bir Flashback örneği; yalnızca biri çalışır. */
 let active: { stop: () => void } | null = null;
 
-export function startFlashback(props: FlashbackProps, productionWarning: boolean): () => void {
+export function startFlashback(props: FlashbackProps): () => void {
   active?.stop();
-  const cfg = resolveConfig(props, productionWarning);
-  // Kök, kayıt başlamadan önce eklenir; böylece rrweb onu baştan bloklu yer tutucu olarak görür.
+  const cfg = resolveConfig(props);
   const ui = createUiHost();
   const controller = new FlashbackController(cfg, ui.host);
   controller.start();

@@ -1,55 +1,25 @@
 # Flashback
 
-**Hatayı anlatma; o ana dön, göster.**
+**Hatayı anlatma; göster.**
 
-🌐 [yasinilkalp.github.io/flashback](https://yasinilkalp.github.io/flashback/)
+Geliştirme ortamında hatalı öğeye tıklayıp bir cümle yazarsınız. Flashback, kodlama ajanınızın (Claude Code, Cursor, Codex…) ihtiyaç duyduğu her şeyi tek bir Markdown raporuna koyar: öğenin **dosya:satırı** ve kod parçası, bileşen yığını, son 60 saniyenin **istekleri**, **konsol** hataları ve **adımlar**.
 
-Flashback, yapay zekâ kodlama ajanları için zaman yolculuklu bir hata raporlama aracıdır. Geliştirme ortamında sağ alttaki araç çubuğundan kaydı başlatıp durdurursunuz. Her durdurma o anı **sepete** bir olay olarak ekler; sayfada devam edip başka olaylar da kaydedebilirsiniz. Sepette her olayı geri sarıp sorunun başladığı anı bulursunuz, ekrandaki öğeye tıklarsınız (ya da öğesi olmayan bir hata için sayfa düzeyinde olay açarsınız) ve "ne olmalıydı?" sorusunu yanıtlarsınız. Sonra olayları MCP üzerinden ajana birlikte gönderirsiniz ya da tek bir prompt olarak kopyalarsınız. Ajana gidecek içerik gizlenmiş hâliyle önizlenir.
+## Kullanım
 
-Ajanınız (Claude Code, Cursor, Codex…) MCP üzerinden şu bilgileri içeren bir **olay paketi** alır:
+1. **`Alt+Shift+F`** ya da sağ alttaki Flashback düğmesi. Hatalı öğenin üstüne gelin; yanında `Cart.tsx:69 · <Cart>` görünür.
+2. **Tıklayın** ve "Ne yanlış?" kutusuna bir cümle yazın. Öğesi olmayan bir hata için (ör. sessizce başarısız olan istek) tıklamak yerine **`Enter`**: sayfa geneli rapor.
+3. **`Enter`**. Panoya şu gider; ajanınıza yapıştırın:
 
-| | |
-|---|---|
-| 🎯 **İşaretlenen öğe** | CSS seçici, JSX'in yazıldığı dosya:satır (source map ile çözülür, ±3 satırlık kod parçası), bileşen yığını, props/state, o andaki HTML |
-| 🔎 **Kanıt güveni** | Kanıtın ne kadar güvenilir olduğu: kaynak çözümlendi mi, öğe eşlendi mi, props/state canlı mı, pencere öncesi oturum var mı, kırpılan alan var mı |
-| 👣 **Adımlar** | Tıklamalar, girişler, tuşlar, sayfa geçişleri |
-| 🌐 **Ağ** | fetch/XHR istekleri, durum kodları, süreler, istek ve yanıt gövdeleri |
-| 🧯 **Konsol** | Hatalar, uyarılar, yakalanmamış istisnalar, Promise redleri ve kaynak satırları |
-| 🗃️ **Store** | Zustand, Redux veya kendi store'unuzdaki değişiklikler (önceki → sonraki) |
-
-Ajan düzeltmesini **kendisi kanıtlar**: `run_repro`, kayıttaki adımları gerçek bir tarayıcıda oynatır ve sizin beklentinizi bir test olarak denetler. Olay ancak **aynı assertion ile önce kırmızı, sonra ardışık iki yeşil** koşu varsa "doğrulandı" (`fixed`) olarak kapanır; aksi hâlde gerekçeyle `fixed_unverified` olur. Panelin Kayıtlar sekmesinde notunuzla ajanın yazdığı assertion'ı yan yana görürsünüz.
-
----
-
-## Hızlı başlangıç (demo)
-
-Gereken: Node.js 22 veya üstü.
-
-```bash
-npm install
-npm run build              # @flashback/shared, flashback-devtools ve flashback-mcp
-npm run setup:browsers     # run_repro için Playwright Chromium (bir kez)
-npm run dev                # demo: http://localhost:5173
-```
-
-1. Ajanınıza MCP sunucusunu tanıtın. Claude Code için bu klasörde:
-   ```bash
-   claude mcp add flashback --scope project -- node packages/mcp/dist/cli.js
    ```
-   Ya da `mcp.example.json` dosyasını `.mcp.json` olarak kopyalayın.
-2. Sağ alttaki araç çubuğunda **●** düğmesine basın (ya da `Alt+Shift+R`): "Kayda başla" penceresi açılır. **Bu sekme**'yi seçip **● Kaydı başlat**'a basın (**Ekran / pencere** seçerseniz ekran videosu, **Mikrofonu ekle** ile sesli anlatımınız da `.webm` olarak olaya eklenir). Demoda üç ürünü sepete ekleyin ve **YAZ10** kuponunu girin. Toplam `135030 ₺` gösterir, çünkü kargo ücreti API'den metin olarak geliyor. **■** ile durdurun (kayıt en fazla 60 sn sürer): kayıt sepete "Olay 1" olarak eklenir ve olayın ekranı hemen açılır. Paneli kapatıp aynı yolla **KIS20** kuponunu deneyip "Olay 2"yi kaydedin; bu kuponda sunucu 500 döner ve kullanıcıya hiçbir şey gösterilmez. Ayrıntılar: [`examples/demo/BUGS.md`](examples/demo/BUGS.md).
-3. Panelde (ya da sonradan **Sepet** düğmesiyle) her olayı seçin; kaydın altındaki araç takımıyla geri sarın (ya da **Boşluk** ile oynatın), **S** tuşuna basıp "Toplam" değerine tıklayın (KIS20 için **Sayfa düzeyi olay**), "Ne olmalıydı?" alanını doldurup **Sepete kaydet**'e basın. Sonra **Hepsini gönder (MCP)** ile olayları birlikte gönderin ya da **Prompt olarak kopyala** ile herhangi bir sohbete yapıştırın. Kapat düğmesinin yanındaki düğme paneli açık ya da koyu temaya geçirir.
-4. Panelin gösterdiği istemi ajanınıza yapıştırın; ör. *"Flashback MCP'deki grp-… grubundaki 2 olayı (…) get_incident ile oku, birlikte değerlendir ve düzelt."*
+   Flashback raporunu oku ve hatayı düzelt: .flashback/fb-20261030-141205-k3pz.md
+   ```
 
-> Sepet tarayıcıda (IndexedDB) durur; sayfa yenilense de kaybolmaz. Alıcıya ulaşılamazsa olaylar sepette kalır ve gizlenmiş Markdown prompt olarak panoya kopyalanır; pano kullanılamıyorsa `.md` dosyası olarak iner.
+Kayıt başlatmak gerekmez: Flashback sayfa açıkken son dakikanın isteklerini, konsolunu ve adımlarını bellekte tutar. Ekran, DOM ya da ses kaydı yoktur.
 
----
-
-## Kendi projenize ekleme
+## Kurulum
 
 ```bash
-npm i -D flashback-devtools flashback-mcp @playwright/test
-npx playwright install chromium
+npm i -D flashback-devtools
 ```
 
 ```tsx
@@ -64,191 +34,100 @@ root.render(
 );
 ```
 
-Vite kullanıyorsanız kaynak eklentisini de ekleyin. Kod düzenlendikten (HMR) sonra da işaretlenen öğenin satırı doğru kalır:
-
 ```ts
 // vite.config.ts
-import flashbackSource from 'flashback-devtools/vite';
+import flashback from 'flashback-devtools/vite';
 
-export default defineConfig({ plugins: [flashbackSource(), react()] });
+export default defineConfig({ plugins: [flashback(), react()] });
 ```
 
-`enabled` varsayılan olarak `process.env.NODE_ENV !== 'production'` değerini alır. Üretim build'inde kaydedici koda hiç girmez: paket `production` export koşulunda boş bir sürüme çözülür, koşulu desteklemeyen bundler'larda da `NODE_ENV` dalı sayesinde kaydedici elenir. Next.js App Router kurulumu için [`packages/flashback/README.md`](packages/flashback/README.md).
+Vite eklentisi iki iş yapar: öğelerin JSX satırını işaretler (kod değişse de satır doğru kalır) ve raporu proje kökündeki `.flashback/` klasörüne yazar. Klasör kendi `.gitignore`'unu oluşturur ve son 50 raporu tutar.
 
-### Store takibi (isteğe bağlı)
+Eklenti yoksa (Next.js, webpack) Flashback yine çalışır: satırı React'in kendi bilgisinden ve source map'lerden çözer, raporun tamamını panoya Markdown olarak kopyalar.
+
+Üretim derlemesinde Flashback pakete hiç girmez.
+
+### MCP (isteğe bağlı)
+
+Ajanınıza yapıştırmadan "son hatayı düzelt" demek için:
+
+```bash
+npm i -D flashback-mcp
+```
+
+```json
+{ "mcpServers": { "flashback": { "command": "npx", "args": ["--no-install", "flashback-mcp"] } } }
+```
+
+Claude Code için `.mcp.json`, Cursor için `.cursor/mcp.json`. Codex (`~/.codex/config.toml`) sunucuyu proje dışında başlatabildiği için `env = { FLASHBACK_PROJECT_ROOT = "/yol/projeniz" }` ekleyin.
+
+| Araç | Ne yapar |
+|---|---|
+| `get_report` | Raporu verir; kimlik verilmezse en yenisini |
+| `list_reports` | Raporları yeniden eskiye listeler |
+
+## Rapor
+
+```md
+# Toplam 1380 ₺ olmalı, 135030 ₺ görünüyor
+
+## Öğe
+`examples/demo/src/Cart.tsx:69` · <Cart> ← <App>
+▶ 69 │   <dd data-testid="total">{formatTry(total)}</dd>
+
+## Son 60 sn
+### İstekler
+- −14 sn · GET `/api/shipping` → 200 (8 ms)
+  - yanıt: `{"fee":"30"}`
+### Adımlar
+- −11 sn · yaz `#coupon` = `YAZ10`
+- −11 sn · tıkla `Uygula`
+```
+
+Öğenin props/state'i ve HTML'i, store değişiklikleri (`trackStore`) ve konsol kayıtlarının kaynak satırları da rapordadır.
+
+## Ayarlar
+
+| Prop | Varsayılan | |
+|---|---|---|
+| `enabled` | `NODE_ENV !== 'production'` | |
+| `shortcut` | `alt+shift+f` | Fiziksel tuşla eşleşir (`event.code`). Windows'ta `Alt+Shift` klavye dilini değiştiriyorsa başka bir kısayol verin. |
+| `ignoreUrls` | `[]` | Rapora girmeyecek istekler: metin öneki ya da RegExp |
+| `redact` | `true` | `{ keys, patterns, emails, phones }`; `false` kapatır |
+| `locale` | tarayıcı dili | `tr` ya da `en`; arayüz ve rapor dili |
+
+Store değişikliklerini rapora eklemek için:
 
 ```ts
 import { trackStore } from 'flashback-devtools';
 
 trackStore('cart', useCartStore.subscribe, useCartStore.getState); // Zustand
-trackStore('redux', store.subscribe, store.getState);              // Redux
+trackStore('redux', store.subscribe, store.getState); // Redux
 ```
 
-### Seçenekler
+## Gizlilik
 
-| prop | varsayılan | açıklama |
-|---|---|---|
-| `enabled` | `NODE_ENV !== 'production'` | Kaydı açar/kapatır |
-| `endpoint` | `http://127.0.0.1:4747` | `flashback-mcp` alıcısının adresi |
-| `maxRecordSeconds` | `60` | Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve olay sepete eklenir |
-| `ignoreUrls` | `[]` | Kaydedilmeyecek istekler (metin öneki veya RegExp) |
-| `maskAllInputs` | `false` | Tüm girişleri maskeler. Parolalar her durumda maskelenir |
-| `redact` | `true` | `{ keys, patterns, emails: true, phones: false }`. `false` her şeyi olduğu gibi gönderir ve panelde kalıcı uyarı gösterir |
-| `shortcut` | `alt+shift+r` | Kaydı başlatıp durduran kısayol (`event.code` ile; metin girişindeyken tetiklenmez). Windows'ta `Alt+Shift` klavye dilini değiştiriyorsa başka bir kısayol verin |
-| `position` | `bottom-right` | Araç çubuğunun köşesi |
-| `locale` | tarayıcı dili (`tr`/`en`) | Arayüz dili |
-| `project` | — | Projenin `package.json` adı. Verilirse alıcının projesiyle karşılaştırılır: uyuşmazsa düğme "yanlış proje" gösterir ve alıcı olayı 409 ile reddeder (aynı makinede birden çok proje çalışırken önerilir). |
+- Rapor makinenizden çıkmaz. Flashback yalnızca kendi geliştirme sunucunuza (sayfanın kökenine) istek atar.
+- Rapor tarayıcıda, dosyaya ya da panoya gitmeden önce gizlenir: şifre, token, API anahtarı, çerez, kart numarası, IBAN, T.C. Kimlik No ve e-posta `[REDACTED:<tür>]` olur. Parola alanları her zaman gizlenir.
+- Gizleme bir güvenlik garantisi değildir. Rapor, ajanınızın kullandığı model sağlayıcısına gidebilir.
 
-### Hassas veri gizleme
-
-Olay ajana gönderilmeden ya da panoya kopyalanmadan önce **tarayıcıda** temizlenir; giriş değerleri daha kayda girerken maskelenir. Gizlenen değerler `[REDACTED:<tür>]` olarak görünür ve rapor ajana türe göre kaç değerin gizlendiğini söyler.
-
-| ne | nasıl bulunur |
-|---|---|
-| Şifre, token, API anahtarı, oturum, çerez, CSRF | Anahtar adına göre (kapalı ve sürümlü liste; büyük/küçük harf, `-`, `_` ve `[]` yok sayılır): JSON, form, URL sorgusu ve fragment'ı, başlıklar, props, store yolları, DOM öznitelikleri, serbest metindeki `anahtar: değer` çiftleri |
-| JWT, `Bearer …`, bilinen anahtar biçimleri | Desenle (`sk-…`, `ghp_…`, `AKIA…`, `xox…-`, `AIza…`) |
-| Kart numarası, IBAN, T.C. Kimlik No | Desen + sağlama (Luhn, mod-97, TCKN algoritması); sıradan sayılar etkilenmez |
-| E-posta / telefon | E-posta varsayılan açık, telefon varsayılan kapalı |
-| İşaretli bölgeler | `data-flashback-mask` (metni maskele), `data-flashback-block` (hiç kaydetme) |
-
-Hata ayıklamaya yarayan değerler (kupon kodu, tutar, şehir, tarih, durum kodu) olduğu gibi kalır. Doğruluk, 150'den fazla örnekli bir fixture setiyle CI'da denetlenir. **Gizleme bir güvenlik garantisi değildir.** Ajana giden paket, ajanın kullandığı model sağlayıcısına gidebilir; gönderimden önce önizlemeye bakın.
-
----
-
-## MCP kurulumu
-
-`flashback-mcp` iki işi tek süreçte yapar: ajanla **stdio** üzerinden MCP konuşur, tarayıcıdan gelen olayları **HTTP** üzerinden (`127.0.0.1:4747`, yalnızca loopback) alır. Olaylar proje kökündeki `.flashback/` klasörüne yazılır; klasör kendi `.gitignore` dosyasını oluşturur.
-
-`npx --no-install` kullanın; böylece sürüm projenizin lock dosyasından gelir.
-
-**Claude Code** (`.mcp.json`) / **Cursor** (`.cursor/mcp.json`)
-```json
-{ "mcpServers": { "flashback": { "command": "npx", "args": ["--no-install", "flashback-mcp"] } } }
-```
-
-**Codex** (`~/.codex/config.toml`) global yapılandırma kullandığı için proje kökünü verin:
-```toml
-[mcp_servers.flashback]
-command = "npx"
-args = ["--no-install", "flashback-mcp"]
-env = { FLASHBACK_PROJECT_ROOT = "/yol/projeniz" }
-tool_timeout_sec = 180 # run_repro tarayıcı başlattığı için varsayılan araç süresini aşabilir
-```
-
-- `npx --no-install` paketi sunucunun başlatıldığı klasörde arar. Codex sunucuyu proje dışında başlatıyorsa (ya da Windows'ta `npx` başlatılamıyorsa) paketi doğrudan çalıştırın: `command = "node"`, `args = ['C:\yol\projeniz\node_modules\flashback-mcp\dist\cli.js']`. Windows yollarını TOML'da tek tırnakla yazın.
-- Codex ekran görüntüsünü görüntü olarak göstermiyorsa `env` içine `FLASHBACK_NO_IMAGES = "1"` ekleyin; `run_repro` ve `get_incident` görüntü yerine dosya yolu döndürür.
-
-Komutlar (`serve`, `check`, `prune`) ve tüm ortam değişkenleri: [`packages/mcp/README.md`](packages/mcp/README.md). Oturum gerektiren uygulamalar için `FLASHBACK_STORAGE_STATE` ile bir Playwright `storageState` dosyası verin; verilmezse oturum eksikliği **kırmızı sayılmaz**, `precondition` hatası olarak bildirilir.
-
-### Ajanın araçları
-
-| araç | ne yapar |
-|---|---|
-| `list_incidents` | Açık, kapalı veya tüm olayları listeler |
-| `get_incident` | Raporu Markdown olarak verir: köken → dosya:satır → kanıt güveni → geliştiricinin niyeti → birincil kanıt → ilgili istekler/hatalar → adımlar → store |
-| `get_incident_events` | Ham zaman çizelgesini JSON olarak verir (`around_ms`, `window_ms`, `types`) |
-| `get_dom_snapshot` | O andaki HTML'i verir; `contains` ile aranabilir |
-| `run_repro` | Adımları gerçek tarayıcıda oynatır, assertion'ı işaretlenen anda denetler; `passed` / `failed_assertion` (kırmızı) / `error` (kırmızı sayılmaz) |
-| `get_repro_script` | Aynı testi çalıştırmadan üretir |
-| `reply_to_incident` | Geliştiriciye panelden soru sorar; `wait_seconds` ile yanıtı bekleyebilir |
-| `mark_fixed` | Olayı kapatır; doğrulama koşulunu sunucu denetler |
-
-### Kırmızı → yeşil doğrulama
-
-```jsonc
-// run_repro
-{ "id": "fb-20261026-150247-x6mn", "assertions": "await expect(target).toHaveText('1380 ₺');" }
-```
-
-- **Assertion metni hiçbir zaman çalıştırılmaz.** Dar bir dilbilgisiyle (yalnızca `expect(<target|page.getByRole|getByText|getByTestId|getByLabel|locator>)` + izinli matcher'lar + sabitler) ara temsile ayrıştırılır; test kodu yalnızca bu temsilden üretilir.
-- **Olay verisi koda gömülmez.** Seçiciler, değerler ve URL'ler testin yanındaki `<id>.steps.json` dosyasından okunur.
-- Repro yalnızca loopback ya da `FLASHBACK_ALLOW_ORIGINS` içindeki kökenlere gider; başka bir kökene yönlenirse durur.
-- Gizlenmiş girişler türüne uygun sentetik değerlerle doldurulur (parola için `FLASHBACK_PASSWORD`). Bu değerler hiçbir çıktıda görünmez.
-- Kayıtta yan etkili istekler (POST/PUT/PATCH/DELETE) varsa ilk koşuda uyarı verilir.
-- `strict: true`: konsol hataları ve HTTP ≥ 400 yanıtlar da testi kaldırır. `repeat`: aynı koşuyu en fazla 5 kez tekrarlar.
-
----
-
-## Nasıl çalışır
-
-```
- Tarayıcı (dev)                                   Ajan
-┌──────────────────────────────┐           ┌───────────────────┐
-│ <Flashback/>                    │           │ Claude Code /     │
-│  ├ rrweb DOM kaydı (klip)    │           │ Cursor / Codex    │
-│  ├ fetch/XHR yakalama        │  POST     └─────────▲─────────┘
-│  ├ console + hata yakalama   │ /incidents          │ stdio (MCP)
-│  ├ adım kaydı                │──────────► ┌────────┴──────────┐
-│  ├ store takibi              │ ◄──────────│ flashback-mcp        │
-│  ├ gizleme + önizleme        │  GET       │  ├ alıcı (loopback)│
-│  └ React fiber + sourcemap   │ (kayıtlar) │  ├ .flashback/*.json  │
-└──────────────────────────────┘            │  └ run_repro       │
-                                            └────────────────────┘
-```
-
-- **Manuel kayıt ve sepet:** Kayıt elle başlar. Durdurulunca klip (rrweb olayları, ağ, konsol, adımlar, store) sayfanın kökenindeki IndexedDB'ye yazılır. Klip 50 MB'a ya da `maxRecordSeconds`'a ulaşınca kendiliğinden durur. Sepetteki olaylar birlikte gönderilince ortak bir `group` (`grp-…`) taşır; ajan `get_incident` raporunda aynı gruptaki öbür olayları görür.
-- **Replay ile canlı öğe eşlemesi:** Tekrar oynatmada seçtiğiniz öğe, rrweb düğüm kimliği üzerinden canlı sayfadaki aynı öğeye bağlanır ve React fiber'ı buradan okunur. Öğe artık yoksa en yakın canlı ata kullanılır ve bu kanıt güveninde belirtilir.
-- **Kaynak satırları:** Vite'ta kaynak eklentisi varsa öğenin `data-flashback-source` özniteliği (dosyanın güncel içeriğiyle doğrulanır). Yoksa React 19'da `_debugStack`, React 18'de `_debugSource`; source map'ler tarayıcıda çözülür. webpack'in `eval` modüllerinin haritası yüklenen chunk'lardan, Next.js sunucu bileşenlerininki dev sunucusundan okunur. Çözülemezse ya da konum HMR yüzünden bayat olabilirse yanlış satır verilmez, `resolved: false` işaretlenir. Yalnızca sayfanın kendi kökeni ve loopback kaynakları çözülür. Mutlak dosya yollarını alıcı proje köküne göre kısaltır.
-- **Alıcı güvenliği:** `Host` başlığı doğrulanır (DNS rebinding), `Origin` izin listesine bakılır, POST'ta `application/json` zorunludur, gövde boyutu ve olay sayısı sınırlıdır.
-
-## Bilinen sınırlar
-
-- Props/state değerleri işaretleme anında canlı uygulamadan okunur; geçmişteki ana ait değildir. Rapor bunu açıkça belirtir.
-- Bileşen bilgisi yalnızca React için çıkarılır; React dışı öğelerde (Vue smoke testi) bileşen yığını boş kalır ve paket bunu belirtir. Kaynak satırı çözümlemesi Vite (React 18.3 ve 19) ile Next.js App Router'da (Turbopack ve webpack) doğrulandı ([EK-B3](spikes/ek-b3/README.md)). Sunucu bileşenlerinin (RSC) satırı en iyi çaba ile çözülür.
-- React 19'da, HMR ile değiştirilen bir bileşenin değişiklikten önce oluşmuş öğelerinin satırı, kaynak eklentisi (`flashback-devtools/vite`) olmadan doğrulanamaz. Flashback bu satırı `resolved: false` olarak işaretler ve dosya adını yine verir. Vite'ta eklentiyi kurun; Next.js'te doğru satır için sayfayı yenileyip hatayı tekrarlayın.
-- Canvas, video ve çapraz kökenli iframe içerikleri tekrar oynatılmaz. WebSocket mesaj içerikleri kaydedilmez.
-- Kayıt sürerken sayfa tamamen yenilenirse ya da tam sayfa geçişi olursa (SPA olmayan gezinti) o anki kayıt kaybolur; durdurulmuş olaylar sepette korunur.
-- Sepetteki ham klipler IndexedDB'de gizlenmeden durur (giriş değerleri kayıt anında maskelenir). Gizleme, olay sepete kaydedilirken uygulanır; gönderilen olay sepetten silinir. Sepeti paneldeki çöp kutusuyla temizleyebilirsiniz.
-- Eski bir `flashback-mcp` yeni widget'tan gelen olayı kabul eder ama `group` alanını atar: olaylar ulaşır, yalnızca gruplanmaz. İki paketi aynı sürümde tutun.
-- WSL2, Docker ve uzaktan geliştirme ortamları v1.0'da desteklenmez.
-- Yalnızca geliştirme ortamı içindir.
-
-## Testler
+## Geliştirme
 
 ```bash
-npm test             # birim testleri (gizleme fixture seti, alıcı güvenliği, rapor, parser, yaşam döngüsü, panel)
-npm run test:e2e     # uçtan uca: demo + panel + flashback-mcp + Playwright (önce: npm run build && npm run setup:browsers)
+npm install
+npm run build
+npm run dev          # demo: http://localhost:5173 (kasıtlı hatalar: examples/demo/BUGS.md)
+npm test
+npm run test:e2e     # önce: npx playwright install chromium
 ```
 
-`tests/e2e/full-flow.e2e.test.ts`, ürünün tamamını tek akışta dener: panelde olay işaretlenir → ajan MCP üzerinden raporu okur → `run_repro` kırmızı → demo kaynağı düzeltilir → iki yeşil → `mark_fixed` → `fixed`; ayrıca öğesiz olay (KIS20) ve oturum gerektiren olay (`precondition` → `storageState` ile kırmızı → yeşil).
-
-GitHub Actions her push ve PR'da Linux, Windows ve macOS'ta derleme, tip denetimi, birim ve uçtan uca testleri çalıştırır; ayrı bir iş React canary ile kaynak çözümlemeyi izler (`.github/workflows/ci.yml`).
-
-## Depo yapısı
-
 ```
-packages/shared   → @flashback/shared (yayımlanmaz): olay şeması, gizleme, sınırlar, assertion üretimi
-packages/flashback   → flashback-devtools: <Flashback/> bileşeni, kaydedici, panel
-packages/mcp      → flashback-mcp: MCP sunucusu, HTTP alıcı, run_repro
-examples/demo     → kasıtlı hatalar içeren Vite + React sepet demosu
-examples/next-app → Next.js App Router kurulum örneği ('use client' sarmalayıcısı; Turbopack ve webpack)
-examples/react18  → React 18.3 + Vite örneği · examples/vue → Vue 3 + Vite smoke örneği (panel ayrı React kökünde)
-tests/e2e         → paketler arası uçtan uca akış testleri
-frd/              → Fonksiyonel gereksinim dokümanı (v1.0) ve inceleme süreci
-docs/             → Paketler arası uygulama sözleşmesi
+packages/flashback  → flashback-devtools: <Flashback/>, Vite eklentisi
+packages/mcp        → flashback-mcp: iki araçlı MCP sunucusu
+examples/demo       → kasıtlı hatalar içeren Vite + React demo
 ```
 
-## Yayımlama (npm)
-
-```bash
-npm run release:check   # derler ve paketlere girecek dosyaları listeler (yayımlamaz)
-```
-
-FRD §11.3 gereği paketler CI'dan, npm provenance ile yayımlanır. Akış: `.github/workflows/release.yml`. Kimlik doğrulama npm **Trusted Publishing** (GitHub OIDC) ile yapılır; depoda npm belirteci tutulmaz, 2FA kodu da istenmez.
-
-Bir kerelik ayar (yapıldı): npmjs.com'da her iki paketin **Settings → Trusted Publisher** bölümünde GitHub Actions seçilir; depo `yasinilkalp/flashback`, iş akışı `release.yml`.
-
-Yeni sürüm için sürümü artırıp commit'leyin ve main'e push edin; gerisi otomatiktir:
-
-```bash
-npm run release:bump -- beta    # 0.1.0-beta.0 → 0.1.0-beta.1 (ya da açık sürüm: -- 0.2.0)
-git commit -am "Sürüm 0.1.0-beta.1"
-git push
-```
-
-Betik sürümün geçtiği her yeri birlikte günceller (testler denetler): iki paketin `package.json`'ı, `FLASHBACK_VERSION`, `examples/*` ve EK-B3 uygulamalarının bağımlılığı, `package-lock.json`.
-
-İş akışı main'e gelen her push'ta çalışır. Sürüm npm'deyse hemen biter. Değilse aynı commit'in CI'ı (`ci.yml`) geçene kadar bekler; derler, test eder, iki paketi yayımlar, npm'de görünmelerini doğrular ve `v<sürüm>` etiketiyle bir GitHub sürümü açar. CI düşerse yayın yapılmaz; düzeltmeyi push edince yeniden dener. Kararlı 1.0'a kadar ön sürümler de npm'de `latest` etiketiyle çıkar, yani `npm i -D flashback-devtools` her zaman en yeni sürümü kurar. Önce denemek için **Actions → Release → Run workflow** (varsayılan: `--dry-run`).
+Neden bu kadar küçük: [`docs/sadelestirme.md`](docs/sadelestirme.md). Kayıt, sepet ve `run_repro` içeren önceki sürüm `v0.1.0-beta.3` etiketinde; eski FRD `archive/` klasöründe.
 
 ## Lisans
 

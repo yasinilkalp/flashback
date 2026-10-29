@@ -3,7 +3,7 @@
  * Aynı işlev hem rrweb `maskInputFn` hem de adım kaydı için kullanılır; böylece maskeli değer rrweb olaylarında,
  * adımlarda ve DOM'da aynı görünür.
  */
-import { marker, Redactor, type RedactOptions } from '@flashback/shared';
+import { marker, Redactor, type RedactOptions } from '../redact.js';
 
 export interface MaskResult {
   value: string;

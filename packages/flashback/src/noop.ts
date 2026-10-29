@@ -1,10 +1,10 @@
 /**
- * Üretim girişi (FR-CFG-08). `production` export koşulu ve `flashback-devtools/noop` buraya çözülür.
- * Kaydedici, rrweb ya da panel kodu İÇERMEZ; yalnızca aynı API'yi etkisiz olarak sunar.
+ * Üretim girişi. `production` export koşulu ve `flashback-devtools/noop` buraya çözülür.
+ * Yakalama ya da arayüz kodu İÇERMEZ; yalnızca aynı API'yi etkisiz olarak sunar.
  */
 import type { FlashbackProps, Unsubscribe } from './types.js';
 
-export type { FlashbackLocale, FlashbackPosition, FlashbackProps, FlashbackRedactConfig, Unsubscribe } from './types.js';
+export type { FlashbackLocale, FlashbackProps, FlashbackRedactConfig, Unsubscribe } from './types.js';
 
 export function Flashback(_props: FlashbackProps): null {
   return null;

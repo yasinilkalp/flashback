@@ -2,24 +2,22 @@
   "name": "flashback-monorepo",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "workspaces": [
-    "packages/shared",
     "packages/flashback",
     "packages/mcp",
     "examples/*"
   ],
   "scripts": {
     "dev": "npm run dev -w demo",
-    "build": "npm run build -w @flashback/shared && npm run build -w flashback-devtools && npm run build -w flashback-mcp",
+    "build": "npm run build -w flashback-devtools && npm run build -w flashback-mcp",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "mcp": "node packages/mcp/dist/cli.js",
-    "setup:browsers": "playwright install chromium",
-    "release:check": "npm run build && npm pack --dry-run -w flashback-devtools -w flashback-mcp",
-    "release:bump": "node scripts/release/bump.mjs",
     "test": "vitest run",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "bench": "node scripts/bench/run-all.mjs"
+    "release:check": "npm run build && npm pack --dry-run -w flashback-devtools -w flashback-mcp",
+    "release:bump": "node scripts/release/bump.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

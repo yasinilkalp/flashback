@@ -1,45 +1,29 @@
-/** `<Flashback/>` bileşeninin herkese açık tipleri (FRD §9.4). `noop` girişi de bu tipleri kullanır. */
+/** `<Flashback/>` bileşeninin herkese açık tipleri. `noop` girişi de bu tipleri kullanır. */
 
-export type FlashbackPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 export type FlashbackLocale = 'tr' | 'en';
 
 export interface FlashbackRedactConfig {
-  /** Ek hassas anahtar adları (FR-RED-06). */
+  /** Ek hassas anahtar adları. */
   keys?: string[];
-  /** Ek desenler (FR-RED-06). */
+  /** Ek desenler; her eşleşme `[REDACTED:custom]` olur. */
   patterns?: RegExp[];
-  /** E-posta gizleme; varsayılan `true` (FR-RED-05). */
+  /** E-posta gizleme; varsayılan `true`. */
   emails?: boolean;
-  /** Telefon gizleme; varsayılan `false` (FR-RED-05). */
+  /** Telefon gizleme; varsayılan `false`. */
   phones?: boolean;
 }
 
 export interface FlashbackProps {
-  /** Varsayılan: `process.env.NODE_ENV !== 'production'` (FR-CFG-02). */
+  /** Varsayılan: `process.env.NODE_ENV !== 'production'`. */
   enabled?: boolean;
-  /** `flashback-mcp` alıcısının adresi. Varsayılan `http://127.0.0.1:4747`. */
-  endpoint?: string;
-  /** Bir kaydın en uzun süresi (sn); dolunca kayıt durur ve klip sepete eklenir (FR-REC-02). Varsayılan 300. */
-  maxRecordSeconds?: number;
-  /** Kaydedilmeyecek istekler: metin öneki ya da RegExp (FR-REC-05). */
-  ignoreUrls?: Array<string | RegExp>;
-  /** Tüm girişleri maskeler. Parolalar her durumda maskelenir (FR-REC-08). */
-  maskAllInputs?: boolean;
-  /** Gizleme; `false` kapatır (FR-RED-08, FR-UI-11). */
-  redact?: boolean | FlashbackRedactConfig;
-  /** Kaydı başlatıp durduran kısayol; `event.code` ile eşleştirilir. Varsayılan `alt+shift+r`. */
+  /** Seçim kipini açıp kapatan kısayol; `event.code` ile eşleştirilir. Varsayılan `alt+shift+f`. */
   shortcut?: string;
-  /** Flashback düğmesinin köşesi. Varsayılan `bottom-right`. */
-  position?: FlashbackPosition;
-  /** Arayüz dili; varsayılan tarayıcı diline göre. */
+  /** Kaydedilmeyecek istekler: metin öneki ya da RegExp. */
+  ignoreUrls?: Array<string | RegExp>;
+  /** Gizleme; `false` kapatır. */
+  redact?: boolean | FlashbackRedactConfig;
+  /** Arayüz ve rapor dili; varsayılan tarayıcı diline göre. */
   locale?: FlashbackLocale;
-  /** Üretimde çalışmaya izin verir (önerilmez, FR-CFG-09). */
-  allowProduction?: boolean;
-  /**
-   * Projenin `package.json` adı (FR-RCV-06). Verilirse alıcının projesiyle karşılaştırılır: uyuşmazsa düğme
-   * "yanlış proje" gösterir ve alıcı olayı reddeder. Örn. `project={pkg.name}`.
-   */
-  project?: string;
 }
 
 /** `trackStore` dönüşü: takibi bırakır. */

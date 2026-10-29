@@ -6,6 +6,4 @@ export default defineConfig({
   dts: { entry: 'src/index.ts' },
   clean: true,
   target: 'node22',
-  noExternal: ['@flashback/shared'],
-  banner: ({ format }) => (format === 'esm' ? {} : {}),
 });
