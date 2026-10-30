@@ -13,4 +13,4 @@
 | Uyarı | `#ff8a3d` | `#c2570c` |
 | Bilgi | `#5b8def` | `#2f66d0` |
 
-Kırmızı ve yeşil yalnızca test sonucu ve durum için kullanılır; marka vurgusu sarıdır. Yazı tipleri: Inter (metin), JetBrains Mono (kod).
+Kırmızı ve yeşil yalnızca durum için (hata, başarılı, kod farkı) kullanılır; marka vurgusu sarıdır. Yazı tipleri: Inter (metin), JetBrains Mono (kod).
