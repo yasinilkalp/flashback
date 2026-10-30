@@ -1,6 +1,6 @@
 {
   "name": "flashback-devtools",
-  "version": "0.1.0-beta.3",
+  "version": "0.2.0",
   "description": "Flashback: geliştirme ortamında hatalı öğeye tıklayıp bir cümle yazın; AI kodlama ajanınız dosya:satırı, son istekleri, konsolu ve adımları hazır alır.",
   "type": "module",
   "license": "MIT",

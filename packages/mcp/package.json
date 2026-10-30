@@ -1,6 +1,6 @@
 {
   "name": "flashback-mcp",
-  "version": "0.1.0-beta.3",
+  "version": "0.2.0",
   "description": "Flashback MCP sunucusu: tarayıcıda işaretlenen hata raporlarını (.flashback/*.md) AI kodlama ajanına verir. \"Son hatayı düzelt\" demeniz yeter.",
   "type": "module",
   "license": "MIT",

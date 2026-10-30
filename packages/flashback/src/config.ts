@@ -1,7 +1,7 @@
 import type { RedactOptions } from './redact.js';
 import type { FlashbackLocale, FlashbackProps } from './types.js';
 
-export const FLASHBACK_VERSION = '0.1.0-beta.3';
+export const FLASHBACK_VERSION = '0.2.0';
 
 /** Prop varsayılanları. */
 export const DEFAULTS = {
